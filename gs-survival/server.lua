@@ -73,6 +73,14 @@ local function IsBucketMember(bucketId, playerId)
     return IsPlayerInList(groupMembers[bucketId] or {}, playerId)
 end
 
+local function IsPedEntityDead(entity)
+    if not entity or entity == 0 or not DoesEntityExist(entity) then
+        return true
+    end
+
+    return GetEntityHealth(entity) <= 0
+end
+
 local function CountAliveBucketNpcs(bucketId)
     if not bucketId or bucketId == 0 then
         return 0
@@ -80,7 +88,7 @@ local function CountAliveBucketNpcs(bucketId)
 
     local aliveCount = 0
     for _, entity in ipairs(GetAllPeds()) do
-        if GetEntityRoutingBucket(entity) == bucketId and not IsPedAPlayer(entity) and not IsPedDeadOrDying(entity, true) then
+        if GetEntityRoutingBucket(entity) == bucketId and not IsPedAPlayer(entity) and not IsPedEntityDead(entity) then
             aliveCount = aliveCount + 1
         end
     end
@@ -4744,7 +4752,7 @@ RegisterNetEvent('gs-survival:server:createNpcStash', function(npcNetId, current
     end
 
     local npc = NetworkGetEntityFromNetworkId(resolvedNpcNetId)
-    if npc == 0 or not DoesEntityExist(npc) or GetEntityRoutingBucket(npc) ~= bucketId or not IsPedDeadOrDying(npc, true) then
+    if npc == 0 or not DoesEntityExist(npc) or GetEntityRoutingBucket(npc) ~= bucketId or not IsPedEntityDead(npc) then
         beingLooted[resolvedNpcNetId] = nil
         return
     end

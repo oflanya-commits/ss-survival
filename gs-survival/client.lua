@@ -451,6 +451,42 @@ local function ClearArcOverlay()
     SendNUIMessage({ type = 'clearArcHud' })
 end
 
+local function PushClassicSurvivalOverlay(stageData, aliveCount, maxWaves, lootTimerSeconds, force)
+    if currentModeId ~= 'classic' then
+        return
+    end
+
+    local resolvedStageData = stageData or GetModeStageData('classic', activeStageId or 1)
+    local resolvedMaxWaves = tonumber(maxWaves) or 0
+    local currentWaveData = resolvedStageData and resolvedStageData.Waves and resolvedStageData.Waves[currentWave]
+    local displayWave = math.max(tonumber(currentWave) or 1, 1)
+    local lines = {
+        ("Dalga: %s/%s"):format(displayWave, math.max(resolvedMaxWaves, displayWave))
+    }
+
+    if currentWaveData and currentWaveData.label and currentWaveData.label ~= '' then
+        lines[#lines + 1] = ("Düşman: %s"):format(currentWaveData.label)
+    end
+
+    if lootTimerSeconds ~= nil then
+        lines[#lines + 1] = ("Ganimet Toplama: %s sn"):format(math.max(0, math.floor(lootTimerSeconds)))
+    elseif waitingForWave then
+        lines[#lines + 1] = ("Hazırlanıyor: %s sn"):format(math.max(0, countdown or 0))
+    else
+        lines[#lines + 1] = ("Kalan Düşman: %s"):format(math.max(0, aliveCount or 0))
+    end
+
+    PushArcOverlayState({
+        enabled = isSurvivalActive == true,
+        showInfo = isSurvivalActive == true,
+        title = (resolvedStageData and resolvedStageData.label) or 'Operasyon',
+        subtitle = 'Survival saha telemetrisi',
+        lines = lines,
+        prompt = '',
+        teamMembers = {}
+    }, force)
+end
+
 -- Sağ alt ARC takım panelini sadece üye listesi veya canlılık durumu değiştiğinde NUI'a tekrar yollar.
 local function RefreshArcOverlayTeam()
     if currentModeId ~= 'arc_pvp' then
@@ -1882,9 +1918,6 @@ Citizen.CreateThread(function()
                     if DoesEntityExist(v) and not IsPedDeadOrDying(v) then aliveCount = aliveCount + 1 end
                 end
 
-                local stageLabel = stageData and stageData.label or "Operasyon"
-                local uiText = string.format("[ 🛡️ %s ]<br>", stageLabel:upper())
-                
                 -- [DÜZELTME]: Max Waves hesaplaması yeni stage yapısına göre güncellendi
                 local maxWaves = 0
                 local sId = activeStageId or 1
@@ -1895,15 +1928,7 @@ Citizen.CreateThread(function()
                     end
                 end
 
-                uiText = uiText .. string.format("🌊 Dalga: %s/%s<br>", currentWave, maxWaves)
-
-                if waitingForWave then
-                    local timerDisplay = countdown or 0
-                    uiText = uiText .. string.format("⏳ Hazırlanıyor: %s sn", timerDisplay)
-                else
-                    uiText = uiText .. string.format("💀 Kalan Düşman: %s", aliveCount)
-                end
-                exports['qb-core']:DrawText(uiText, 'right')
+                PushClassicSurvivalOverlay(survivalStage, aliveCount, maxWaves)
 
                 -- DALGA ATLATMA MANTIĞI
                 if not waitingForWave and #spawnedPeds > 0 and aliveCount == 0 then
@@ -1932,7 +1957,7 @@ Citizen.CreateThread(function()
                         Citizen.CreateThread(function()
                             local lootTimer = math.floor(Config.Combat.LootTime / 1000)
                             while lootTimer > 0 and isSurvivalActive do
-                                exports['qb-core']:DrawText(string.format("💰 GANİMET TOPLAMA: %s sn", lootTimer), 'right')
+                                PushClassicSurvivalOverlay(survivalStage, 0, maxWaves, lootTimer, true)
                                 Wait(1000)
                                 lootTimer = lootTimer - 1
                             end
@@ -1954,6 +1979,7 @@ Citizen.CreateThread(function()
             if currentModeId == 'arc_pvp' then
                 ClearArcOverlay()
             elseif not isSurvivalActive then
+                ClearArcOverlay()
                 exports['qb-core']:HideText()
             end
         end
