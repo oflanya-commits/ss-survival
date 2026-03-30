@@ -680,7 +680,11 @@ local function ApplyArcSessionVehicles(vehicleStates)
         if vehicleId ~= '' then
             activeIds[vehicleId] = true
             local trackedVehicle = arcSessionVehicles[vehicleId] or {}
-            trackedVehicle.netId = tonumber(vehicleData.netId) or trackedVehicle.netId
+            local nextNetId = tonumber(vehicleData.netId) or trackedVehicle.netId
+            if trackedVehicle.netId ~= nextNetId then
+                trackedVehicle.clientPrepared = nil
+            end
+            trackedVehicle.netId = nextNetId
             trackedVehicle.kind = vehicleData.kind or trackedVehicle.kind or 'car'
             trackedVehicle.label = vehicleData.label or trackedVehicle.label or 'ARC Araç'
             trackedVehicle.model = vehicleData.model or trackedVehicle.model
@@ -717,6 +721,12 @@ local function RefreshArcSessionVehicleBlips()
         local targetMode = hasEntity and 'entity' or 'coord'
         local coords = hasEntity and GetEntityCoords(entity) or ToVector3(vehicleState.coords)
         local heading = hasEntity and tonumber(GetEntityHeading(entity) or vehicleState.heading or 0.0) or tonumber(vehicleState.heading or 0.0) or 0.0
+
+        if hasEntity and vehicleState.clientPrepared ~= true then
+            SetVehicleEngineOn(entity, true, true, false)
+            SetVehicleDoorsLocked(entity, 1)
+            vehicleState.clientPrepared = true
+        end
 
         vehicleState.coords = coords or vehicleState.coords
         vehicleState.heading = heading

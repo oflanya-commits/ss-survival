@@ -1241,8 +1241,12 @@ local function SpawnArcSessionVehicles(bucketId)
         if type(SetEntityAsMissionEntity) == 'function' then
             SetEntityAsMissionEntity(entity, true, true)
         end
-        SetVehicleEngineOn(entity, true, true, false)
-        SetVehicleDoorsLocked(entity, 1)
+        if type(SetVehicleEngineOn) == 'function' then
+            SetVehicleEngineOn(entity, true, true, false)
+        end
+        if type(SetVehicleDoorsLocked) == 'function' then
+            SetVehicleDoorsLocked(entity, 1)
+        end
 
         local netId = NetworkGetNetworkIdFromEntity(entity)
         if netId and netId ~= 0 then
