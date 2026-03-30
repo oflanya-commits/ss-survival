@@ -1238,7 +1238,9 @@ local function SpawnArcSessionVehicles(bucketId)
         end
 
         SetEntityRoutingBucket(entity, bucketId)
-        SetEntityAsMissionEntity(entity, true, true)
+        if type(SetEntityAsMissionEntity) == 'function' then
+            SetEntityAsMissionEntity(entity, true, true)
+        end
         SetVehicleEngineOn(entity, true, true, false)
         SetVehicleDoorsLocked(entity, 1)
 
