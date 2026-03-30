@@ -31,6 +31,7 @@ local isEnding = false
 local activeSurvivalPlayers = {}
 local activeArcRaidPlayers = {}
 local arcContainers = {}
+local arcPlacedBarricades = {}
 local arcSessionVehicles = {}
 local arcContainerBlips = {}
 local arcFriendlyBlips = {}
@@ -64,6 +65,7 @@ local arcExtractionPilot = nil
 local arcExtractionHeliTaskKey = nil
 local arcExtractionMenuState = nil
 local arcExtractionLastPhase = nil
+local arcBarricadePreview = nil
 local arcOverlayState = {
     enabled = false,
     showInfo = false,
@@ -620,6 +622,58 @@ local function ClearArcContainers()
     end
 end
 
+local function ClearArcBarricades()
+    if arcBarricadePreview and arcBarricadePreview.entity and DoesEntityExist(arcBarricadePreview.entity) then
+        DeleteEntity(arcBarricadePreview.entity)
+    end
+    arcBarricadePreview = nil
+
+    for barricadeId, barricade in pairs(arcPlacedBarricades or {}) do
+        if barricade and barricade.entity and DoesEntityExist(barricade.entity) then
+            DeleteEntity(barricade.entity)
+        end
+        arcPlacedBarricades[barricadeId] = nil
+    end
+end
+
+local function SpawnLocalArcBarricade(barricadeData)
+    local barricadeId = barricadeData and barricadeData.id
+    local coords = ToVector3(barricadeData and barricadeData.coords)
+    local model = barricadeData and barricadeData.model
+    if not barricadeId or not coords or not model then
+        return
+    end
+
+    local existingBarricade = arcPlacedBarricades[barricadeId]
+    if existingBarricade and existingBarricade.entity and DoesEntityExist(existingBarricade.entity) then
+        DeleteEntity(existingBarricade.entity)
+    end
+
+    RequestModel(model)
+    while not HasModelLoaded(model) do Wait(10) end
+
+    local entity = CreateObjectNoOffset(model, coords.x, coords.y, coords.z, false, false, false)
+    SetEntityAsMissionEntity(entity, true, true)
+    SetEntityHeading(entity, tonumber(barricadeData.heading or 0.0) or 0.0)
+    FreezeEntityPosition(entity, true)
+    PlaceObjectOnGroundProperly(entity)
+    SetModelAsNoLongerNeeded(model)
+
+    arcPlacedBarricades[barricadeId] = {
+        entity = entity
+    }
+end
+
+local function GetArcBarricadePreviewPosition(ped, placementState)
+    local config = GetArcBarricadeConfig()
+    local placementDistance = tonumber(config.PlaceDistance) or 2.2
+    local forwardCoords = GetOffsetFromEntityInWorldCoords(ped, 0.0, placementDistance, 0.0)
+    local testHeight = forwardCoords.z + 5.0
+    local foundGround, groundZ = GetGroundZFor_3dCoord(forwardCoords.x, forwardCoords.y, testHeight, false)
+    local zCoord = foundGround and groundZ or forwardCoords.z
+    return vector3(forwardCoords.x, forwardCoords.y, zCoord), (tonumber(placementState.heading) or 0.0) % 360.0
+end
+
 local function ClearArcFriendlyBlips()
     for playerId, blip in pairs(arcFriendlyBlips or {}) do
         if DoesBlipExist(blip) then
@@ -990,6 +1044,10 @@ local function ToVector3(coords)
         return vector3(tonumber(coords.x) or 0.0, tonumber(coords.y) or 0.0, tonumber(coords.z) or 0.0)
     end
     return nil
+end
+
+local function GetArcBarricadeConfig()
+    return (Config.ArcPvP and Config.ArcPvP.BarricadeKit) or {}
 end
 
 local function GetArcExtractionCountdownSeconds()
@@ -1920,6 +1978,7 @@ RegisterNetEvent('gs-survival:client:cleanupBeforeLeave', function()
     ClearArcFriendlyBlips()
     ClearArcSessionVehicles()
     ClearArcContainers()
+    ClearArcBarricades()
 end)
 
 -- [ÖLÜM VE SPECTATE SİSTEMİ]
@@ -2320,6 +2379,144 @@ RegisterNetEvent('gs-survival:client:craftItem', function(data)
     end, data.item, data.amount, data.multiplier, data.stashId)
 end)
 
+local function StartArcBarricadePlacement(data)
+    if currentModeId ~= 'arc_pvp' or not isSurvivalActive then
+        NotifyForMode("Barricade kit sadece ARC Baskını sırasında kullanılabilir.", "error", 4000, "ARC Barricade")
+        return
+    end
+
+    if arcBarricadePreview then
+        NotifyForMode("Zaten aktif bir barricade yerleştirme işlemi var.", "error", 3500, "ARC Barricade")
+        return
+    end
+
+    local config = GetArcBarricadeConfig()
+    local model = config.Model
+    if not model then
+        NotifyForMode("Barricade modeli ayarlı değil.", "error", 4000, "ARC Barricade")
+        return
+    end
+
+    local ped = PlayerPedId()
+    RequestModel(model)
+    while not HasModelLoaded(model) do Wait(10) end
+
+    local previewCoords = GetOffsetFromEntityInWorldCoords(ped, 0.0, tonumber(config.PlaceDistance) or 2.2, 0.0)
+    local previewEntity = CreateObjectNoOffset(model, previewCoords.x, previewCoords.y, previewCoords.z, false, false, false)
+    SetEntityAsMissionEntity(previewEntity, true, true)
+    SetEntityCollision(previewEntity, false, false)
+    SetEntityAlpha(previewEntity, math.max(60, math.min(tonumber(config.PreviewAlpha) or 160, 255)), false)
+    SetEntityHeading(previewEntity, GetEntityHeading(ped))
+    SetModelAsNoLongerNeeded(model)
+
+    arcBarricadePreview = {
+        entity = previewEntity,
+        slot = data and data.slot or nil,
+        heading = GetEntityHeading(ped)
+    }
+
+    NotifyForMode("E ile yerleştir, ←/→ ile döndür, BACKSPACE ile iptal et.", "primary", 5000, "ARC Barricade")
+
+    CreateThread(function()
+        local lastPedRefreshAt = GetGameTimer()
+        while arcBarricadePreview and arcBarricadePreview.entity and DoesEntityExist(arcBarricadePreview.entity) do
+            Wait(0)
+
+            local now = GetGameTimer()
+            if now - lastPedRefreshAt >= 200 then
+                ped = PlayerPedId()
+                lastPedRefreshAt = now
+            end
+            DisableControlAction(0, 24, true)
+            DisableControlAction(0, 25, true)
+            DisableControlAction(0, 37, true)
+            DisableControlAction(0, 44, true)
+            DisableControlAction(0, 140, true)
+            DisableControlAction(0, 141, true)
+            DisableControlAction(0, 142, true)
+
+            if IsDisabledControlJustPressed(0, 174) then
+                arcBarricadePreview.heading = arcBarricadePreview.heading + (tonumber(config.RotationStep) or 3.0)
+            elseif IsDisabledControlJustPressed(0, 175) then
+                arcBarricadePreview.heading = arcBarricadePreview.heading - (tonumber(config.RotationStep) or 3.0)
+            end
+
+            local placementCoords, placementHeading = GetArcBarricadePreviewPosition(ped, arcBarricadePreview)
+            SetEntityCoordsNoOffset(arcBarricadePreview.entity, placementCoords.x, placementCoords.y, placementCoords.z, false, false, false)
+            SetEntityHeading(arcBarricadePreview.entity, placementHeading)
+            PlaceObjectOnGroundProperly(arcBarricadePreview.entity)
+
+            if IsDisabledControlJustPressed(0, 177) then
+                DeleteEntity(arcBarricadePreview.entity)
+                arcBarricadePreview = nil
+                NotifyForMode("Barricade yerleştirme iptal edildi.", "error", 3500, "ARC Barricade")
+                return
+            end
+
+            if IsDisabledControlJustPressed(0, 38) then
+                local finalizedCoords = GetEntityCoords(arcBarricadePreview.entity)
+                local finalizedHeading = GetEntityHeading(arcBarricadePreview.entity)
+                local itemSlot = arcBarricadePreview.slot
+                DeleteEntity(arcBarricadePreview.entity)
+                arcBarricadePreview = nil
+
+                RunUiProgress({
+                    title = "ARC Barricade",
+                    label = (config.Label or "ARC Barricade Kit") .. " yerleştiriliyor...",
+                    duration = tonumber(config.PlacementDurationMs) or 2500,
+                    canCancel = true,
+                    disable = {
+                        disableMovement = true,
+                        disableCarMovement = true,
+                        disableMouse = false,
+                        disableCombat = true,
+                    },
+                    anim = {
+                        dict = "mini@repair",
+                        anim = "fixing_a_ped",
+                        flags = 16,
+                    }
+                }, function()
+                    TriggerServerEvent('gs-survival:server:placeArcBarricade', {
+                        coords = {
+                            x = finalizedCoords.x,
+                            y = finalizedCoords.y,
+                            z = finalizedCoords.z
+                        },
+                        heading = finalizedHeading,
+                        slot = itemSlot
+                    })
+                end, function()
+                    NotifyForMode("Barricade yerleştirme iptal edildi.", "error", 3500, "ARC Barricade")
+                end)
+                return
+            end
+        end
+    end)
+end
+
+RegisterNetEvent('gs-survival:client:useArcBarricadeKit', function(data)
+    StartArcBarricadePlacement(data or {})
+end)
+
+RegisterNetEvent('gs-survival:client:spawnArcBarricade', function(data)
+    SpawnLocalArcBarricade(data)
+end)
+
+RegisterNetEvent('gs-survival:client:syncArcBarricades', function(barricades)
+    ClearArcBarricades()
+
+    for _, barricade in ipairs(type(barricades) == 'table' and barricades or {}) do
+        SpawnLocalArcBarricade(barricade)
+    end
+end)
+
+exports('arc_barricade_kit', function(data, slot)
+    StartArcBarricadePlacement({
+        slot = slot or (type(data) == 'table' and data.slot or nil)
+    })
+end)
+
 RegisterNetEvent('gs-survival:client:deleteNPC', function(netId)
 
     local entity = NetToPed(netId)
@@ -2376,6 +2573,7 @@ end
 RegisterNetEvent('gs-survival:client:initSurvival', function(bucket, wave, partyMembers, stageId)
     CloseNUI()
     currentModeId = 'classic'
+    ClearArcBarricades()
     ClearArcOverlay()
     ApplyMinimapLayout(DEFAULT_MINIMAP_LAYOUT)
     activeStageId = stageId or 1
@@ -2423,6 +2621,7 @@ end)
 RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers, raidPlayers, stageId, deploymentData, rejoinData)
     CloseNUI()
     currentModeId = 'arc_pvp'
+    ClearArcBarricades()
     ApplyMinimapLayout(DEFAULT_MINIMAP_LAYOUT)
     arcOverlayInfoVisible = false
     activeStageId = stageId or 1
@@ -2483,6 +2682,7 @@ RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers,
     RefreshArcFriendlyBlips()
     RefreshArcOverlayTeam()
     RefreshArcOverlayInfo('', true)
+    TriggerServerEvent('gs-survival:server:requestArcBarricadeSync')
     Wait(tonumber(Config.ArcPvP and Config.ArcPvP.DeploymentNotifyDelay or 1200) or 1200)
     Wait(math.max(0, SCREEN_TRANSITION_BLACK_HOLD_MS - (tonumber(Config.ArcPvP and Config.ArcPvP.DeploymentNotifyDelay or 1200) or 1200)))
     DoScreenFadeIn(SCREEN_TRANSITION_FADE_DURATION_MS)
@@ -2850,6 +3050,7 @@ AddEventHandler('onResourceStop', function(resourceName)
     ClearArcOverlay()
     ClearArcDeploymentZoneBlips()
     ClearArcExtractionState()
+    ClearArcBarricades()
 end)
 
 RegisterNetEvent('gs-survival:client:spawnArcDeathDrop', function(data)

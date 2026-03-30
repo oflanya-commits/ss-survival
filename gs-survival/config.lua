@@ -193,6 +193,25 @@ Config.CraftRecipes = {
                 }
             }
         }
+    },
+    {
+        header = "ARC Barricade Kit",
+        txt = "Gereksinim: 20 Hurda Metal, 10 Metal Parçası, 4 Kauçuk",
+        icon = "fas fa-shield-alt",
+        category = "material",
+        params = {
+            event = "gs-survival:client:craftItem",
+            args = {
+                item = "arc_barricade_kit",
+                amount = 1,
+                label = "ARC Barricade Kit",
+                requirements = {
+                    { item = "scrapmetal", amount = 20 },
+                    { item = "metalscrap", amount = 10 },
+                    { item = "rubber", amount = 4 }
+                }
+            }
+        }
     }
 }
 
@@ -354,6 +373,19 @@ Config.ArcPvP = {
     BackupStashWeight = 100000,
     ChestModel = `prop_box_wood02a_pu`,
     DropModel = `prop_drop_crate_01_set2`,
+    BarricadeKit = {
+        Item = "arc_barricade_kit",
+        Label = "ARC Barricade Kit",
+        Model = `prop_mp_barrier_02b`,
+        PlaceDistance = 2.2,
+        InteractDistance = 4.0,
+        PreviewAlpha = 160,
+        PlacementDurationMs = 2500,
+        RotationStep = 3.0,
+        MaxPerPlayer = 2,
+        MaxPerRaid = 16,
+        MinSpacing = 2.5
+    },
     BoundaryPadding = 35.0,
     SpawnProtectionMs = 8000,
     SpawnClearRadius = 125.0,
