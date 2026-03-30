@@ -30,6 +30,10 @@ var ARC_BANNER_DEFAULT_LABEL = 'ARC TAHLİYE';
 var ARC_BANNER_DEFAULT_TITLE = 'LOBİYE DÖNÜLÜYOR';
 var ARC_PROGRESS_DEFAULT_TITLE = 'Operasyon Sürüyor';
 var ARC_PROGRESS_DEFAULT_LABEL = 'Lütfen bekle...';
+var ARC_PROGRESS_CANCEL_ENABLED_TEXT = 'ESC ile iptal edebilirsin';
+var ARC_PROGRESS_CANCEL_DISABLED_TEXT = 'İptal devre dışı';
+var ARC_PROGRESS_MIN_DURATION = 250;
+var ARC_PROGRESS_MAX_DURATION = 60000;
 var ARC_NOTIFY_TYPES = {
     info: true,
     success: true,
@@ -37,6 +41,17 @@ var ARC_NOTIFY_TYPES = {
     warning: true,
     primary: true
 };
+
+function getDefaultArcProgressState() {
+    return {
+        visible: false,
+        title: ARC_PROGRESS_DEFAULT_TITLE,
+        label: ARC_PROGRESS_DEFAULT_LABEL,
+        duration: 0,
+        canCancel: true,
+        startedAt: 0
+    };
+}
 
 // ─── Per-screen data store (avoids inline JSON injection) ──────────────────
 var screenData = {
@@ -69,14 +84,7 @@ var screenData = {
         duration: ARC_BANNER_DEFAULT_DURATION,
         transition: false
     },
-    arcProgress: {
-        visible: false,
-        title: ARC_PROGRESS_DEFAULT_TITLE,
-        label: ARC_PROGRESS_DEFAULT_LABEL,
-        duration: 0,
-        canCancel: true,
-        startedAt: 0
-    }
+    arcProgress: getDefaultArcProgressState()
 };
 
 // ─── Cached nodes for HUD, tooltip, and menu transitions ───────────────────
@@ -444,8 +452,8 @@ function renderArcHud() {
     hudEls.arcResultBannerTitle.textContent = bannerState.title || ARC_BANNER_DEFAULT_TITLE;
     hudEls.arcProgressTitle.textContent = progressState.title || ARC_PROGRESS_DEFAULT_TITLE;
     hudEls.arcProgressLabel.textContent = progressState.label || ARC_PROGRESS_DEFAULT_LABEL;
-    hudEls.arcProgressCancel.textContent = progressState.canCancel === false ? 'İptal devre dışı' : 'ESC ile iptal edebilirsin';
-    updateArcProgressVisuals();
+    hudEls.arcProgressCancel.textContent = progressState.canCancel === false ? ARC_PROGRESS_CANCEL_DISABLED_TEXT : ARC_PROGRESS_CANCEL_ENABLED_TEXT;
+    updateArcProgressVisuals(Date.now());
 
     hudEls.arcInfoTitle.textContent = state.title || ARC_HUD_DEFAULTS.title;
     hudEls.arcInfoSubtitle.textContent = state.subtitle || ARC_HUD_DEFAULTS.subtitle;
@@ -491,14 +499,15 @@ function cancelArcProgressFrame() {
     }
 }
 
-function updateArcProgressVisuals() {
+function updateArcProgressVisuals(currentTime) {
     var progressState = screenData.arcProgress || {};
     var percent = 0;
     var duration = Number(progressState.duration || 0);
     var startedAt = Number(progressState.startedAt || 0);
+    var now = Number(currentTime || Date.now());
 
     if (progressState.visible === true && duration > 0) {
-        percent = clamp(((Date.now() - startedAt) / duration) * 100, 0, 100);
+        percent = clamp(((now - startedAt) / duration) * 100, 0, 100);
     }
 
     if (hudEls.arcProgressFill) {
@@ -514,29 +523,23 @@ function tickArcProgress() {
     var progressState = screenData.arcProgress || {};
     var duration = Number(progressState.duration || 0);
     var startedAt = Number(progressState.startedAt || 0);
+    var now = Date.now();
 
     if (!progressState || progressState.visible !== true) {
-        updateArcProgressVisuals();
+        updateArcProgressVisuals(now);
         return;
     }
 
-    updateArcProgressVisuals();
+    updateArcProgressVisuals(now);
 
-    if ((Date.now() - startedAt) < duration) {
+    if ((now - startedAt) < duration) {
         arcProgressFrame = requestAnimationFrame(tickArcProgress);
     }
 }
 
 function clearArcProgress(skipRender) {
     cancelArcProgressFrame();
-    screenData.arcProgress = {
-        visible: false,
-        title: ARC_PROGRESS_DEFAULT_TITLE,
-        label: ARC_PROGRESS_DEFAULT_LABEL,
-        duration: 0,
-        canCancel: true,
-        startedAt: 0
-    };
+    screenData.arcProgress = getDefaultArcProgressState();
     if (!skipRender) {
         renderArcHud();
     }
@@ -549,7 +552,7 @@ function showArcProgress(data) {
         visible: true,
         title: data.title || ARC_PROGRESS_DEFAULT_TITLE,
         label: data.label || ARC_PROGRESS_DEFAULT_LABEL,
-        duration: clamp(Number(data.duration || 0), 250, 60000),
+        duration: clamp(Number(data.duration || 0), ARC_PROGRESS_MIN_DURATION, ARC_PROGRESS_MAX_DURATION),
         canCancel: data.canCancel !== false,
         startedAt: Date.now()
     };

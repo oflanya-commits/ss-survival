@@ -14,6 +14,8 @@ local SCREEN_TRANSITION_FADE_DURATION_MS = 600
 local SCREEN_TRANSITION_BLACK_HOLD_MS = 3400
 local SCREEN_TRANSITION_TOTAL_DURATION_MS = (SCREEN_TRANSITION_FADE_DURATION_MS * 2) + SCREEN_TRANSITION_BLACK_HOLD_MS
 local UI_PROGRESS_CANCEL_CONTROLS = { 177, 200, 202 }
+local UI_PROGRESS_MIN_DURATION_MS = 250
+local UI_PROGRESS_MAX_DURATION_MS = 60000
 local DEFAULT_PROGRESS_TITLE = 'İşlem Sürüyor'
 local DEFAULT_PROGRESS_LABEL = 'İşlem sürüyor...'
 local SCREEN_TRANSITION_LABEL = 'OTURUM GEÇİŞİ'
@@ -201,13 +203,14 @@ end
 
 local function RunUiProgress(options, onComplete, onCancel)
     options = options or {}
-    local duration = math.max(math.floor(tonumber(options.duration) or 0), 0)
+    local duration = math.floor(tonumber(options.duration) or 0)
     if duration <= 0 then
         if onComplete then
             onComplete()
         end
         return
     end
+    duration = math.max(UI_PROGRESS_MIN_DURATION_MS, math.min(duration, UI_PROGRESS_MAX_DURATION_MS))
 
     local ped = PlayerPedId()
     local disable = options.disable or {}
@@ -708,9 +711,8 @@ local function SpawnArcContainer(containerId, coords, model, label, rollCount, o
 
     local resolvedOpenEvent = openEventName or 'gs-survival:server:openArcLootContainer'
     local resolvedPrefix = containerPrefix or 'arc_container'
-    local progressId = isDeathCrate and 'arc_death_crate' or 'arc_loot'
     local progressLabel = isDeathCrate and 'Ölüm kutusu açılıyor...' or 'Loot açılıyor...'
-    local notifyTitle = isDeathCrate and 'ARC Ölüm Kutusu' or 'ARC Loot'
+    local actionTitle = isDeathCrate and 'ARC Ölüm Kutusu' or 'ARC Loot'
 
     RequestModel(model)
     while not HasModelLoaded(model) do Wait(10) end
@@ -746,7 +748,7 @@ local function SpawnArcContainer(containerId, coords, model, label, rollCount, o
             distance = 2.0,
             onSelect = function()
                 RunUiProgress({
-                    title = notifyTitle or 'ARC Loot',
+                    title = actionTitle,
                     label = progressLabel,
                     duration = 2500,
                     canCancel = true,
@@ -764,7 +766,7 @@ local function SpawnArcContainer(containerId, coords, model, label, rollCount, o
                 }, function()
                     TriggerServerEvent(resolvedOpenEvent, containerId, rollCount or 1)
                 end, function()
-                    NotifyForMode("Loot alma işlemi iptal edildi.", "error", 3500, notifyTitle)
+                    NotifyForMode("Loot alma işlemi iptal edildi.", "error", 3500, actionTitle)
                 end)
             end
         }
