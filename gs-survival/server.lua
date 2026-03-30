@@ -28,7 +28,6 @@ local arcRaidPlayerProfiles = {}
 local arcPlayerBucketIndex = {}
 local arcPendingReconnectCounts = {}
 local bucketWaveState = {}
-local nextArcSessionVehicleId = 0
 local nextBucketId = 10000
 local FinalizeArcMatch
 local ResetBucketState
@@ -95,21 +94,6 @@ local function CountAliveBucketNpcs(bucketId)
     end
 
     return aliveCount
-end
-
-local function IsServerSpawnModelValid(modelHash)
-    if not modelHash or modelHash == 0 then
-        return false
-    end
-
-    if type(IsModelInCdimage) == 'function' then
-        local ok, exists = pcall(IsModelInCdimage, modelHash)
-        if not ok or not exists then
-            return false
-        end
-    end
-
-    return true
 end
 
 local function FindLobbyLeaderByMember(memberId)
@@ -1108,176 +1092,6 @@ local function Vector3ToTable(coords)
         y = tonumber(coords.y) or 0.0,
         z = tonumber(coords.z) or 0.0
     }
-end
-
-local function GetHeadingBetweenCoords(fromCoords, toCoords)
-    local fromVec = ToVector3(fromCoords)
-    local toVec = ToVector3(toCoords)
-    if not fromVec or not toVec then
-        return 0.0
-    end
-
-    local deltaX = toVec.x - fromVec.x
-    local deltaY = toVec.y - fromVec.y
-    if math.abs(deltaX) < 0.001 and math.abs(deltaY) < 0.001 then
-        return 0.0
-    end
-
-    local heading = math.deg(math.atan(deltaY, deltaX)) - 90.0
-    if heading < 0.0 then
-        heading = heading + 360.0
-    end
-
-    return heading
-end
-
-local function BuildArcSessionVehicleClientState(bucketId)
-    local raidState = bucketId and arcRaidState[bucketId] or nil
-    local sessionVehicles = raidState and raidState.sessionVehicles or nil
-    if type(sessionVehicles) ~= 'table' then
-        return {}
-    end
-
-    local payload = {}
-    for _, vehicleState in ipairs(sessionVehicles) do
-        if vehicleState and vehicleState.id and vehicleState.netId then
-            payload[#payload + 1] = {
-                id = vehicleState.id,
-                netId = vehicleState.netId,
-                kind = vehicleState.kind or 'car',
-                label = vehicleState.label or 'ARC Araç',
-                model = vehicleState.model,
-                coords = vehicleState.coords,
-                heading = tonumber(vehicleState.heading or 0.0) or 0.0
-            }
-        end
-    end
-
-    return payload
-end
-
-local function SyncArcSessionVehicles(bucketId, targetPlayers)
-    if GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
-        return
-    end
-
-    local vehicleState = BuildArcSessionVehicleClientState(bucketId)
-    local recipients = targetPlayers or groupMembers[bucketId] or {}
-    for _, playerId in ipairs(recipients) do
-        TriggerClientEvent('gs-survival:client:updateArcSessionVehicles', playerId, vehicleState)
-    end
-end
-
-local function UpdateArcSessionVehicleState(bucketId)
-    local raidState = bucketId and arcRaidState[bucketId] or nil
-    local sessionVehicles = raidState and raidState.sessionVehicles or nil
-    if type(sessionVehicles) ~= 'table' then
-        return
-    end
-
-    for _, vehicleState in ipairs(sessionVehicles) do
-        local netId = vehicleState and tonumber(vehicleState.netId) or nil
-        if netId and NetworkDoesNetworkIdExist(netId) then
-            local entity = NetworkGetEntityFromNetworkId(netId)
-            if entity and entity ~= 0 and DoesEntityExist(entity) then
-                vehicleState.coords = Vector3ToTable(GetEntityCoords(entity))
-                vehicleState.heading = tonumber(GetEntityHeading(entity) or vehicleState.heading or 0.0) or 0.0
-            end
-        end
-    end
-end
-
-local function SpawnArcSessionVehicles(bucketId)
-    local raidState = bucketId and arcRaidState[bucketId] or nil
-    local deployment = raidState and raidState.deployment or nil
-    local sessionVehicleConfig = Config.ArcPvP and Config.ArcPvP.SessionVehicles or {}
-    local deploymentZones = Config.ArcPvP and Config.ArcPvP.DeploymentZones or {}
-    local zoneData = deploymentZones[tonumber(deployment and deployment.zoneId) or (deployment and deployment.zoneId)]
-    if not raidState then
-        return
-    end
-
-    raidState.sessionVehicles = {}
-    if sessionVehicleConfig.Enabled == false or not deployment or not zoneData then
-        return
-    end
-
-    local centerCoords = ToVector3(zoneData.center) or ToVector3(deployment.center)
-    local extractionPoint = ToVector3(zoneData.extractionPoint) or ToVector3(deployment.extractionPoint)
-    local carModels = sessionVehicleConfig.CarModels or { 'sultan', 'granger', 'bison' }
-
-    local function registerSessionVehicle(modelName, coords, heading, kind, label)
-        local spawnCoords = ToVector3(coords)
-        if not modelName or modelName == '' or not spawnCoords then
-            return
-        end
-
-        local modelHash = joaat(modelName)
-        if not IsServerSpawnModelValid(modelHash) then
-            return
-        end
-
-        local entity = CreateVehicle(
-            modelHash,
-            spawnCoords.x,
-            spawnCoords.y,
-            spawnCoords.z + (kind == 'helicopter' and 1.5 or 0.5),
-            tonumber(heading or 0.0) or 0.0,
-            true,
-            true
-        )
-
-        local timeout = 0
-        while entity ~= 0 and not DoesEntityExist(entity) and timeout < 100 do
-            Wait(10)
-            timeout = timeout + 1
-        end
-
-        if not entity or entity == 0 or not DoesEntityExist(entity) then
-            return
-        end
-
-        SetEntityRoutingBucket(entity, bucketId)
-        if type(SetEntityAsMissionEntity) == 'function' then
-            SetEntityAsMissionEntity(entity, true, true)
-        end
-        if type(SetVehicleEngineOn) == 'function' then
-            SetVehicleEngineOn(entity, true, true, false)
-        end
-        if type(SetVehicleDoorsLocked) == 'function' then
-            SetVehicleDoorsLocked(entity, 1)
-        end
-
-        local netId = NetworkGetNetworkIdFromEntity(entity)
-        if netId and netId ~= 0 then
-            nextArcSessionVehicleId = nextArcSessionVehicleId + 1
-            raidState.sessionVehicles[#raidState.sessionVehicles + 1] = {
-                id = ("arc_session_vehicle_%s_%s"):format(bucketId, nextArcSessionVehicleId),
-                netId = netId,
-                kind = kind or 'car',
-                label = label or (kind == 'helicopter' and 'ARC Helikopteri' or 'ARC Araç'),
-                model = modelName,
-                coords = Vector3ToTable(GetEntityCoords(entity)),
-                heading = tonumber(GetEntityHeading(entity) or heading or 0.0) or 0.0
-            }
-        end
-    end
-
-    for index, insertionPoint in ipairs(zoneData.insertionPoints or {}) do
-        local modelName = carModels[((index - 1) % #carModels) + 1]
-        local heading = GetHeadingBetweenCoords(insertionPoint, centerCoords)
-        registerSessionVehicle(modelName, insertionPoint, heading, 'car', ("ARC Araç %s"):format(index))
-    end
-
-    if extractionPoint then
-        registerSessionVehicle(
-            sessionVehicleConfig.HelicopterModel or 'frogger',
-            extractionPoint,
-            GetHeadingBetweenCoords(extractionPoint, centerCoords),
-            'helicopter',
-            sessionVehicleConfig.HelicopterLabel or 'ARC Helikopteri'
-        )
-    end
 end
 
 local function GetArcExtractionState(bucketId)
@@ -2552,8 +2366,7 @@ BuildArcDeploymentPayload = function(bucketId)
         extractionPoint = deployment.extractionPoint,
         lootNodes = BuildArcRuntimeLootNodes(bucketId),
         raidDurationMs = GetArcRaidRemainingMs(bucketId),
-        extraction = BuildArcExtractionClientState(bucketId),
-        sessionVehicles = BuildArcSessionVehicleClientState(bucketId)
+        extraction = BuildArcExtractionClientState(bucketId)
     }
 end
 
@@ -3090,14 +2903,6 @@ CleanBucketEntities = function(bucketId)
             DeleteEntity(entity)
         end
     end
-
-    -- Session araçlarını temizle
-    local vehicles = GetAllVehicles()
-    for _, entity in ipairs(vehicles) do
-        if GetEntityRoutingBucket(entity) == bucketId then
-            DeleteEntity(entity)
-        end
-    end
 end
 
 local function SyncArcRaidPlayers(bucketId)
@@ -3438,9 +3243,7 @@ local function StartModeOperation(src, invited, stageId, modeId)
             }
             EnsureArcSessionAdmissionState(bId)
             InitializeArcExtractionState(bId)
-            SpawnArcSessionVehicles(bId)
             deploymentState.extraction = BuildArcExtractionClientState(bId)
-            deploymentState.sessionVehicles = BuildArcSessionVehicleClientState(bId)
         else
             arcRaidState[bId] = nil
         end
@@ -3512,16 +3315,9 @@ local function StartModeOperation(src, invited, stageId, modeId)
     if selectedModeId == 'arc_pvp' then
         SyncArcRaidPlayers(bId)
         SyncArcExtractionState(bId)
-        SyncArcSessionVehicles(bId)
-        if not joiningExistingArcRaid then
+        if not joiningExistingArcRaid and GetArcExtractionState(bId) then
             CreateThread(function()
-                local shouldSyncVehicles = false
                 while groupMembers[bId] and arcRaidState[bId] and not arcFinalizeLocks[bId] do
-                    shouldSyncVehicles = not shouldSyncVehicles
-                    if shouldSyncVehicles then
-                        UpdateArcSessionVehicleState(bId)
-                        SyncArcSessionVehicles(bId)
-                    end
                     AdvanceArcExtractionPhase(bId)
                     Wait(1000)
                 end
@@ -4310,9 +4106,7 @@ RestorePlayerInventory = function(targetId, victoryStatus, modeId)
     RestoreSurvivalInventory(targetId, victoryStatus, modeId)
 end
 
-local ArcReconnectHelpers = {}
-
-function ArcReconnectHelpers.HandleDisconnect(source, bucketId, reason)
+local function HandleArcDisconnect(source, bucketId, reason)
     local Player = QBCore.Functions.GetPlayer(source)
     local profile = GetArcRaidPlayerProfile(bucketId, source)
     local cid = Player and Player.PlayerData and Player.PlayerData.citizenid or (profile and profile.citizenid) or nil
@@ -4366,7 +4160,7 @@ function ArcReconnectHelpers.HandleDisconnect(source, bucketId, reason)
     return arcDisconnectStates[cid]
 end
 
-function ArcReconnectHelpers.RejoinPlayer(source, Player, disconnectState)
+local function RejoinArcDisconnectedPlayer(source, Player, disconnectState)
     if not Player or not disconnectState then
         return false, "ARC geri dönüş verisi bulunamadı."
     end
@@ -4409,7 +4203,6 @@ function ArcReconnectHelpers.RejoinPlayer(source, Player, disconnectState)
         wasReconnect = true,
         coords = rejoinCoords
     })
-    SyncArcSessionVehicles(bucketId, { source })
 
     disconnectState.resolved = true
     if disconnectState.allowRejoin == true then
@@ -4426,7 +4219,7 @@ function ArcReconnectHelpers.RejoinPlayer(source, Player, disconnectState)
     return true
 end
 
-function ArcReconnectHelpers.ResolveRestoreItems(stashItems, cid)
+local function ResolveReconnectRestoreItems(stashItems, cid)
     local normalizedStashItems = NormalizeInventoryItems(stashItems)
     if #normalizedStashItems > 0 then
         return normalizedStashItems, 'stash'
@@ -4440,7 +4233,7 @@ function ArcReconnectHelpers.ResolveRestoreItems(stashItems, cid)
     return {}, nil
 end
 
-function ArcReconnectHelpers.FinalizeCleanup(source, Player, cid, backupStashId, disconnectState)
+local function FinalizeArcReconnectCleanup(source, Player, cid, backupStashId, disconnectState)
     playerBackups[cid] = nil
     exports.ox_inventory:ClearInventory(backupStashId)
 
@@ -4464,7 +4257,7 @@ function ArcReconnectHelpers.FinalizeCleanup(source, Player, cid, backupStashId,
     arcDisconnectStates[cid] = nil
 end
 
-function ArcReconnectHelpers.RestoreBaseInventory(source, Player, cid, backupStashId, disconnectState, backupItems)
+local function RestoreArcDisconnectBaseInventory(source, Player, cid, backupStashId, disconnectState, backupItems)
     exports.ox_inventory:ClearInventory(source)
     Wait(250)
 
@@ -4472,21 +4265,21 @@ function ArcReconnectHelpers.RestoreBaseInventory(source, Player, cid, backupSta
         exports.ox_inventory:AddItem(source, item.name, item.count, item.metadata)
     end
 
-    ArcReconnectHelpers.FinalizeCleanup(source, Player, cid, backupStashId, disconnectState)
+    FinalizeArcReconnectCleanup(source, Player, cid, backupStashId, disconnectState)
 end
 
-ArcReconnectHelpers.Locker = {
+local ArcLockerHelpers = {
     metadataMaxDepth = 12
 }
 
-function ArcReconnectHelpers.Locker.NormalizeSide(side, fallbackSide)
+function ArcLockerHelpers.NormalizeSide(side, fallbackSide)
     if side == 'loadout' or side == 'main' then
         return side
     end
     return fallbackSide == 'loadout' and 'loadout' or 'main'
 end
 
-function ArcReconnectHelpers.Locker.FindItemBySlot(stashId, slot)
+function ArcLockerHelpers.FindItemBySlot(stashId, slot)
     if not stashId or not slot then return nil end
 
     for _, item in pairs(exports.ox_inventory:GetInventoryItems(stashId) or {}) do
@@ -4498,7 +4291,7 @@ function ArcReconnectHelpers.Locker.FindItemBySlot(stashId, slot)
     return nil
 end
 
-function ArcReconnectHelpers.Locker.MetadataEqual(a, b, depth, seen)
+function ArcLockerHelpers.MetadataEqual(a, b, depth, seen)
     depth = tonumber(depth) or 0
     seen = seen or {}
 
@@ -4507,7 +4300,7 @@ function ArcReconnectHelpers.Locker.MetadataEqual(a, b, depth, seen)
     end
 
     -- ARC locker metadata is expected to stay shallow; cap recursion to avoid pathological nesting/cycles.
-    if depth > ArcReconnectHelpers.Locker.metadataMaxDepth then
+    if depth > ArcLockerHelpers.metadataMaxDepth then
         return false
     end
 
@@ -4525,7 +4318,7 @@ function ArcReconnectHelpers.Locker.MetadataEqual(a, b, depth, seen)
     seen[a] = b
 
     for key, value in pairs(a) do
-        if not ArcReconnectHelpers.Locker.MetadataEqual(value, b[key], depth + 1, seen) then
+        if not ArcLockerHelpers.MetadataEqual(value, b[key], depth + 1, seen) then
             return false
         end
     end
@@ -4539,15 +4332,15 @@ function ArcReconnectHelpers.Locker.MetadataEqual(a, b, depth, seen)
     return true
 end
 
-function ArcReconnectHelpers.Locker.GetStackState(itemName)
+function ArcLockerHelpers.GetStackState(itemName)
     local oxItem = (exports.ox_inventory:Items() or {})[itemName] or {}
     return oxItem.weapon == true
 end
 
-function ArcReconnectHelpers.Locker.BuildTransferRequest(fromSide, slot, requestedAmount, toSide, targetSlot)
+function ArcLockerHelpers.BuildTransferRequest(fromSide, slot, requestedAmount, toSide, targetSlot)
     return {
-        fromSide = ArcReconnectHelpers.Locker.NormalizeSide(fromSide, 'main'),
-        toSide = toSide == nil and nil or ArcReconnectHelpers.Locker.NormalizeSide(toSide, fromSide == 'loadout' and 'main' or 'loadout'),
+        fromSide = ArcLockerHelpers.NormalizeSide(fromSide, 'main'),
+        toSide = toSide == nil and nil or ArcLockerHelpers.NormalizeSide(toSide, fromSide == 'loadout' and 'main' or 'loadout'),
         slot = tonumber(slot),
         targetSlot = tonumber(targetSlot),
         requestedAmount = tonumber(requestedAmount),
@@ -4555,7 +4348,7 @@ function ArcReconnectHelpers.Locker.BuildTransferRequest(fromSide, slot, request
     }
 end
 
-function ArcReconnectHelpers.Locker.ResolveTransferCount(selectedItem, request)
+function ArcLockerHelpers.ResolveTransferCount(selectedItem, request)
     local fullCount = tonumber(selectedItem and selectedItem.count or 0) or 0
     if fullCount <= 0 then
         return 0, 'missing'
@@ -4762,7 +4555,7 @@ AddEventHandler('playerDropped', function(reason)
     end
     if bucketId ~= 0 and groupMembers and groupMembers[bucketId] then
         if GetGameModeId(bucketModes[bucketId]) == 'arc_pvp' then
-            local disconnectState = ArcReconnectHelpers.HandleDisconnect(src, bucketId, reason)
+            local disconnectState = HandleArcDisconnect(src, bucketId, reason)
             local droppedProfile = GetArcRaidPlayerProfile(bucketId, src)
             local droppedName = disconnectState and disconnectState.playerName or (droppedProfile and droppedProfile.name) or ("ID " .. tostring(src))
             local disconnectInfo = BuildArcDisconnectPolicyInfo()
@@ -4853,7 +4646,7 @@ QBCore.Functions.CreateCallback('gs-survival:server:checkReconnectBackup', funct
 
     if modeId == 'arc_pvp' and disconnectState and disconnectState.allowRejoin == true then
         if reconnectAction == 'rejoin' then
-            local rejoined, rejoinError = ArcReconnectHelpers.RejoinPlayer(src, Player, disconnectState)
+            local rejoined, rejoinError = RejoinArcDisconnectedPlayer(src, Player, disconnectState)
             if rejoined then
                 return cb({
                     restored = false,
@@ -4889,10 +4682,10 @@ QBCore.Functions.CreateCallback('gs-survival:server:checkReconnectBackup', funct
         end
     end
 
-    local backupItems, backupSource = ArcReconnectHelpers.ResolveRestoreItems(items, cid)
+    local backupItems, backupSource = ResolveReconnectRestoreItems(items, cid)
 
     if modeId == 'arc_pvp' and disconnectInfo and disconnectInfo.key == 'death' then
-        ArcReconnectHelpers.RestoreBaseInventory(src, Player, cid, stashId, disconnectState, backupItems)
+        RestoreArcDisconnectBaseInventory(src, Player, cid, stashId, disconnectState, backupItems)
         return cb({
             restored = true,
             modeId = modeId,
@@ -4906,7 +4699,7 @@ QBCore.Functions.CreateCallback('gs-survival:server:checkReconnectBackup', funct
     end
 
     if #backupItems > 0 then
-        ArcReconnectHelpers.RestoreBaseInventory(src, Player, cid, stashId, disconnectState, backupItems)
+        RestoreArcDisconnectBaseInventory(src, Player, cid, stashId, disconnectState, backupItems)
         return cb({
             restored = true,
             modeId = modeId,
@@ -4922,7 +4715,7 @@ QBCore.Functions.CreateCallback('gs-survival:server:checkReconnectBackup', funct
 
     exports.ox_inventory:ClearInventory(src)
     Wait(250)
-    ArcReconnectHelpers.FinalizeCleanup(src, Player, cid, stashId, disconnectState)
+    FinalizeArcReconnectCleanup(src, Player, cid, stashId, disconnectState)
     cb({
         restored = true,
         modeId = modeId,
@@ -5016,7 +4809,7 @@ RegisterNetEvent('gs-survival:server:moveArcLockerItem', function(fromSide, slot
     local Player = QBCore.Functions.GetPlayer(src)
     if not Player then return end
 
-    local transferRequest = ArcReconnectHelpers.Locker.BuildTransferRequest(fromSide, slot, requestedAmount, toSide, targetSlot)
+    local transferRequest = ArcLockerHelpers.BuildTransferRequest(fromSide, slot, requestedAmount, toSide, targetSlot)
     fromSide = transferRequest.fromSide
     focusSide = focusSide == 'loadout' and 'loadout' or 'main'
     slot = transferRequest.slot
@@ -5034,9 +4827,9 @@ RegisterNetEvent('gs-survival:server:moveArcLockerItem', function(fromSide, slot
     local toStashId = normalizedToSide == 'loadout' and loadoutStashId or mainStashId
     local fromLabel = fromSide == 'loadout' and (Config.ArcPvP.LoadoutStashLabel or "ARC Baskın Çantası") or (Config.ArcPvP.MainStashLabel or "ARC Ana Depo")
     local toLabel = normalizedToSide == 'loadout' and (Config.ArcPvP.LoadoutStashLabel or "ARC Baskın Çantası") or (Config.ArcPvP.MainStashLabel or "ARC Ana Depo")
-    local selectedItem = ArcReconnectHelpers.Locker.FindItemBySlot(fromStashId, slot)
+    local selectedItem = ArcLockerHelpers.FindItemBySlot(fromStashId, slot)
     local targetInventorySlot = transferRequest.targetSlot
-    local targetItem = targetInventorySlot and ArcReconnectHelpers.Locker.FindItemBySlot(toStashId, targetInventorySlot) or nil
+    local targetItem = targetInventorySlot and ArcLockerHelpers.FindItemBySlot(toStashId, targetInventorySlot) or nil
     local sameInventory = fromStashId == toStashId
 
     if not selectedItem or not selectedItem.name or tonumber(selectedItem.count or 0) <= 0 then
@@ -5050,9 +4843,9 @@ RegisterNetEvent('gs-survival:server:moveArcLockerItem', function(fromSide, slot
         return
     end
 
-    local itemCount, transferMode = ArcReconnectHelpers.Locker.ResolveTransferCount(selectedItem, transferRequest)
+    local itemCount, transferMode = ArcLockerHelpers.ResolveTransferCount(selectedItem, transferRequest)
     local itemLabel = (selectedItem.metadata and selectedItem.metadata.label) or selectedItem.label or selectedItem.name
-    local isWeapon = ArcReconnectHelpers.Locker.GetStackState(selectedItem.name)
+    local isWeapon = ArcLockerHelpers.GetStackState(selectedItem.name)
     local targetMetadata = targetItem and targetItem.metadata
     local transferMetadata = selectedItem.metadata
 
