@@ -146,6 +146,26 @@ local function SendArcNotify(message, notifyType, duration, title)
     })
 end
 
+local function GetNotifyTitle(notifyType, title)
+    if title and title ~= '' then
+        return title
+    end
+
+    if currentModeId == 'arc_pvp' then
+        return 'ARC Bildirimi'
+    end
+
+    if notifyType == 'success' then
+        return 'İşlem Tamamlandı'
+    elseif notifyType == 'error' then
+        return 'İşlem Başarısız'
+    elseif notifyType == 'warning' then
+        return 'Uyarı'
+    end
+
+    return 'Operasyon Bildirimi'
+end
+
 local function ShowArcResultBanner(title, label, duration, options)
     if not title or title == '' then return end
     options = options or {}
@@ -167,12 +187,130 @@ local function ShowScreenTransition(title)
 end
 
 local function NotifyForMode(message, notifyType, duration, title)
-    if currentModeId == 'arc_pvp' then
-        SendArcNotify(message, notifyType, duration, title)
+    SendArcNotify(message, notifyType, duration, GetNotifyTitle(notifyType, title))
+end
+
+local function HideUiProgress()
+    SendNUIMessage({ type = 'hideArcProgress' })
+end
+
+local function RunUiProgress(options, onComplete, onCancel)
+    options = options or {}
+    local duration = math.max(math.floor(tonumber(options.duration) or 0), 0)
+    if duration <= 0 then
+        if onComplete then
+            onComplete()
+        end
         return
     end
 
-    QBCore.Functions.Notify(message, notifyType or 'primary', duration)
+    local ped = PlayerPedId()
+    local disable = options.disable or {}
+    local anim = options.anim or {}
+    local canCancel = options.canCancel ~= false
+    local cancelled = false
+    local finished = false
+    local endsAt = GetGameTimer() + duration
+
+    if anim.dict and anim.anim then
+        RequestAnimDict(anim.dict)
+        while not HasAnimDictLoaded(anim.dict) do
+            Wait(10)
+        end
+
+        TaskPlayAnim(
+            ped,
+            anim.dict,
+            anim.anim,
+            anim.blendIn or 3.0,
+            anim.blendOut or 1.0,
+            duration,
+            anim.flags or 1,
+            0.0,
+            false,
+            false,
+            false
+        )
+    end
+
+    SendNUIMessage({
+        type = 'showArcProgress',
+        data = {
+            title = options.title or GetNotifyTitle('primary'),
+            label = options.label or 'İşlem sürüyor...',
+            duration = duration,
+            canCancel = canCancel
+        }
+    })
+
+    CreateThread(function()
+        while not finished do
+            Wait(0)
+
+            if disable.disableMovement then
+                DisableControlAction(0, 21, true)
+                DisableControlAction(0, 22, true)
+                DisableControlAction(0, 30, true)
+                DisableControlAction(0, 31, true)
+                DisableControlAction(0, 36, true)
+            end
+
+            if disable.disableCarMovement then
+                DisableControlAction(0, 59, true)
+                DisableControlAction(0, 60, true)
+                DisableControlAction(0, 61, true)
+                DisableControlAction(0, 62, true)
+                DisableControlAction(0, 63, true)
+                DisableControlAction(0, 64, true)
+                DisableControlAction(0, 71, true)
+                DisableControlAction(0, 72, true)
+                DisableControlAction(0, 75, true)
+            end
+
+            if disable.disableMouse then
+                DisableControlAction(0, 1, true)
+                DisableControlAction(0, 2, true)
+                DisableControlAction(0, 106, true)
+            end
+
+            if disable.disableCombat then
+                DisablePlayerFiring(PlayerId(), true)
+                DisableControlAction(0, 24, true)
+                DisableControlAction(0, 25, true)
+                DisableControlAction(0, 37, true)
+                DisableControlAction(0, 44, true)
+                DisableControlAction(0, 45, true)
+                DisableControlAction(0, 140, true)
+                DisableControlAction(0, 141, true)
+                DisableControlAction(0, 142, true)
+                DisableControlAction(0, 143, true)
+                DisableControlAction(0, 257, true)
+                DisableControlAction(0, 263, true)
+                DisableControlAction(0, 264, true)
+            end
+
+            if canCancel and (IsControlJustPressed(0, 177) or IsControlJustPressed(0, 200) or IsControlJustPressed(0, 202)) then
+                cancelled = true
+                finished = true
+            elseif GetGameTimer() >= endsAt then
+                finished = true
+            end
+        end
+
+        HideUiProgress()
+
+        if anim.dict and anim.anim then
+            StopAnimTask(PlayerPedId(), anim.dict, anim.anim, 1.0)
+        end
+
+        if cancelled then
+            if onCancel then
+                onCancel()
+            end
+        elseif onComplete then
+            onComplete()
+        end
+    end)
 end
 
 -- ARC baskın HUD'ı için yerel oyuncu ve aktif takım üyelerini canlı/ölü durumu ile liste haline getirir.
@@ -591,16 +729,23 @@ local function SpawnArcContainer(containerId, coords, model, label, rollCount, o
             label = label or 'Arc Loot',
             distance = 2.0,
             onSelect = function()
-                QBCore.Functions.Progressbar(progressId, progressLabel, 2500, false, true, {
-                    disableMovement = true,
-                    disableCarMovement = true,
-                    disableMouse = false,
-                    disableCombat = true,
-                }, {
-                    animDict = "amb@medic@standing@tendtodead@idle_a",
-                    anim = "idle_a",
-                    flags = 1,
-                }, {}, {}, function()
+                RunUiProgress({
+                    title = notifyTitle or 'ARC Loot',
+                    label = progressLabel,
+                    duration = 2500,
+                    canCancel = true,
+                    disable = {
+                        disableMovement = true,
+                        disableCarMovement = true,
+                        disableMouse = false,
+                        disableCombat = true,
+                    },
+                    anim = {
+                        dict = "amb@medic@standing@tendtodead@idle_a",
+                        anim = "idle_a",
+                        flags = 1,
+                    }
+                }, function()
                     StopAnimTask(PlayerPedId(), "amb@medic@standing@tendtodead@idle_a", "idle_a", 1.0)
                     TriggerServerEvent(resolvedOpenEvent, containerId, rollCount or 1)
                 end, function()
@@ -1339,7 +1484,7 @@ local function HandleReconnectResult(result)
         if result.modeId == 'arc_pvp' then
             SendArcNotify(notifyText, "success", 10000, "ARC Bağlantı")
         else
-            QBCore.Functions.Notify(notifyText, "success", 10000)
+            NotifyForMode(notifyText, "success", 10000, "Bağlantı")
         end
         return
     end
@@ -1348,7 +1493,7 @@ local function HandleReconnectResult(result)
         if result.modeId == 'arc_pvp' then
             SendArcNotify(result.message, "primary", 9000, "ARC Bağlantı")
         else
-            QBCore.Functions.Notify(result.message, "primary", 9000)
+            NotifyForMode(result.message, "primary", 9000, "Bağlantı")
         end
     end
 end
@@ -1622,7 +1767,7 @@ Citizen.CreateThread(function()
                         Wait(1000)
                         TriggerServerEvent('gs-survival:server:returnArcToLobby')
                     elseif livingOthers then
-                        QBCore.Functions.Notify("Öldün! Takım arkadaşlarını izliyorsun...", "error", 5000)
+                        NotifyForMode("Öldün! Takım arkadaşlarını izliyorsun...", "error", 5000, "Ölüm")
                         Wait(1000)
                         StartSurvivalSpectate()
                     end
@@ -1942,7 +2087,7 @@ RegisterCommand('survivalcraft', function()
     if dist < 5.0 then
         TriggerEvent('gs-survival:client:openCraftMenu')
     else
-        QBCore.Functions.Notify("Üretim tezgahını kullanmak için ana kampa gitmelisin!", "error")
+        NotifyForMode("Üretim tezgahını kullanmak için ana kampa gitmelisin!", "error", 4000, "Atölye")
     end
 end, false) -- false: Herkes kullanabilir. Sadece admin istiyorsan true yapabilirsin.
 
@@ -1961,24 +2106,31 @@ RegisterNetEvent('gs-survival:client:craftItem', function(data)
     -- Önce sunucudan malzeme kontrolü yapıyoruz
     QBCore.Functions.TriggerCallback('gs-survival:server:hasCraftMaterials', function(hasMaterials)
         if hasMaterials then
-            QBCore.Functions.Progressbar("crafting_item", progressLabel, 5000, false, true, {
-                disableMovement = true,
-                disableCarMovement = true,
-                disableMouse = false,
-                disableCombat = true,
-            }, {
-                animDict = "anim@amb@clubhouse@tutorial@bkr_tut_ig3@",
-                anim = "machinic_loop_mechandplayer",
-                flags = 16,
-            }, {}, {}, function() -- Başarılı
+            RunUiProgress({
+                title = "Atölye",
+                label = progressLabel,
+                duration = 5000,
+                canCancel = true,
+                disable = {
+                    disableMovement = true,
+                    disableCarMovement = true,
+                    disableMouse = false,
+                    disableCombat = true,
+                },
+                anim = {
+                    dict = "anim@amb@clubhouse@tutorial@bkr_tut_ig3@",
+                    anim = "machinic_loop_mechandplayer",
+                    flags = 16,
+                }
+            }, function() -- Başarılı
                 StopAnimTask(PlayerPedId(), "anim@amb@clubhouse@tutorial@bkr_tut_ig3@", "machinic_loop_mechandplayer", 1.0)
                 TriggerServerEvent('gs-survival:server:finishCrafting', data)
             end, function() -- İptal
                 StopAnimTask(PlayerPedId(), "anim@amb@clubhouse@tutorial@bkr_tut_ig3@", "machinic_loop_mechandplayer", 1.0)
-                QBCore.Functions.Notify("Üretim iptal edildi.", "error")
+                NotifyForMode("Üretim iptal edildi.", "error", 3500, "Atölye")
             end)
         else
-            QBCore.Functions.Notify(notEnoughMessage, "error")
+            NotifyForMode(notEnoughMessage, "error", 4000, "Atölye")
         end
     end, data.item, data.amount, data.multiplier, data.stashId)
 end)
@@ -2216,17 +2368,29 @@ RegisterNetEvent('gs-survival:client:setupNpc', function(npcNetId, multiplier)
                 onSelect = function(data)
                     QBCore.Functions.TriggerCallback('gs-survival:server:checkLootStatus', function(canLoot)
                         if canLoot then
-                            QBCore.Functions.Progressbar("search_npc", "Üstü Aranıyor...", 3000, false, true, {
-                                disableMovement = true, disableCarMovement = true, disableMouse = false, disableCombat = true,
-                            }, {
-                                animDict = "amb@medic@standing@tendtodead@idle_a", anim = "idle_a", flags = 1,
-                            }, {}, {}, function()
+                            RunUiProgress({
+                                title = "Arama",
+                                label = "Üstü Aranıyor...",
+                                duration = 3000,
+                                canCancel = true,
+                                disable = {
+                                    disableMovement = true,
+                                    disableCarMovement = true,
+                                    disableMouse = false,
+                                    disableCombat = true,
+                                },
+                                anim = {
+                                    dict = "amb@medic@standing@tendtodead@idle_a",
+                                    anim = "idle_a",
+                                    flags = 1,
+                                }
+                            }, function()
                                 exports.ox_target:removeLocalEntity(data.entity, stashTargetName)
                                 StopAnimTask(PlayerPedId(), "amb@medic@standing@tendtodead@idle_a", "idle_a", 1.0)
                                 TriggerServerEvent('gs-survival:server:createNpcStash', npcNetId, currentWave)
                             end, function()
                                 TriggerServerEvent('gs-survival:server:cancelLoot', npcNetId)
-                                QBCore.Functions.Notify("İşlem iptal edildi!", "error")
+                                NotifyForMode("İşlem iptal edildi!", "error", 3500, "Arama")
                             end)
                         end
                     end, npcNetId)
@@ -2244,7 +2408,7 @@ Citizen.CreateThread(function()
             sleep = 5
             if ShouldBlockInventoryAccess() then
                 CloseInventorySafely()
-                QBCore.Functions.Notify("Savaş sırasında envanterini kullanamazsın!", "error")
+                NotifyForMode("Savaş sırasında envanterini kullanamazsın!", "error", 3500, "Envanter")
             end
         end
         Wait(sleep)
@@ -2287,7 +2451,7 @@ RegisterNetEvent('gs-survival:client:stopEverything', function(isVictory, modeId
             end
         end)
     else
-        QBCore.Functions.Notify(isVictory and "Operasyon Başarıyla Tamamlandı!" or "Operasyon Başarısız Oldu!", isVictory and "success" or "error")
+        NotifyForMode(isVictory and "Operasyon Başarıyla Tamamlandı!" or "Operasyon Başarısız Oldu!", isVictory and "success" or "error", 5000, "Operasyon Sonucu")
     end
 end)
 

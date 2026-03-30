@@ -66,6 +66,14 @@ var screenData = {
         title: ARC_BANNER_DEFAULT_TITLE,
         duration: ARC_BANNER_DEFAULT_DURATION,
         transition: false
+    },
+    arcProgress: {
+        visible: false,
+        title: 'Operasyon Sürüyor',
+        label: 'Lütfen bekle...',
+        duration: 0,
+        canCancel: true,
+        startedAt: 0
     }
 };
 
@@ -107,13 +115,20 @@ var hudEls = {
     arcNotifyStack: document.getElementById('arc-notify-stack'),
     arcResultBanner: document.getElementById('arc-result-banner'),
     arcResultBannerLabel: document.getElementById('arc-result-banner-label'),
-    arcResultBannerTitle: document.getElementById('arc-result-banner-title')
+    arcResultBannerTitle: document.getElementById('arc-result-banner-title'),
+    arcProgressCard: document.getElementById('arc-progress-card'),
+    arcProgressTitle: document.getElementById('arc-progress-title'),
+    arcProgressLabel: document.getElementById('arc-progress-label'),
+    arcProgressFill: document.getElementById('arc-progress-fill'),
+    arcProgressPercent: document.getElementById('arc-progress-percent'),
+    arcProgressCancel: document.getElementById('arc-progress-cancel')
 };
 var hideTimer = null;
 var audioCtx = null;
 var currentScreen = 'menu';
 var arcNotifyTimers = [];
 var arcBannerTimer = null;
+var arcProgressFrame = null;
 var DEFAULT_HUD = {
     health: 84,
     radiation: 22,
@@ -178,6 +193,8 @@ window.addEventListener('message', function (event) {
         case 'arcNotify':     pushArcNotify(d.data);               break;
         case 'showArcBanner': showArcBanner(d.data);              break;
         case 'clearArcBanner': clearArcBanner();                  break;
+        case 'showArcProgress': showArcProgress(d.data);          break;
+        case 'hideArcProgress': clearArcProgress();               break;
         case 'openReconnectPrompt': showReconnectPrompt(d.data); showApp(); break;
         case 'receiveInvite': showReceiveInvite(d.data); showApp(); break;
         case 'closeMenu':     hideApp();                           break;
@@ -387,6 +404,7 @@ function clearArcHud() {
         duration: ARC_BANNER_DEFAULT_DURATION,
         transition: false
     };
+    clearArcProgress(true);
     arcNotifyTimers.forEach(function (timerId) {
         clearTimeout(timerId);
     });
@@ -402,23 +420,30 @@ function clearArcHud() {
 function renderArcHud() {
     var state = screenData.arcHud || {};
     var bannerState = screenData.arcBanner || {};
+    var progressState = screenData.arcProgress || {};
     var teamMembers = Array.isArray(state.teamMembers) ? state.teamMembers : [];
     var infoLines = Array.isArray(state.lines) ? state.lines : [];
     var hasToasts = hudEls.arcNotifyStack.children.length > 0;
     var hasBanner = bannerState.visible === true && String(bannerState.title || '').trim().length > 0;
+    var hasProgress = progressState.visible === true;
     var hasPrompt = String(state.prompt || '').trim().length > 0;
     var hasInfo = state.enabled === true && state.showInfo === true && (String(state.title || '').trim() || String(state.subtitle || '').trim() || infoLines.length > 0 || hasPrompt);
 
-    hudEls.arcOverlayRoot.classList.toggle('hidden', state.enabled !== true && !hasToasts && !hasBanner);
-    hudEls.arcOverlayRoot.setAttribute('aria-hidden', (state.enabled === true || hasToasts || hasBanner) ? 'false' : 'true');
+    hudEls.arcOverlayRoot.classList.toggle('hidden', state.enabled !== true && !hasToasts && !hasBanner && !hasProgress);
+    hudEls.arcOverlayRoot.setAttribute('aria-hidden', (state.enabled === true || hasToasts || hasBanner || hasProgress) ? 'false' : 'true');
 
     hudEls.arcInfoPanel.classList.toggle('hidden', !hasInfo);
     hudEls.arcTeamPanel.classList.toggle('hidden', !(state.enabled === true && teamMembers.length > 0));
     hudEls.arcResultBanner.classList.toggle('hidden', !hasBanner);
+    hudEls.arcProgressCard.classList.toggle('hidden', !hasProgress);
     hudEls.arcResultBanner.classList.toggle('is-transition', bannerState.transition === true);
     hudEls.arcResultBanner.style.setProperty('--arc-banner-duration', String(Number(bannerState.duration || ARC_BANNER_DEFAULT_DURATION)) + 'ms');
     hudEls.arcResultBannerLabel.textContent = bannerState.label || ARC_BANNER_DEFAULT_LABEL;
     hudEls.arcResultBannerTitle.textContent = bannerState.title || ARC_BANNER_DEFAULT_TITLE;
+    hudEls.arcProgressTitle.textContent = progressState.title || 'Operasyon Sürüyor';
+    hudEls.arcProgressLabel.textContent = progressState.label || 'Lütfen bekle...';
+    hudEls.arcProgressCancel.textContent = progressState.canCancel === false ? 'İptal devre dışı' : 'ESC ile iptal edebilirsin';
+    updateArcProgressVisuals();
 
     hudEls.arcInfoTitle.textContent = state.title || ARC_HUD_DEFAULTS.title;
     hudEls.arcInfoSubtitle.textContent = state.subtitle || ARC_HUD_DEFAULTS.subtitle;
@@ -455,6 +480,74 @@ function renderArcHud() {
             '</div>' +
         '</div>';
     }).join('');
+}
+
+function cancelArcProgressFrame() {
+    if (arcProgressFrame) {
+        cancelAnimationFrame(arcProgressFrame);
+        arcProgressFrame = null;
+    }
+}
+
+function updateArcProgressVisuals() {
+    var progressState = screenData.arcProgress || {};
+    var percent = 0;
+
+    if (progressState.visible === true && Number(progressState.duration || 0) > 0) {
+        percent = clamp(((Date.now() - Number(progressState.startedAt || 0)) / Number(progressState.duration || 1)) * 100, 0, 100);
+    }
+
+    if (hudEls.arcProgressFill) {
+        hudEls.arcProgressFill.style.width = percent + '%';
+    }
+    if (hudEls.arcProgressPercent) {
+        hudEls.arcProgressPercent.textContent = Math.round(percent) + '%';
+    }
+}
+
+function tickArcProgress() {
+    cancelArcProgressFrame();
+
+    if (!screenData.arcProgress || screenData.arcProgress.visible !== true) {
+        updateArcProgressVisuals();
+        return;
+    }
+
+    updateArcProgressVisuals();
+
+    if ((Date.now() - Number(screenData.arcProgress.startedAt || 0)) < Number(screenData.arcProgress.duration || 0)) {
+        arcProgressFrame = requestAnimationFrame(tickArcProgress);
+    }
+}
+
+function clearArcProgress(skipRender) {
+    cancelArcProgressFrame();
+    screenData.arcProgress = {
+        visible: false,
+        title: 'Operasyon Sürüyor',
+        label: 'Lütfen bekle...',
+        duration: 0,
+        canCancel: true,
+        startedAt: 0
+    };
+    if (!skipRender) {
+        renderArcHud();
+    }
+}
+
+function showArcProgress(data) {
+    data = data || {};
+    cancelArcProgressFrame();
+    screenData.arcProgress = {
+        visible: true,
+        title: data.title || 'Operasyon Sürüyor',
+        label: data.label || 'Lütfen bekle...',
+        duration: clamp(Number(data.duration || 0), 250, 60000),
+        canCancel: data.canCancel !== false,
+        startedAt: Date.now()
+    };
+    renderArcHud();
+    tickArcProgress();
 }
 
 function pushArcNotify(data) {
