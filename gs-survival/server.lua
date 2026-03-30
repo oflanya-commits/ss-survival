@@ -104,7 +104,7 @@ local function IsServerSpawnModelValid(modelHash)
 
     if type(IsModelInCdimage) == 'function' then
         local ok, exists = pcall(IsModelInCdimage, modelHash)
-        if ok and not exists then
+        if not ok or not exists then
             return false
         end
     end
