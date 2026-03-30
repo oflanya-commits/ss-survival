@@ -1250,8 +1250,6 @@ local function SpawnArcSessionVehicles(bucketId)
 
         local netId = NetworkGetNetworkIdFromEntity(entity)
         if netId and netId ~= 0 then
-            SetNetworkIdCanMigrate(netId, true)
-            SetNetworkIdExistsOnAllMachines(netId, true)
             nextArcSessionVehicleId = nextArcSessionVehicleId + 1
             raidState.sessionVehicles[#raidState.sessionVehicles + 1] = {
                 id = ("arc_session_vehicle_%s_%s"):format(bucketId, nextArcSessionVehicleId),
