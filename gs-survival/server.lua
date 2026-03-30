@@ -97,6 +97,21 @@ local function CountAliveBucketNpcs(bucketId)
     return aliveCount
 end
 
+local function IsServerSpawnModelValid(modelHash)
+    if not modelHash or modelHash == 0 then
+        return false
+    end
+
+    if type(IsModelInCdimage) == 'function' then
+        local ok, exists = pcall(IsModelInCdimage, modelHash)
+        if not ok or not exists then
+            return false
+        end
+    end
+
+    return true
+end
+
 local function FindLobbyLeaderByMember(memberId)
     for leaderId, data in pairs(activeLobbies) do
         if data.members and data.members[memberId] then
@@ -1198,7 +1213,7 @@ local function SpawnArcSessionVehicles(bucketId)
         end
 
         local modelHash = joaat(modelName)
-        if not IsModelInCdimage(modelHash) then
+        if not IsServerSpawnModelValid(modelHash) then
             return
         end
 
