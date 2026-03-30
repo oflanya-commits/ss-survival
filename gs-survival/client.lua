@@ -459,9 +459,15 @@ local function PushClassicSurvivalOverlay(stageData, aliveCount, maxWaves, lootT
     local resolvedStageData = stageData or GetModeStageData('classic', activeStageId or 1)
     local resolvedMaxWaves = tonumber(maxWaves) or 0
     local currentWaveData = resolvedStageData and resolvedStageData.Waves and resolvedStageData.Waves[currentWave]
-    local displayWave = math.max(tonumber(currentWave) or 1, 1)
+    local displayWave = tonumber(currentWave) or 1
+    if displayWave < 1 then
+        displayWave = 1
+    end
+    if resolvedMaxWaves < displayWave then
+        resolvedMaxWaves = displayWave
+    end
     local lines = {
-        ("Dalga: %s/%s"):format(displayWave, math.max(resolvedMaxWaves, displayWave))
+        ("Dalga: %s/%s"):format(displayWave, resolvedMaxWaves)
     }
 
     if currentWaveData and currentWaveData.label and currentWaveData.label ~= '' then
@@ -1956,8 +1962,9 @@ Citizen.CreateThread(function()
 
                         Citizen.CreateThread(function()
                             local lootTimer = math.floor(Config.Combat.LootTime / 1000)
+                            local forceOverlayRefresh = true
                             while lootTimer > 0 and isSurvivalActive do
-                                PushClassicSurvivalOverlay(survivalStage, 0, maxWaves, lootTimer, true)
+                                PushClassicSurvivalOverlay(survivalStage, 0, maxWaves, lootTimer, forceOverlayRefresh)
                                 Wait(1000)
                                 lootTimer = lootTimer - 1
                             end
