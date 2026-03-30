@@ -28,6 +28,7 @@ local arcRaidPlayerProfiles = {}
 local arcPlayerBucketIndex = {}
 local arcPendingReconnectCounts = {}
 local bucketWaveState = {}
+local nextArcSessionVehicleId = 0
 local nextBucketId = 10000
 local FinalizeArcMatch
 local ResetBucketState
@@ -1092,6 +1093,172 @@ local function Vector3ToTable(coords)
         y = tonumber(coords.y) or 0.0,
         z = tonumber(coords.z) or 0.0
     }
+end
+
+local function GetHeadingBetweenCoords(fromCoords, toCoords)
+    local fromVec = ToVector3(fromCoords)
+    local toVec = ToVector3(toCoords)
+    if not fromVec or not toVec then
+        return 0.0
+    end
+
+    local deltaX = toVec.x - fromVec.x
+    local deltaY = toVec.y - fromVec.y
+    if math.abs(deltaX) < 0.001 and math.abs(deltaY) < 0.001 then
+        return 0.0
+    end
+
+    local heading = math.deg(math.atan(deltaY, deltaX)) - 90.0
+    if heading < 0.0 then
+        heading = heading + 360.0
+    end
+
+    return heading
+end
+
+local function BuildArcSessionVehicleClientState(bucketId)
+    local raidState = bucketId and arcRaidState[bucketId] or nil
+    local sessionVehicles = raidState and raidState.sessionVehicles or nil
+    if type(sessionVehicles) ~= 'table' then
+        return {}
+    end
+
+    local payload = {}
+    for _, vehicleState in ipairs(sessionVehicles) do
+        if vehicleState and vehicleState.id and vehicleState.netId then
+            payload[#payload + 1] = {
+                id = vehicleState.id,
+                netId = vehicleState.netId,
+                kind = vehicleState.kind or 'car',
+                label = vehicleState.label or 'ARC Araç',
+                model = vehicleState.model,
+                coords = vehicleState.coords,
+                heading = tonumber(vehicleState.heading or 0.0) or 0.0
+            }
+        end
+    end
+
+    return payload
+end
+
+local function SyncArcSessionVehicles(bucketId, targetPlayers)
+    if GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
+        return
+    end
+
+    local vehicleState = BuildArcSessionVehicleClientState(bucketId)
+    local recipients = targetPlayers or groupMembers[bucketId] or {}
+    for _, playerId in ipairs(recipients) do
+        TriggerClientEvent('gs-survival:client:updateArcSessionVehicles', playerId, vehicleState)
+    end
+end
+
+local function UpdateArcSessionVehicleState(bucketId)
+    local raidState = bucketId and arcRaidState[bucketId] or nil
+    local sessionVehicles = raidState and raidState.sessionVehicles or nil
+    if type(sessionVehicles) ~= 'table' then
+        return
+    end
+
+    for _, vehicleState in ipairs(sessionVehicles) do
+        local netId = vehicleState and tonumber(vehicleState.netId) or nil
+        if netId and NetworkDoesNetworkIdExist(netId) then
+            local entity = NetworkGetEntityFromNetworkId(netId)
+            if entity and entity ~= 0 and DoesEntityExist(entity) then
+                vehicleState.coords = Vector3ToTable(GetEntityCoords(entity))
+                vehicleState.heading = tonumber(GetEntityHeading(entity) or vehicleState.heading or 0.0) or 0.0
+            end
+        end
+    end
+end
+
+local function SpawnArcSessionVehicles(bucketId)
+    local raidState = bucketId and arcRaidState[bucketId] or nil
+    local deployment = raidState and raidState.deployment or nil
+    local sessionVehicleConfig = Config.ArcPvP and Config.ArcPvP.SessionVehicles or {}
+    local deploymentZones = Config.ArcPvP and Config.ArcPvP.DeploymentZones or {}
+    local zoneData = deploymentZones[tonumber(deployment and deployment.zoneId) or (deployment and deployment.zoneId)]
+    if not raidState then
+        return
+    end
+
+    raidState.sessionVehicles = {}
+    if sessionVehicleConfig.Enabled == false or not deployment or not zoneData then
+        return
+    end
+
+    local centerCoords = ToVector3(zoneData.center) or ToVector3(deployment.center)
+    local extractionPoint = ToVector3(zoneData.extractionPoint) or ToVector3(deployment.extractionPoint)
+    local carModels = sessionVehicleConfig.CarModels or { 'sultan', 'granger', 'bison' }
+
+    local function registerSessionVehicle(modelName, coords, heading, kind, label)
+        local spawnCoords = ToVector3(coords)
+        if not modelName or modelName == '' or not spawnCoords then
+            return
+        end
+
+        local modelHash = joaat(modelName)
+        if not IsModelInCdimage(modelHash) then
+            return
+        end
+
+        local entity = CreateVehicle(
+            modelHash,
+            spawnCoords.x,
+            spawnCoords.y,
+            spawnCoords.z + (kind == 'helicopter' and 1.5 or 0.5),
+            tonumber(heading or 0.0) or 0.0,
+            true,
+            true
+        )
+
+        local timeout = 0
+        while entity ~= 0 and not DoesEntityExist(entity) and timeout < 100 do
+            Wait(10)
+            timeout = timeout + 1
+        end
+
+        if not entity or entity == 0 or not DoesEntityExist(entity) then
+            return
+        end
+
+        SetEntityRoutingBucket(entity, bucketId)
+        SetEntityAsMissionEntity(entity, true, true)
+        SetVehicleEngineOn(entity, true, true, false)
+        SetVehicleDoorsLocked(entity, 1)
+
+        local netId = NetworkGetNetworkIdFromEntity(entity)
+        if netId and netId ~= 0 then
+            SetNetworkIdCanMigrate(netId, true)
+            SetNetworkIdExistsOnAllMachines(netId, true)
+            nextArcSessionVehicleId = nextArcSessionVehicleId + 1
+            raidState.sessionVehicles[#raidState.sessionVehicles + 1] = {
+                id = ("arc_session_vehicle_%s"):format(nextArcSessionVehicleId),
+                netId = netId,
+                kind = kind or 'car',
+                label = label or (kind == 'helicopter' and 'ARC Helikopteri' or 'ARC Araç'),
+                model = modelName,
+                coords = Vector3ToTable(GetEntityCoords(entity)),
+                heading = tonumber(GetEntityHeading(entity) or heading or 0.0) or 0.0
+            }
+        end
+    end
+
+    for index, insertionPoint in ipairs(zoneData.insertionPoints or {}) do
+        local modelName = carModels[((index - 1) % #carModels) + 1]
+        local heading = GetHeadingBetweenCoords(insertionPoint, centerCoords)
+        registerSessionVehicle(modelName, insertionPoint, heading, 'car', ("ARC Araç %s"):format(index))
+    end
+
+    if extractionPoint then
+        registerSessionVehicle(
+            sessionVehicleConfig.HelicopterModel or 'frogger',
+            extractionPoint,
+            GetHeadingBetweenCoords(extractionPoint, centerCoords),
+            'helicopter',
+            sessionVehicleConfig.HelicopterLabel or 'ARC Helikopteri'
+        )
+    end
 end
 
 local function GetArcExtractionState(bucketId)
@@ -2366,7 +2533,8 @@ BuildArcDeploymentPayload = function(bucketId)
         extractionPoint = deployment.extractionPoint,
         lootNodes = BuildArcRuntimeLootNodes(bucketId),
         raidDurationMs = GetArcRaidRemainingMs(bucketId),
-        extraction = BuildArcExtractionClientState(bucketId)
+        extraction = BuildArcExtractionClientState(bucketId),
+        sessionVehicles = BuildArcSessionVehicleClientState(bucketId)
     }
 end
 
@@ -2903,6 +3071,14 @@ CleanBucketEntities = function(bucketId)
             DeleteEntity(entity)
         end
     end
+
+    -- Session araçlarını temizle
+    local vehicles = GetAllVehicles()
+    for _, entity in ipairs(vehicles) do
+        if GetEntityRoutingBucket(entity) == bucketId then
+            DeleteEntity(entity)
+        end
+    end
 end
 
 local function SyncArcRaidPlayers(bucketId)
@@ -3243,7 +3419,9 @@ local function StartModeOperation(src, invited, stageId, modeId)
             }
             EnsureArcSessionAdmissionState(bId)
             InitializeArcExtractionState(bId)
+            SpawnArcSessionVehicles(bId)
             deploymentState.extraction = BuildArcExtractionClientState(bId)
+            deploymentState.sessionVehicles = BuildArcSessionVehicleClientState(bId)
         else
             arcRaidState[bId] = nil
         end
@@ -3315,9 +3493,12 @@ local function StartModeOperation(src, invited, stageId, modeId)
     if selectedModeId == 'arc_pvp' then
         SyncArcRaidPlayers(bId)
         SyncArcExtractionState(bId)
-        if not joiningExistingArcRaid and GetArcExtractionState(bId) then
+        SyncArcSessionVehicles(bId)
+        if not joiningExistingArcRaid then
             CreateThread(function()
                 while groupMembers[bId] and arcRaidState[bId] and not arcFinalizeLocks[bId] do
+                    UpdateArcSessionVehicleState(bId)
+                    SyncArcSessionVehicles(bId)
                     AdvanceArcExtractionPhase(bId)
                     Wait(1000)
                 end
@@ -4203,6 +4384,7 @@ local function RejoinArcDisconnectedPlayer(source, Player, disconnectState)
         wasReconnect = true,
         coords = rejoinCoords
     })
+    SyncArcSessionVehicles(bucketId, { source })
 
     disconnectState.resolved = true
     if disconnectState.allowRejoin == true then

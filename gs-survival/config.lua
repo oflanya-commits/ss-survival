@@ -360,6 +360,12 @@ Config.ArcPvP = {
     MinInsertionLootDistance = 18.0,
     RaidDurationSeconds = 1800,
     MaxPlayersPerRaid = 40,
+    SessionVehicles = {
+        Enabled = true,
+        CarModels = { "sultan", "granger", "bison" },
+        HelicopterModel = "frogger",
+        HelicopterLabel = "ARC Helikopteri"
+    },
     ReuseMinimumRemainingSeconds = 1080,
     RejoinPolicy = "same_session_only", -- disabled / same_session_only
     LateJoinCutoffSeconds = 720, -- after this many elapsed seconds, new squads are no longer allowed to join
