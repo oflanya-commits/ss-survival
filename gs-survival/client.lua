@@ -13,6 +13,7 @@ local ARC_EXTRACTION_HELI_MISSION_FLAGS = 0
 local SCREEN_TRANSITION_FADE_DURATION_MS = 600
 local SCREEN_TRANSITION_BLACK_HOLD_MS = 3400
 local SCREEN_TRANSITION_TOTAL_DURATION_MS = (SCREEN_TRANSITION_FADE_DURATION_MS * 2) + SCREEN_TRANSITION_BLACK_HOLD_MS
+local UI_PROGRESS_CANCEL_CONTROLS = { 177, 200, 202 }
 local SCREEN_TRANSITION_LABEL = 'OTURUM GEÇİŞİ'
 local SCREEN_TRANSITION_ENTER_TITLE = "SESSION'A GİRİLİYOR"
 local SCREEN_TRANSITION_RETURN_TITLE = 'LOBİYE DÖNÜLÜYOR'
@@ -161,6 +162,8 @@ local function GetNotifyTitle(notifyType, title)
         return 'İşlem Başarısız'
     elseif notifyType == 'warning' then
         return 'Uyarı'
+    elseif notifyType == 'primary' or notifyType == 'info' then
+        return 'Bilgilendirme'
     end
 
     return 'Operasyon Bildirimi'
@@ -289,7 +292,18 @@ local function RunUiProgress(options, onComplete, onCancel)
                 DisableControlAction(0, 264, true)
             end
 
-            if canCancel and (IsControlJustPressed(0, 177) or IsControlJustPressed(0, 200) or IsControlJustPressed(0, 202)) then
+            local cancelRequested = false
+            if canCancel then
+                -- ESC ve frontend geri/pause tuşlarını aynı iptal davranışına bağla.
+                for _, controlId in ipairs(UI_PROGRESS_CANCEL_CONTROLS) do
+                    if IsControlJustPressed(0, controlId) then
+                        cancelRequested = true
+                        break
+                    end
+                end
+            end
+
+            if cancelRequested then
                 cancelled = true
                 finished = true
             elseif GetGameTimer() >= endsAt then
