@@ -4260,14 +4260,18 @@ local function RestoreArcDisconnectBaseInventory(source, Player, cid, backupStas
     FinalizeArcReconnectCleanup(source, Player, cid, backupStashId, disconnectState)
 end
 
-local function NormalizeArcLockerSide(side, fallbackSide)
+local ArcLockerHelpers = {
+    metadataMaxDepth = 12
+}
+
+function ArcLockerHelpers.NormalizeSide(side, fallbackSide)
     if side == 'loadout' or side == 'main' then
         return side
     end
     return fallbackSide == 'loadout' and 'loadout' or 'main'
 end
 
-local function FindArcLockerItemBySlot(stashId, slot)
+function ArcLockerHelpers.FindItemBySlot(stashId, slot)
     if not stashId or not slot then return nil end
 
     for _, item in pairs(exports.ox_inventory:GetInventoryItems(stashId) or {}) do
@@ -4279,9 +4283,7 @@ local function FindArcLockerItemBySlot(stashId, slot)
     return nil
 end
 
-local ARC_LOCKER_METADATA_MAX_DEPTH = 12
-
-local function ArcLockerMetadataEqual(a, b, depth, seen)
+function ArcLockerHelpers.MetadataEqual(a, b, depth, seen)
     depth = tonumber(depth) or 0
     seen = seen or {}
 
@@ -4290,7 +4292,7 @@ local function ArcLockerMetadataEqual(a, b, depth, seen)
     end
 
     -- ARC locker metadata is expected to stay shallow; cap recursion to avoid pathological nesting/cycles.
-    if depth > ARC_LOCKER_METADATA_MAX_DEPTH then
+    if depth > ArcLockerHelpers.metadataMaxDepth then
         return false
     end
 
@@ -4308,7 +4310,7 @@ local function ArcLockerMetadataEqual(a, b, depth, seen)
     seen[a] = b
 
     for key, value in pairs(a) do
-        if not ArcLockerMetadataEqual(value, b[key], depth + 1, seen) then
+        if not ArcLockerHelpers.MetadataEqual(value, b[key], depth + 1, seen) then
             return false
         end
     end
@@ -4322,15 +4324,15 @@ local function ArcLockerMetadataEqual(a, b, depth, seen)
     return true
 end
 
-local function GetArcLockerStackState(itemName)
+function ArcLockerHelpers.GetStackState(itemName)
     local oxItem = (exports.ox_inventory:Items() or {})[itemName] or {}
     return oxItem.weapon == true
 end
 
-local function BuildArcLockerTransferRequest(fromSide, slot, requestedAmount, toSide, targetSlot)
+function ArcLockerHelpers.BuildTransferRequest(fromSide, slot, requestedAmount, toSide, targetSlot)
     return {
-        fromSide = NormalizeArcLockerSide(fromSide, 'main'),
-        toSide = toSide == nil and nil or NormalizeArcLockerSide(toSide, fromSide == 'loadout' and 'main' or 'loadout'),
+        fromSide = ArcLockerHelpers.NormalizeSide(fromSide, 'main'),
+        toSide = toSide == nil and nil or ArcLockerHelpers.NormalizeSide(toSide, fromSide == 'loadout' and 'main' or 'loadout'),
         slot = tonumber(slot),
         targetSlot = tonumber(targetSlot),
         requestedAmount = tonumber(requestedAmount),
@@ -4338,7 +4340,7 @@ local function BuildArcLockerTransferRequest(fromSide, slot, requestedAmount, to
     }
 end
 
-local function ResolveArcLockerTransferCount(selectedItem, request)
+function ArcLockerHelpers.ResolveTransferCount(selectedItem, request)
     local fullCount = tonumber(selectedItem and selectedItem.count or 0) or 0
     if fullCount <= 0 then
         return 0, 'missing'
@@ -4799,7 +4801,7 @@ RegisterNetEvent('gs-survival:server:moveArcLockerItem', function(fromSide, slot
     local Player = QBCore.Functions.GetPlayer(src)
     if not Player then return end
 
-    local transferRequest = BuildArcLockerTransferRequest(fromSide, slot, requestedAmount, toSide, targetSlot)
+    local transferRequest = ArcLockerHelpers.BuildTransferRequest(fromSide, slot, requestedAmount, toSide, targetSlot)
     fromSide = transferRequest.fromSide
     focusSide = focusSide == 'loadout' and 'loadout' or 'main'
     slot = transferRequest.slot
@@ -4817,9 +4819,9 @@ RegisterNetEvent('gs-survival:server:moveArcLockerItem', function(fromSide, slot
     local toStashId = normalizedToSide == 'loadout' and loadoutStashId or mainStashId
     local fromLabel = fromSide == 'loadout' and (Config.ArcPvP.LoadoutStashLabel or "ARC Baskın Çantası") or (Config.ArcPvP.MainStashLabel or "ARC Ana Depo")
     local toLabel = normalizedToSide == 'loadout' and (Config.ArcPvP.LoadoutStashLabel or "ARC Baskın Çantası") or (Config.ArcPvP.MainStashLabel or "ARC Ana Depo")
-    local selectedItem = FindArcLockerItemBySlot(fromStashId, slot)
+    local selectedItem = ArcLockerHelpers.FindItemBySlot(fromStashId, slot)
     local targetInventorySlot = transferRequest.targetSlot
-    local targetItem = targetInventorySlot and FindArcLockerItemBySlot(toStashId, targetInventorySlot) or nil
+    local targetItem = targetInventorySlot and ArcLockerHelpers.FindItemBySlot(toStashId, targetInventorySlot) or nil
     local sameInventory = fromStashId == toStashId
 
     if not selectedItem or not selectedItem.name or tonumber(selectedItem.count or 0) <= 0 then
@@ -4833,9 +4835,9 @@ RegisterNetEvent('gs-survival:server:moveArcLockerItem', function(fromSide, slot
         return
     end
 
-    local itemCount, transferMode = ResolveArcLockerTransferCount(selectedItem, transferRequest)
+    local itemCount, transferMode = ArcLockerHelpers.ResolveTransferCount(selectedItem, transferRequest)
     local itemLabel = (selectedItem.metadata and selectedItem.metadata.label) or selectedItem.label or selectedItem.name
-    local isWeapon = GetArcLockerStackState(selectedItem.name)
+    local isWeapon = ArcLockerHelpers.GetStackState(selectedItem.name)
     local targetMetadata = targetItem and targetItem.metadata
     local transferMetadata = selectedItem.metadata
 
