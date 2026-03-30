@@ -723,11 +723,13 @@ local function RefreshArcSessionVehicleBlips()
         local heading = hasEntity and tonumber(GetEntityHeading(entity) or vehicleState.heading or 0.0) or tonumber(vehicleState.heading or 0.0) or 0.0
 
         if hasEntity and vehicleState.clientPrepared ~= true then
-            if netId and type(SetNetworkIdCanMigrate) == 'function' then
-                SetNetworkIdCanMigrate(netId, true)
-            end
-            if netId and type(SetNetworkIdExistsOnAllMachines) == 'function' then
-                SetNetworkIdExistsOnAllMachines(netId, true)
+            if netId then
+                if type(SetNetworkIdCanMigrate) == 'function' then
+                    SetNetworkIdCanMigrate(netId, true)
+                end
+                if type(SetNetworkIdExistsOnAllMachines) == 'function' then
+                    SetNetworkIdExistsOnAllMachines(netId, true)
+                end
             end
             SetVehicleEngineOn(entity, true, true, false)
             SetVehicleDoorsLocked(entity, 1)
