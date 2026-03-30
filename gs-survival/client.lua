@@ -451,7 +451,7 @@ local function ClearArcOverlay()
     SendNUIMessage({ type = 'clearArcHud' })
 end
 
-local function PushClassicSurvivalOverlay(stageData, aliveCount, maxWaves, lootTimerSeconds, force)
+local function PushClassicSurvivalOverlay(stageData, aliveCount, maxWaves, lootTimerSeconds, forceRefresh)
     if currentModeId ~= 'classic' then
         return
     end
@@ -486,11 +486,11 @@ local function PushClassicSurvivalOverlay(stageData, aliveCount, maxWaves, lootT
         enabled = isSurvivalActive == true,
         showInfo = isSurvivalActive == true,
         title = (resolvedStageData and resolvedStageData.label) or 'Operasyon',
-        subtitle = 'Survival saha telemetrisi',
+        subtitle = 'Survival saha telemetri',
         lines = lines,
         prompt = '',
         teamMembers = {}
-    }, force)
+    }, forceRefresh)
 end
 
 -- Sağ alt ARC takım panelini sadece üye listesi veya canlılık durumu değiştiğinde NUI'a tekrar yollar.
