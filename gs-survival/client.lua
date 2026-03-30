@@ -760,10 +760,8 @@ local function SpawnArcContainer(containerId, coords, model, label, rollCount, o
                         flags = 1,
                     }
                 }, function()
-                    StopAnimTask(PlayerPedId(), "amb@medic@standing@tendtodead@idle_a", "idle_a", 1.0)
                     TriggerServerEvent(resolvedOpenEvent, containerId, rollCount or 1)
                 end, function()
-                    StopAnimTask(PlayerPedId(), "amb@medic@standing@tendtodead@idle_a", "idle_a", 1.0)
                     NotifyForMode("Loot alma işlemi iptal edildi.", "error", 3500, notifyTitle)
                 end)
             end
@@ -2137,10 +2135,8 @@ RegisterNetEvent('gs-survival:client:craftItem', function(data)
                     flags = 16,
                 }
             }, function() -- Başarılı
-                StopAnimTask(PlayerPedId(), "anim@amb@clubhouse@tutorial@bkr_tut_ig3@", "machinic_loop_mechandplayer", 1.0)
                 TriggerServerEvent('gs-survival:server:finishCrafting', data)
             end, function() -- İptal
-                StopAnimTask(PlayerPedId(), "anim@amb@clubhouse@tutorial@bkr_tut_ig3@", "machinic_loop_mechandplayer", 1.0)
                 NotifyForMode("Üretim iptal edildi.", "error", 3500, "Atölye")
             end)
         else
@@ -2400,7 +2396,6 @@ RegisterNetEvent('gs-survival:client:setupNpc', function(npcNetId, multiplier)
                                 }
                             }, function()
                                 exports.ox_target:removeLocalEntity(data.entity, stashTargetName)
-                                StopAnimTask(PlayerPedId(), "amb@medic@standing@tendtodead@idle_a", "idle_a", 1.0)
                                 TriggerServerEvent('gs-survival:server:createNpcStash', npcNetId, currentWave)
                             end, function()
                                 TriggerServerEvent('gs-survival:server:cancelLoot', npcNetId)
