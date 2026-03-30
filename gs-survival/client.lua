@@ -31,6 +31,7 @@ local isEnding = false
 local activeSurvivalPlayers = {}
 local activeArcRaidPlayers = {}
 local arcContainers = {}
+local arcSessionVehicles = {}
 local arcContainerBlips = {}
 local arcFriendlyBlips = {}
 local arcZoneRadiusBlip = nil
@@ -628,6 +629,123 @@ local function ClearArcFriendlyBlips()
     end
 end
 
+local function ClearArcSessionVehicles()
+    for vehicleId, vehicleState in pairs(arcSessionVehicles or {}) do
+        local blip = vehicleState and vehicleState.blip or nil
+        if blip and DoesBlipExist(blip) then
+            RemoveBlip(blip)
+        end
+        arcSessionVehicles[vehicleId] = nil
+    end
+end
+
+local function GetArcSessionVehicleBlipStyle(kind)
+    if kind == 'helicopter' then
+        return 64, 3, 0.9
+    end
+
+    return 225, 38, 0.85
+end
+
+local function CreateArcSessionVehicleBlip(vehicleState, entity)
+    local coords = ToVector3(vehicleState and vehicleState.coords)
+    local sprite, colour, scale = GetArcSessionVehicleBlipStyle(vehicleState and vehicleState.kind)
+    local blip = entity and AddBlipForEntity(entity) or (coords and AddBlipForCoord(coords.x, coords.y, coords.z) or nil)
+    if not blip or not DoesBlipExist(blip) then
+        return nil
+    end
+
+    SetBlipSprite(blip, sprite)
+    SetBlipColour(blip, colour)
+    SetBlipScale(blip, scale)
+    SetBlipAsShortRange(blip, false)
+    ShowHeadingIndicatorOnBlip(blip, entity ~= nil)
+    BeginTextCommandSetBlipName("STRING")
+    AddTextComponentString(vehicleState.label or (vehicleState.kind == 'helicopter' and 'ARC Helikopteri' or 'ARC Araç'))
+    EndTextCommandSetBlipName(blip)
+
+    if not entity and coords then
+        SetBlipCoords(blip, coords.x, coords.y, coords.z)
+        SetBlipRotation(blip, math.floor((tonumber(vehicleState.heading or 0.0) or 0.0) + 0.5))
+    end
+
+    return blip
+end
+
+local function ApplyArcSessionVehicles(vehicleStates)
+    local activeIds = {}
+
+    for _, vehicleData in ipairs(vehicleStates or {}) do
+        local vehicleId = tostring(vehicleData and vehicleData.id or '')
+        if vehicleId ~= '' then
+            activeIds[vehicleId] = true
+            local trackedVehicle = arcSessionVehicles[vehicleId] or {}
+            trackedVehicle.netId = tonumber(vehicleData.netId) or trackedVehicle.netId
+            trackedVehicle.kind = vehicleData.kind or trackedVehicle.kind or 'car'
+            trackedVehicle.label = vehicleData.label or trackedVehicle.label or 'ARC Araç'
+            trackedVehicle.model = vehicleData.model or trackedVehicle.model
+            trackedVehicle.coords = ToVector3(vehicleData.coords) or trackedVehicle.coords
+            trackedVehicle.heading = tonumber(vehicleData.heading or trackedVehicle.heading or 0.0) or 0.0
+            arcSessionVehicles[vehicleId] = trackedVehicle
+        end
+    end
+
+    for vehicleId, vehicleState in pairs(arcSessionVehicles or {}) do
+        if not activeIds[vehicleId] then
+            if vehicleState.blip and DoesBlipExist(vehicleState.blip) then
+                RemoveBlip(vehicleState.blip)
+            end
+            arcSessionVehicles[vehicleId] = nil
+        end
+    end
+end
+
+local function RefreshArcSessionVehicleBlips()
+    if currentModeId ~= 'arc_pvp' then
+        ClearArcSessionVehicles()
+        return
+    end
+
+    for vehicleId, vehicleState in pairs(arcSessionVehicles or {}) do
+        local entity = 0
+        local netId = vehicleState and tonumber(vehicleState.netId) or nil
+        if netId and NetworkDoesNetworkIdExist(netId) then
+            entity = NetToVeh(netId)
+        end
+
+        local hasEntity = entity ~= 0 and DoesEntityExist(entity)
+        local targetMode = hasEntity and 'entity' or 'coord'
+        local coords = hasEntity and GetEntityCoords(entity) or ToVector3(vehicleState.coords)
+        local heading = hasEntity and tonumber(GetEntityHeading(entity) or vehicleState.heading or 0.0) or tonumber(vehicleState.heading or 0.0) or 0.0
+
+        vehicleState.coords = coords or vehicleState.coords
+        vehicleState.heading = heading
+
+        if not coords then
+            if vehicleState.blip and DoesBlipExist(vehicleState.blip) then
+                RemoveBlip(vehicleState.blip)
+            end
+            vehicleState.blip = nil
+            vehicleState.blipMode = nil
+        else
+            if (not vehicleState.blip or not DoesBlipExist(vehicleState.blip)) or vehicleState.blipMode ~= targetMode then
+                if vehicleState.blip and DoesBlipExist(vehicleState.blip) then
+                    RemoveBlip(vehicleState.blip)
+                end
+                vehicleState.blip = CreateArcSessionVehicleBlip(vehicleState, hasEntity and entity or nil)
+                vehicleState.blipMode = vehicleState.blip and targetMode or nil
+            end
+
+            if vehicleState.blip and DoesBlipExist(vehicleState.blip) and targetMode == 'coord' then
+                SetBlipCoords(vehicleState.blip, coords.x, coords.y, coords.z)
+                SetBlipRotation(vehicleState.blip, math.floor(heading + 0.5))
+            end
+        end
+
+        arcSessionVehicles[vehicleId] = vehicleState
+    end
+end
+
 local function ClearArcZoneBlips()
     if DoesBlipExist(arcZoneRadiusBlip) then
         RemoveBlip(arcZoneRadiusBlip)
@@ -670,6 +788,7 @@ local function ClearArcExtractionState()
     arcExtractionAvailableAt = 0
     arcExtractionMenuState = nil
     arcExtractionLastPhase = nil
+    ClearArcSessionVehicles()
     ClearArcExtractionBlips()
     ClearArcExtractionScene()
 end
@@ -1781,6 +1900,7 @@ RegisterNetEvent('gs-survival:client:cleanupBeforeLeave', function()
     ClearArcZoneBlips()
     RestoreHiddenBlips()
     ClearArcFriendlyBlips()
+    ClearArcSessionVehicles()
     ClearArcContainers()
 end)
 
@@ -2321,6 +2441,7 @@ RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers,
     if activeArcDeployment and activeArcDeployment.extraction then
         ApplyArcExtractionState(activeArcDeployment.extraction)
     end
+    ApplyArcSessionVehicles(activeArcDeployment and activeArcDeployment.sessionVehicles or {})
 
     RefreshArcOverlayTeam()
     RefreshArcOverlayInfo('', true)
@@ -2340,6 +2461,7 @@ RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers,
     HideNonArcBlips()
     CreateArcZoneBlips(activeArcDeployment)
     SpawnArcLootWorld(bucket, activeArcDeployment)
+    RefreshArcSessionVehicleBlips()
     RefreshArcFriendlyBlips()
     RefreshArcOverlayTeam()
     RefreshArcOverlayInfo('', true)
@@ -2367,6 +2489,15 @@ RegisterNetEvent('gs-survival:client:updateArcExtractionState', function(state, 
     if currentScreen == 'menu' then
         DispatchMenuState(false)
     end
+end)
+
+RegisterNetEvent('gs-survival:client:updateArcSessionVehicles', function(vehicleStates)
+    if currentModeId ~= 'arc_pvp' or isSurvivalActive ~= true then
+        return
+    end
+
+    ApplyArcSessionVehicles(vehicleStates or {})
+    RefreshArcSessionVehicleBlips()
 end)
 
 RegisterNetEvent('gs-survival:client:arcExtracted', function()
@@ -2665,6 +2796,7 @@ CreateThread(function()
     while resourceRunning do
         if currentModeId == 'arc_pvp' then
             RefreshArcFriendlyBlips()
+            RefreshArcSessionVehicleBlips()
             RefreshArcOverlayTeam()
             Wait(4000)
         else
