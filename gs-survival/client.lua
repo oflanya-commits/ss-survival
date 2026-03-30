@@ -2492,7 +2492,7 @@ RegisterNetEvent('gs-survival:client:updateArcExtractionState', function(state, 
 end)
 
 RegisterNetEvent('gs-survival:client:updateArcSessionVehicles', function(vehicleStates)
-    if currentModeId ~= 'arc_pvp' and isSurvivalActive ~= true then
+    if currentModeId ~= 'arc_pvp' or isSurvivalActive ~= true then
         return
     end
 

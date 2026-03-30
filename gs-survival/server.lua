@@ -1233,7 +1233,7 @@ local function SpawnArcSessionVehicles(bucketId)
             SetNetworkIdExistsOnAllMachines(netId, true)
             nextArcSessionVehicleId = nextArcSessionVehicleId + 1
             raidState.sessionVehicles[#raidState.sessionVehicles + 1] = {
-                id = ("arc_session_vehicle_%s"):format(nextArcSessionVehicleId),
+                id = ("arc_session_vehicle_%s_%s"):format(bucketId, nextArcSessionVehicleId),
                 netId = netId,
                 kind = kind or 'car',
                 label = label or (kind == 'helicopter' and 'ARC Helikopteri' or 'ARC Araç'),
@@ -3496,9 +3496,13 @@ local function StartModeOperation(src, invited, stageId, modeId)
         SyncArcSessionVehicles(bId)
         if not joiningExistingArcRaid then
             CreateThread(function()
+                local shouldSyncVehicles = false
                 while groupMembers[bId] and arcRaidState[bId] and not arcFinalizeLocks[bId] do
-                    UpdateArcSessionVehicleState(bId)
-                    SyncArcSessionVehicles(bId)
+                    shouldSyncVehicles = not shouldSyncVehicles
+                    if shouldSyncVehicles then
+                        UpdateArcSessionVehicleState(bId)
+                        SyncArcSessionVehicles(bId)
+                    end
                     AdvanceArcExtractionPhase(bId)
                     Wait(1000)
                 end
