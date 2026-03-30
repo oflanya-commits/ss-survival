@@ -4260,6 +4260,7 @@ local function RestoreArcDisconnectBaseInventory(source, Player, cid, backupStas
     FinalizeArcReconnectCleanup(source, Player, cid, backupStashId, disconnectState)
 end
 
+do
 local function NormalizeArcLockerSide(side, fallbackSide)
     if side == 'loadout' or side == 'main' then
         return side
@@ -4904,6 +4905,7 @@ RegisterNetEvent('gs-survival:server:moveArcLockerItem', function(fromSide, slot
     TriggerClientEvent('QBCore:Functions:Notify', src, string.format("%s x%d, %s içinden %s %s.", itemLabel, itemCount, fromLabel, toLabel, actionText), "success")
     TriggerClientEvent('gs-survival:client:openArcLockerManager', src, focusSide)
 end)
+end
 
 RegisterNetEvent('gs-survival:server:openArcLootContainer', function(containerId, rollCount)
     local src = source
