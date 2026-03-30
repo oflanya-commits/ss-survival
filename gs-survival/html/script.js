@@ -165,7 +165,7 @@ window.addEventListener('message', function (event) {
     switch (d.type) {
         case 'openMenu':      showMenu(d.data);         showApp(); break;
         case 'openMarket':    showMarket(d.data);                  break;
-        case 'openCraft':     showCraft(d.data);                   break;
+        case 'openCraft':     showCraft(d.data); showApp();        break;
         case 'openStages':    showStages(d.data);                  break;
         case 'openArcLockers': showArcLockers(d.data); showApp();  break;
         case 'openInvite':    showInvite(d.data);                  break;
@@ -274,7 +274,7 @@ function closeMenu() {
 
 // ─── Lua callback ─────────────────────────────────────────────────────────
 function sendAction(action, data) {
-    fetch('https://gs-survival/nuiAction', {
+    fetch('https://' + GetParentResourceName() + '/nuiAction', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: action, data: data })
