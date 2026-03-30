@@ -492,9 +492,11 @@ function cancelArcProgressFrame() {
 function updateArcProgressVisuals() {
     var progressState = screenData.arcProgress || {};
     var percent = 0;
+    var duration = Number(progressState.duration || 0);
+    var startedAt = Number(progressState.startedAt || 0);
 
-    if (progressState.visible === true && Number(progressState.duration || 0) > 0) {
-        percent = clamp(((Date.now() - Number(progressState.startedAt || 0)) / Number(progressState.duration || 1)) * 100, 0, 100);
+    if (progressState.visible === true && duration > 0) {
+        percent = clamp(((Date.now() - startedAt) / duration) * 100, 0, 100);
     }
 
     if (hudEls.arcProgressFill) {
@@ -507,15 +509,18 @@ function updateArcProgressVisuals() {
 
 function tickArcProgress() {
     cancelArcProgressFrame();
+    var progressState = screenData.arcProgress || {};
+    var duration = Number(progressState.duration || 0);
+    var startedAt = Number(progressState.startedAt || 0);
 
-    if (!screenData.arcProgress || screenData.arcProgress.visible !== true) {
+    if (!progressState || progressState.visible !== true) {
         updateArcProgressVisuals();
         return;
     }
 
     updateArcProgressVisuals();
 
-    if ((Date.now() - Number(screenData.arcProgress.startedAt || 0)) < Number(screenData.arcProgress.duration || 0)) {
+    if ((Date.now() - startedAt) < duration) {
         arcProgressFrame = requestAnimationFrame(tickArcProgress);
     }
 }

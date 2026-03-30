@@ -14,6 +14,7 @@ local SCREEN_TRANSITION_FADE_DURATION_MS = 600
 local SCREEN_TRANSITION_BLACK_HOLD_MS = 3400
 local SCREEN_TRANSITION_TOTAL_DURATION_MS = (SCREEN_TRANSITION_FADE_DURATION_MS * 2) + SCREEN_TRANSITION_BLACK_HOLD_MS
 local UI_PROGRESS_CANCEL_CONTROLS = { 177, 200, 202 }
+local DEFAULT_PROGRESS_TITLE = 'İşlem Sürüyor'
 local SCREEN_TRANSITION_LABEL = 'OTURUM GEÇİŞİ'
 local SCREEN_TRANSITION_ENTER_TITLE = "SESSION'A GİRİLİYOR"
 local SCREEN_TRANSITION_RETURN_TITLE = 'LOBİYE DÖNÜLÜYOR'
@@ -239,7 +240,7 @@ local function RunUiProgress(options, onComplete, onCancel)
     SendNUIMessage({
         type = 'showArcProgress',
         data = {
-            title = options.title or GetNotifyTitle('primary'),
+            title = options.title or DEFAULT_PROGRESS_TITLE,
             label = options.label or 'İşlem sürüyor...',
             duration = duration,
             canCancel = canCancel
@@ -314,7 +315,7 @@ local function RunUiProgress(options, onComplete, onCancel)
         HideUiProgress()
 
         if anim.dict and anim.anim then
-            StopAnimTask(PlayerPedId(), anim.dict, anim.anim, 1.0)
+            StopAnimTask(ped, anim.dict, anim.anim, 1.0)
         end
 
         if cancelled then
