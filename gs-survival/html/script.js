@@ -28,6 +28,8 @@ var ARC_BANNER_MIN_DURATION = 1200;
 var ARC_BANNER_MAX_DURATION = 8000;
 var ARC_BANNER_DEFAULT_LABEL = 'ARC TAHLİYE';
 var ARC_BANNER_DEFAULT_TITLE = 'LOBİYE DÖNÜLÜYOR';
+var ARC_PROGRESS_DEFAULT_TITLE = 'Operasyon Sürüyor';
+var ARC_PROGRESS_DEFAULT_LABEL = 'Lütfen bekle...';
 var ARC_NOTIFY_TYPES = {
     info: true,
     success: true,
@@ -69,8 +71,8 @@ var screenData = {
     },
     arcProgress: {
         visible: false,
-        title: 'Operasyon Sürüyor',
-        label: 'Lütfen bekle...',
+        title: ARC_PROGRESS_DEFAULT_TITLE,
+        label: ARC_PROGRESS_DEFAULT_LABEL,
         duration: 0,
         canCancel: true,
         startedAt: 0
@@ -440,8 +442,8 @@ function renderArcHud() {
     hudEls.arcResultBanner.style.setProperty('--arc-banner-duration', String(Number(bannerState.duration || ARC_BANNER_DEFAULT_DURATION)) + 'ms');
     hudEls.arcResultBannerLabel.textContent = bannerState.label || ARC_BANNER_DEFAULT_LABEL;
     hudEls.arcResultBannerTitle.textContent = bannerState.title || ARC_BANNER_DEFAULT_TITLE;
-    hudEls.arcProgressTitle.textContent = progressState.title || 'Operasyon Sürüyor';
-    hudEls.arcProgressLabel.textContent = progressState.label || 'Lütfen bekle...';
+    hudEls.arcProgressTitle.textContent = progressState.title || ARC_PROGRESS_DEFAULT_TITLE;
+    hudEls.arcProgressLabel.textContent = progressState.label || ARC_PROGRESS_DEFAULT_LABEL;
     hudEls.arcProgressCancel.textContent = progressState.canCancel === false ? 'İptal devre dışı' : 'ESC ile iptal edebilirsin';
     updateArcProgressVisuals();
 
@@ -529,8 +531,8 @@ function clearArcProgress(skipRender) {
     cancelArcProgressFrame();
     screenData.arcProgress = {
         visible: false,
-        title: 'Operasyon Sürüyor',
-        label: 'Lütfen bekle...',
+        title: ARC_PROGRESS_DEFAULT_TITLE,
+        label: ARC_PROGRESS_DEFAULT_LABEL,
         duration: 0,
         canCancel: true,
         startedAt: 0
@@ -545,8 +547,8 @@ function showArcProgress(data) {
     cancelArcProgressFrame();
     screenData.arcProgress = {
         visible: true,
-        title: data.title || 'Operasyon Sürüyor',
-        label: data.label || 'Lütfen bekle...',
+        title: data.title || ARC_PROGRESS_DEFAULT_TITLE,
+        label: data.label || ARC_PROGRESS_DEFAULT_LABEL,
         duration: clamp(Number(data.duration || 0), 250, 60000),
         canCancel: data.canCancel !== false,
         startedAt: Date.now()
