@@ -4291,7 +4291,9 @@ RestorePlayerInventory = function(targetId, victoryStatus, modeId)
     RestoreSurvivalInventory(targetId, victoryStatus, modeId)
 end
 
-local function HandleArcDisconnect(source, bucketId, reason)
+local ArcReconnectHelpers = {}
+
+function ArcReconnectHelpers.HandleDisconnect(source, bucketId, reason)
     local Player = QBCore.Functions.GetPlayer(source)
     local profile = GetArcRaidPlayerProfile(bucketId, source)
     local cid = Player and Player.PlayerData and Player.PlayerData.citizenid or (profile and profile.citizenid) or nil
@@ -4345,7 +4347,7 @@ local function HandleArcDisconnect(source, bucketId, reason)
     return arcDisconnectStates[cid]
 end
 
-local function RejoinArcDisconnectedPlayer(source, Player, disconnectState)
+function ArcReconnectHelpers.RejoinPlayer(source, Player, disconnectState)
     if not Player or not disconnectState then
         return false, "ARC geri dönüş verisi bulunamadı."
     end
@@ -4405,7 +4407,7 @@ local function RejoinArcDisconnectedPlayer(source, Player, disconnectState)
     return true
 end
 
-local function ResolveReconnectRestoreItems(stashItems, cid)
+function ArcReconnectHelpers.ResolveRestoreItems(stashItems, cid)
     local normalizedStashItems = NormalizeInventoryItems(stashItems)
     if #normalizedStashItems > 0 then
         return normalizedStashItems, 'stash'
@@ -4419,7 +4421,7 @@ local function ResolveReconnectRestoreItems(stashItems, cid)
     return {}, nil
 end
 
-local function FinalizeArcReconnectCleanup(source, Player, cid, backupStashId, disconnectState)
+function ArcReconnectHelpers.FinalizeCleanup(source, Player, cid, backupStashId, disconnectState)
     playerBackups[cid] = nil
     exports.ox_inventory:ClearInventory(backupStashId)
 
@@ -4443,7 +4445,7 @@ local function FinalizeArcReconnectCleanup(source, Player, cid, backupStashId, d
     arcDisconnectStates[cid] = nil
 end
 
-local function RestoreArcDisconnectBaseInventory(source, Player, cid, backupStashId, disconnectState, backupItems)
+function ArcReconnectHelpers.RestoreBaseInventory(source, Player, cid, backupStashId, disconnectState, backupItems)
     exports.ox_inventory:ClearInventory(source)
     Wait(250)
 
@@ -4451,7 +4453,7 @@ local function RestoreArcDisconnectBaseInventory(source, Player, cid, backupStas
         exports.ox_inventory:AddItem(source, item.name, item.count, item.metadata)
     end
 
-    FinalizeArcReconnectCleanup(source, Player, cid, backupStashId, disconnectState)
+    ArcReconnectHelpers.FinalizeCleanup(source, Player, cid, backupStashId, disconnectState)
 end
 
 local ArcLockerHelpers = {
@@ -4741,7 +4743,7 @@ AddEventHandler('playerDropped', function(reason)
     end
     if bucketId ~= 0 and groupMembers and groupMembers[bucketId] then
         if GetGameModeId(bucketModes[bucketId]) == 'arc_pvp' then
-            local disconnectState = HandleArcDisconnect(src, bucketId, reason)
+            local disconnectState = ArcReconnectHelpers.HandleDisconnect(src, bucketId, reason)
             local droppedProfile = GetArcRaidPlayerProfile(bucketId, src)
             local droppedName = disconnectState and disconnectState.playerName or (droppedProfile and droppedProfile.name) or ("ID " .. tostring(src))
             local disconnectInfo = BuildArcDisconnectPolicyInfo()
@@ -4832,7 +4834,7 @@ QBCore.Functions.CreateCallback('gs-survival:server:checkReconnectBackup', funct
 
     if modeId == 'arc_pvp' and disconnectState and disconnectState.allowRejoin == true then
         if reconnectAction == 'rejoin' then
-            local rejoined, rejoinError = RejoinArcDisconnectedPlayer(src, Player, disconnectState)
+            local rejoined, rejoinError = ArcReconnectHelpers.RejoinPlayer(src, Player, disconnectState)
             if rejoined then
                 return cb({
                     restored = false,
@@ -4868,10 +4870,10 @@ QBCore.Functions.CreateCallback('gs-survival:server:checkReconnectBackup', funct
         end
     end
 
-    local backupItems, backupSource = ResolveReconnectRestoreItems(items, cid)
+    local backupItems, backupSource = ArcReconnectHelpers.ResolveRestoreItems(items, cid)
 
     if modeId == 'arc_pvp' and disconnectInfo and disconnectInfo.key == 'death' then
-        RestoreArcDisconnectBaseInventory(src, Player, cid, stashId, disconnectState, backupItems)
+        ArcReconnectHelpers.RestoreBaseInventory(src, Player, cid, stashId, disconnectState, backupItems)
         return cb({
             restored = true,
             modeId = modeId,
@@ -4885,7 +4887,7 @@ QBCore.Functions.CreateCallback('gs-survival:server:checkReconnectBackup', funct
     end
 
     if #backupItems > 0 then
-        RestoreArcDisconnectBaseInventory(src, Player, cid, stashId, disconnectState, backupItems)
+        ArcReconnectHelpers.RestoreBaseInventory(src, Player, cid, stashId, disconnectState, backupItems)
         return cb({
             restored = true,
             modeId = modeId,
@@ -4901,7 +4903,7 @@ QBCore.Functions.CreateCallback('gs-survival:server:checkReconnectBackup', funct
 
     exports.ox_inventory:ClearInventory(src)
     Wait(250)
-    FinalizeArcReconnectCleanup(src, Player, cid, stashId, disconnectState)
+    ArcReconnectHelpers.FinalizeCleanup(src, Player, cid, stashId, disconnectState)
     cb({
         restored = true,
         modeId = modeId,
