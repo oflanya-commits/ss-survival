@@ -12,6 +12,7 @@ local lootItemSet = {}
 local finishingPlayers = {}
 local openedArcContainers = {}
 local arcDeathContainers = {}
+local arcPlacedBarricades = {}
 local openedNpcLoot = {}
 local eliminatedArcPlayers = {}
 local arcRaidState = {}
@@ -1055,6 +1056,30 @@ local function ToVector3(coords)
     return nil
 end
 
+local function GetArcBarricadeConfig()
+    return (Config.ArcPvP and Config.ArcPvP.BarricadeKit) or {}
+end
+
+local function BuildArcBarricadeClientState(barricadeId, barricadeState)
+    local coords = ToVector3(barricadeState and barricadeState.coords)
+    local model = barricadeState and barricadeState.model
+    if not barricadeId or not coords or not model then
+        return nil
+    end
+
+    return {
+        id = barricadeId,
+        coords = {
+            x = coords.x,
+            y = coords.y,
+            z = coords.z
+        },
+        heading = tonumber(barricadeState.heading or 0.0) or 0.0,
+        model = model,
+        ownerId = tonumber(barricadeState.ownerId) or 0
+    }
+end
+
 local function BuildArcLockerEntries(items)
     local entries = {}
     local oxItems = exports.ox_inventory:Items() or {}
@@ -1593,6 +1618,44 @@ local function IsArcActivePlayer(bucketId, playerId)
     end
 
     return false
+end
+
+local function CountArcBarricades(bucketId, ownerId)
+    local totalCount = 0
+    local ownerCount = 0
+
+    for _, barricadeState in pairs(arcPlacedBarricades[bucketId] or {}) do
+        totalCount = totalCount + 1
+        if ownerId and tonumber(barricadeState.ownerId) == tonumber(ownerId) then
+            ownerCount = ownerCount + 1
+        end
+    end
+
+    return totalCount, ownerCount
+end
+
+local function SyncArcBarricadesToPlayer(playerId, bucketId)
+    local barricades = {}
+
+    for barricadeId, barricadeState in pairs(arcPlacedBarricades[bucketId] or {}) do
+        local clientState = BuildArcBarricadeClientState(barricadeId, barricadeState)
+        if clientState then
+            barricades[#barricades + 1] = clientState
+        end
+    end
+
+    TriggerClientEvent('gs-survival:client:syncArcBarricades', playerId, barricades)
+end
+
+local function BroadcastArcBarricade(bucketId, barricadeId)
+    local clientState = BuildArcBarricadeClientState(barricadeId, arcPlacedBarricades[bucketId] and arcPlacedBarricades[bucketId][barricadeId])
+    if not clientState then
+        return
+    end
+
+    for _, playerId in ipairs(groupMembers[bucketId] or {}) do
+        TriggerClientEvent('gs-survival:client:spawnArcBarricade', playerId, clientState)
+    end
 end
 
 local function GetArcPlayersInsideExtractionZone(bucketId)
@@ -3910,6 +3973,104 @@ RegisterNetEvent('gs-survival:server:finishCrafting', function(data)
     end
 end)
 
+local arcBarricadeItemName = GetArcBarricadeConfig().Item or 'arc_barricade_kit'
+
+QBCore.Functions.CreateUseableItem(arcBarricadeItemName, function(source, item)
+    TriggerClientEvent('gs-survival:client:useArcBarricadeKit', source, {
+        slot = item and item.slot or nil
+    })
+end)
+
+RegisterNetEvent('gs-survival:server:requestArcBarricadeSync', function()
+    local src = source
+    local bucketId = GetPlayerRoutingBucket(src)
+
+    if GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
+        return TriggerClientEvent('gs-survival:client:syncArcBarricades', src, {})
+    end
+
+    SyncArcBarricadesToPlayer(src, bucketId)
+end)
+
+RegisterNetEvent('gs-survival:server:placeArcBarricade', function(data)
+    local src = source
+    local bucketId = GetPlayerRoutingBucket(src)
+    local config = GetArcBarricadeConfig()
+    local itemName = config.Item or arcBarricadeItemName
+    local model = config.Model
+    local placementCoords = ToVector3(data and data.coords)
+    local placementHeading = tonumber(data and data.heading or 0.0) or 0.0
+    local maxRaidBarricades = math.max(1, math.floor(tonumber(config.MaxPerRaid) or 16))
+    local maxPlayerBarricades = math.max(1, math.floor(tonumber(config.MaxPerPlayer) or 2))
+    local interactDistance = math.max(1.0, tonumber(config.InteractDistance) or 4.0)
+    local minSpacing = math.max(0.5, tonumber(config.MinSpacing) or 2.5)
+
+    if GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not IsArcActivePlayer(bucketId, src) then
+        TriggerClientEvent('QBCore:Functions:Notify', src, "Barricade kit sadece aktif ARC oyuncuları tarafından kullanılabilir.", "error")
+        return
+    end
+
+    if not placementCoords or not model or not IsPlayerNearCoords(src, placementCoords, interactDistance) then
+        TriggerClientEvent('QBCore:Functions:Notify', src, "Barricade için geçerli bir yer seçmedin.", "error")
+        return
+    end
+
+    local totalBarricades, playerBarricades = CountArcBarricades(bucketId, src)
+    if totalBarricades >= maxRaidBarricades then
+        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu ARC baskınında daha fazla barricade kurulamıyor.", "error")
+        return
+    end
+
+    if playerBarricades >= maxPlayerBarricades then
+        TriggerClientEvent('QBCore:Functions:Notify', src, "Kendi barricade limitine ulaştın.", "error")
+        return
+    end
+
+    for _, barricadeState in pairs(arcPlacedBarricades[bucketId] or {}) do
+        local existingCoords = ToVector3(barricadeState.coords)
+        if existingCoords and #(placementCoords - existingCoords) < minSpacing then
+            TriggerClientEvent('QBCore:Functions:Notify', src, "Barricade'ler birbirine çok yakın olamaz.", "error")
+            return
+        end
+    end
+
+    local removeSlot = tonumber(data and data.slot or nil)
+    if removeSlot and removeSlot <= 0 then
+        removeSlot = nil
+    end
+    local removed = exports.ox_inventory:RemoveItem(src, itemName, 1, nil, removeSlot)
+    if not removed then
+        local Player = QBCore.Functions.GetPlayer(src)
+        if Player then
+            removed = Player.Functions.RemoveItem(itemName, 1, removeSlot)
+            if removed and QBCore.Shared and QBCore.Shared.Items and QBCore.Shared.Items[itemName] then
+                TriggerClientEvent('inventory:client:ItemBox', src, QBCore.Shared.Items[itemName], "remove")
+            end
+        end
+    end
+
+    if not removed then
+        TriggerClientEvent('QBCore:Functions:Notify', src, "Barricade kit envanterinde bulunamadı.", "error")
+        return
+    end
+
+    arcPlacedBarricades[bucketId] = arcPlacedBarricades[bucketId] or {}
+    local barricadeId = ("arc_barricade_%s_%s_%s"):format(bucketId, src, math.random(1000, 9999))
+    arcPlacedBarricades[bucketId][barricadeId] = {
+        coords = {
+            x = placementCoords.x,
+            y = placementCoords.y,
+            z = placementCoords.z
+        },
+        heading = placementHeading,
+        model = model,
+        ownerId = src
+    }
+
+    BroadcastArcBarricade(bucketId, barricadeId)
+    TriggerClientEvent('QBCore:Functions:Notify', src, (config.Label or "ARC Barricade Kit") .. " kuruldu.", "success")
+end)
+
 RegisterNetEvent('gs-survival:server:buyUpgrade', function(data)
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
@@ -3988,6 +4149,7 @@ ResetBucketState = function(bucketId)
     bucketModes[bucketId] = nil
     openedArcContainers[bucketId] = nil
     arcDeathContainers[bucketId] = nil
+    arcPlacedBarricades[bucketId] = nil
     eliminatedArcPlayers[bucketId] = nil
     arcRaidState[bucketId] = nil
     arcRaidParticipants[bucketId] = nil
