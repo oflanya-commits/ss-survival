@@ -1965,6 +1965,7 @@ Citizen.CreateThread(function()
                             local forceOverlayRefresh = true
                             while lootTimer > 0 and isSurvivalActive do
                                 PushClassicSurvivalOverlay(survivalStage, 0, maxWaves, lootTimer, forceOverlayRefresh)
+                                forceOverlayRefresh = false
                                 Wait(1000)
                                 lootTimer = lootTimer - 1
                             end
