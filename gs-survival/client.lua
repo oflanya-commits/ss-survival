@@ -1358,7 +1358,7 @@ RegisterNUICallback('nuiAction', function(data, cb)
     local action = data.action
 
     if action == 'closeMenu' then
-        SetNuiFocus(false, false)
+        CloseNUI()
 
     elseif action == 'goBack' then
         RefreshMainMenu()

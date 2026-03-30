@@ -12,6 +12,7 @@ local lootItemSet = {}
 local finishingPlayers = {}
 local openedArcContainers = {}
 local arcDeathContainers = {}
+local openedNpcLoot = {}
 local eliminatedArcPlayers = {}
 local arcRaidState = {}
 local arcRaidParticipants = {}
@@ -26,6 +27,7 @@ local arcFinalizeLocks = {}
 local arcRaidPlayerProfiles = {}
 local arcPlayerBucketIndex = {}
 local arcPendingReconnectCounts = {}
+local bucketWaveState = {}
 local nextBucketId = 10000
 local FinalizeArcMatch
 local ResetBucketState
@@ -69,6 +71,21 @@ local function IsBucketMember(bucketId, playerId)
     end
 
     return IsPlayerInList(groupMembers[bucketId] or {}, playerId)
+end
+
+local function CountAliveBucketNpcs(bucketId)
+    if not bucketId or bucketId == 0 then
+        return 0
+    end
+
+    local aliveCount = 0
+    for _, entity in ipairs(GetAllPeds()) do
+        if GetEntityRoutingBucket(entity) == bucketId and not IsPedAPlayer(entity) and not IsPedDeadOrDying(entity, true) then
+            aliveCount = aliveCount + 1
+        end
+    end
+
+    return aliveCount
 end
 
 local function FindLobbyLeaderByMember(memberId)
@@ -534,6 +551,19 @@ end
 local function GetStageData(modeId, stageId)
     local stages = GetModeStages(modeId)
     return stages[tonumber(stageId or 1)]
+end
+
+local function GetClassicMaxWaveForStage(stageId)
+    local stageData = GetStageData('classic', stageId)
+    local waveCount = 0
+
+    for waveId in pairs((stageData and stageData.Waves) or {}) do
+        if type(waveId) == 'number' and waveId > waveCount then
+            waveCount = waveId
+        end
+    end
+
+    return waveCount
 end
 
 local function GetRandomUnlockedStageId(maxLevel, modeId)
@@ -2729,6 +2759,16 @@ local function GetPlayerCoordsSafe(playerId)
     return GetEntityCoords(ped)
 end
 
+local function IsPlayerNearCoords(playerId, coords, maxDistance)
+    local playerCoords = GetPlayerCoordsSafe(playerId)
+    local targetCoords = ToVector3(coords)
+    if not playerCoords or not targetCoords then
+        return false
+    end
+
+    return #(playerCoords - targetCoords) <= (tonumber(maxDistance) or 0.0)
+end
+
 local function IsPlayerWithinLobbyProximity(anchorId, targetId)
     local anchorCoords = GetPlayerCoordsSafe(anchorId)
     local targetCoords = GetPlayerCoordsSafe(targetId)
@@ -3033,15 +3073,6 @@ local function BuildStartingGroup(src, invited)
 
             table.insert(peps, memberId)
         end
-    elseif invited then
-        for _, id in pairs(invited) do
-            local canStartTogether, proximityError = EnsureLobbyProximity(src, id)
-            if not canStartTogether then
-                return nil, proximityError
-            end
-
-            table.insert(peps, id)
-        end
     end
 
     return peps
@@ -3212,6 +3243,8 @@ local function StartModeOperation(src, invited, stageId, modeId)
 
     if selectedModeId == 'arc_pvp' then
         CreateArcRaidSquad(bId, peps)
+    else
+        bucketWaveState[bId] = 0
     end
 
     activeLobbies[src] = nil
@@ -3386,6 +3419,15 @@ RegisterNetEvent('gs-survival:server:spawnWave', function(bId, wave, stageId)
         return
     end
 
+    local previousWave = tonumber(bucketWaveState[bucketId] or 0) or 0
+    if waveNumber ~= (previousWave + 1) then
+        return
+    end
+
+    if previousWave > 0 and CountAliveBucketNpcs(bucketId) > 0 then
+        return
+    end
+
     -- [GÜNCELLEME]: Lobi stage bilgisini çek ve stageData'nın varlığını garantile
     local sId = (lobbyStage and lobbyStage[bucketId]) or tonumber(stageId) or 1
     local stageData = Config.Stages[sId]
@@ -3400,6 +3442,8 @@ RegisterNetEvent('gs-survival:server:spawnWave', function(bId, wave, stageId)
     local cfg = stageData.Waves and stageData.Waves[waveNumber]
 
     if not cfg or not groupMembers[bucketId] or #groupMembers[bucketId] == 0 then return end
+
+    bucketWaveState[bucketId] = waveNumber
 
     local multiplier = stageData and stageData.multiplier or 1.0
     CleanBucketEntities(bucketId)
@@ -3946,12 +3990,16 @@ ResetBucketState = function(bucketId)
     arcRaidSquads[bucketId] = nil
     arcRaidPlayerProfiles[bucketId] = nil
     arcPendingReconnectCounts[bucketId] = nil
+    bucketWaveState[bucketId] = nil
 
     for playerId, indexedBucketId in pairs(arcPlayerBucketIndex) do
         if tonumber(indexedBucketId) == tonumber(bucketId) then
             arcPlayerBucketIndex[playerId] = nil
         end
     end
+
+    openedNpcLoot[bucketId] = nil
+
     arcFinalizeLocks[bucketId] = nil
 end
 
@@ -4373,6 +4421,16 @@ RegisterNetEvent('gs-survival:server:finishSurvival', function(isVictory)
     local status = isVictory
     if isActuallyDead then status = false end
 
+    if status then
+        local playedStage = lobbyStage[bucketId] or 1
+        local currentWave = bucketWaveState[bucketId] or 0
+        local maxWaves = GetClassicMaxWaveForStage(playedStage)
+        local hasAliveNpc = CountAliveBucketNpcs(bucketId) > 0
+        if currentWave <= 0 or currentWave < maxWaves or hasAliveNpc then
+            status = false
+        end
+    end
+
     if isActuallyDead then
         local allDead = true
         if groupMembers[bucketId] then
@@ -4665,16 +4723,34 @@ RegisterNetEvent('gs-survival:server:createNpcStash', function(npcNetId, current
     local src = source
     local bucketId = GetPlayerRoutingBucket(src)
     local resolvedNpcNetId = tonumber(npcNetId)
-    local wave = math.max(1, math.floor(tonumber(currentWave) or 1)) -- Eğer dalga bilgisi gelmezse varsayılan 1 yap
+    local wave = math.max(1, math.floor(tonumber(bucketWaveState[bucketId] or 1))) -- Eğer dalga bilgisi gelmezse varsayılan 1 yap
 
     if bucketId == 0 or not IsBucketMember(bucketId, src) or not resolvedNpcNetId then
         beingLooted[npcNetId] = nil
         return
     end
 
+    if beingLooted[resolvedNpcNetId] ~= src then
+        return
+    end
+
+    openedNpcLoot[bucketId] = openedNpcLoot[bucketId] or {}
+
+    if openedNpcLoot[bucketId][resolvedNpcNetId] then
+        beingLooted[resolvedNpcNetId] = nil
+        return
+    end
+
+    local npc = NetworkGetEntityFromNetworkId(resolvedNpcNetId)
+    if npc == 0 or not DoesEntityExist(npc) or GetEntityRoutingBucket(npc) ~= bucketId or not IsPedDeadOrDying(npc, true) then
+        beingLooted[resolvedNpcNetId] = nil
+        return
+    end
+
     local stashId = "surv_" .. resolvedNpcNetId .. "_" .. math.random(1111, 9999)
 
     beingLooted[npcNetId] = nil
+    openedNpcLoot[bucketId][resolvedNpcNetId] = true
 
     -- [DÜZENLEME]: Artık Config.Loot üzerinden değil, Config.LootTable üzerinden dönüyor
     -- 1. Stash'i oluştur
@@ -4855,6 +4931,11 @@ RegisterNetEvent('gs-survival:server:openArcLootContainer', function(containerId
         return
     end
 
+    if not IsPlayerNearCoords(src, nodeState.coords, 4.0) then
+        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu loot kutusunu açmak için yanında olmalısın.", "error")
+        return
+    end
+
     if bucketContainerState and bucketContainerState.consumed then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Bu loot kutusu zaten açıldı.", "error")
         return
@@ -4899,6 +4980,11 @@ RegisterNetEvent('gs-survival:server:openArcDeathContainer', function(containerI
     local containerState = arcDeathContainers[bucketId] and arcDeathContainers[bucketId][containerId]
     if not containerId or not containerState or containerState.consumed or not containerState.stashId then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Bu ölüm kutusu artık kullanılamıyor.", "error")
+        return
+    end
+
+    if not IsPlayerNearCoords(src, containerState.coords, 4.0) then
+        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu ölüm kutusunu açmak için yanında olmalısın.", "error")
         return
     end
 
@@ -5019,7 +5105,7 @@ QBCore.Functions.CreateCallback('gs-survival:server:checkLootStatus', function(s
 
     if beingLooted[resolvedNpcNetId] and beingLooted[resolvedNpcNetId] ~= source then
         -- Eğer bu NPC zaten birisi tarafından aranıyorsa
-        TriggerClientEvent('QBCore:Notify', source, "Bu ceset zaten başkası tarafından aranıyor!", "error")
+        TriggerClientEvent('QBCore:Functions:Notify', source, "Bu ceset zaten başkası tarafından aranıyor!", "error")
         cb(false)
     else
         -- Kimse aramıyorsa, arayan kişi olarak kaydet
@@ -5044,6 +5130,11 @@ RegisterNetEvent('gs-survival:server:giveStarterItems', function(weaponName)
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
     if not Player then return end
+
+    local bucketId = GetPlayerRoutingBucket(src)
+    if bucketId == 0 or GetGameModeId(bucketModes[bucketId]) ~= 'classic' or not IsModeActive(Player, 'classic') then
+        return
+    end
 
     local survivalMetadata = GetModeMetadata('classic')
     local hasWeaponUpgrade = Player.PlayerData.metadata[survivalMetadata.weapon or 'survival_weapon'] or "weapon_pistol"
