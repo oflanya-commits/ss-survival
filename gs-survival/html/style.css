@@ -607,6 +607,86 @@ body {
     animation: arc-banner-in 0.45s cubic-bezier(0.19, 1, 0.22, 1) both;
 }
 
+.arc-progress-card {
+    position: absolute;
+    left: 50%;
+    bottom: 56px;
+    transform: translateX(-50%);
+    width: min(460px, calc(100vw - 32px));
+    padding: 18px 20px;
+    border: 1px solid rgba(var(--arc-accent-blue-rgb), 0.2);
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at top left, rgba(168, 213, 226, 0.12), transparent 44%),
+        linear-gradient(180deg, rgba(8, 11, 15, 0.94), rgba(14, 18, 24, 0.9));
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.3);
+    animation: ui-fade-up 0.24s ease-out both;
+}
+
+.arc-progress-kicker {
+    font-size: 0.68rem;
+    color: rgba(255,255,255,0.54);
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+}
+
+.arc-progress-title {
+    margin-top: 6px;
+    font-family: var(--font-head);
+    font-size: 1.9rem;
+    line-height: 0.95;
+    color: #fff;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.arc-progress-label {
+    margin-top: 8px;
+    color: rgba(255,255,255,0.76);
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+.arc-progress-track {
+    position: relative;
+    margin-top: 14px;
+    width: 100%;
+    height: 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+}
+
+.arc-progress-fill {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, rgba(var(--arc-accent-blue-rgb), 0.95), rgba(var(--arc-accent-green-rgb), 0.88));
+    box-shadow: 0 0 22px rgba(var(--arc-accent-blue-rgb), 0.24);
+}
+
+.arc-progress-meta {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    font-size: 0.76rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.62);
+}
+
+.arc-progress-percent {
+    color: #fff;
+    font-weight: 700;
+}
+
+.arc-progress-cancel {
+    text-align: right;
+}
+
 #overlay {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     background:

@@ -28,6 +28,12 @@ var ARC_BANNER_MIN_DURATION = 1200;
 var ARC_BANNER_MAX_DURATION = 8000;
 var ARC_BANNER_DEFAULT_LABEL = 'ARC TAHLİYE';
 var ARC_BANNER_DEFAULT_TITLE = 'LOBİYE DÖNÜLÜYOR';
+var ARC_PROGRESS_DEFAULT_TITLE = 'Operasyon Sürüyor';
+var ARC_PROGRESS_DEFAULT_LABEL = 'Lütfen bekle...';
+var ARC_PROGRESS_CANCEL_ENABLED_TEXT = 'ESC ile iptal edebilirsin';
+var ARC_PROGRESS_CANCEL_DISABLED_TEXT = 'İptal devre dışı';
+var ARC_PROGRESS_MIN_DURATION = 250;
+var ARC_PROGRESS_MAX_DURATION = 60000;
 var ARC_NOTIFY_TYPES = {
     info: true,
     success: true,
@@ -35,6 +41,17 @@ var ARC_NOTIFY_TYPES = {
     warning: true,
     primary: true
 };
+
+function getDefaultArcProgressState() {
+    return {
+        visible: false,
+        title: ARC_PROGRESS_DEFAULT_TITLE,
+        label: ARC_PROGRESS_DEFAULT_LABEL,
+        duration: 0,
+        canCancel: true,
+        startedAt: 0
+    };
+}
 
 // ─── Per-screen data store (avoids inline JSON injection) ──────────────────
 var screenData = {
@@ -66,7 +83,8 @@ var screenData = {
         title: ARC_BANNER_DEFAULT_TITLE,
         duration: ARC_BANNER_DEFAULT_DURATION,
         transition: false
-    }
+    },
+    arcProgress: getDefaultArcProgressState()
 };
 
 // ─── Cached nodes for HUD, tooltip, and menu transitions ───────────────────
@@ -107,13 +125,20 @@ var hudEls = {
     arcNotifyStack: document.getElementById('arc-notify-stack'),
     arcResultBanner: document.getElementById('arc-result-banner'),
     arcResultBannerLabel: document.getElementById('arc-result-banner-label'),
-    arcResultBannerTitle: document.getElementById('arc-result-banner-title')
+    arcResultBannerTitle: document.getElementById('arc-result-banner-title'),
+    arcProgressCard: document.getElementById('arc-progress-card'),
+    arcProgressTitle: document.getElementById('arc-progress-title'),
+    arcProgressLabel: document.getElementById('arc-progress-label'),
+    arcProgressFill: document.getElementById('arc-progress-fill'),
+    arcProgressPercent: document.getElementById('arc-progress-percent'),
+    arcProgressCancel: document.getElementById('arc-progress-cancel')
 };
 var hideTimer = null;
 var audioCtx = null;
 var currentScreen = 'menu';
 var arcNotifyTimers = [];
 var arcBannerTimer = null;
+var arcProgressFrame = null;
 var DEFAULT_HUD = {
     health: 84,
     radiation: 22,
@@ -178,6 +203,8 @@ window.addEventListener('message', function (event) {
         case 'arcNotify':     pushArcNotify(d.data);               break;
         case 'showArcBanner': showArcBanner(d.data);              break;
         case 'clearArcBanner': clearArcBanner();                  break;
+        case 'showArcProgress': showArcProgress(d.data);          break;
+        case 'hideArcProgress': clearArcProgress();               break;
         case 'openReconnectPrompt': showReconnectPrompt(d.data); showApp(); break;
         case 'receiveInvite': showReceiveInvite(d.data); showApp(); break;
         case 'closeMenu':     hideApp();                           break;
@@ -387,6 +414,7 @@ function clearArcHud() {
         duration: ARC_BANNER_DEFAULT_DURATION,
         transition: false
     };
+    clearArcProgress(true);
     arcNotifyTimers.forEach(function (timerId) {
         clearTimeout(timerId);
     });
@@ -402,23 +430,30 @@ function clearArcHud() {
 function renderArcHud() {
     var state = screenData.arcHud || {};
     var bannerState = screenData.arcBanner || {};
+    var progressState = screenData.arcProgress || {};
     var teamMembers = Array.isArray(state.teamMembers) ? state.teamMembers : [];
     var infoLines = Array.isArray(state.lines) ? state.lines : [];
     var hasToasts = hudEls.arcNotifyStack.children.length > 0;
     var hasBanner = bannerState.visible === true && String(bannerState.title || '').trim().length > 0;
+    var hasProgress = progressState.visible === true;
     var hasPrompt = String(state.prompt || '').trim().length > 0;
     var hasInfo = state.enabled === true && state.showInfo === true && (String(state.title || '').trim() || String(state.subtitle || '').trim() || infoLines.length > 0 || hasPrompt);
 
-    hudEls.arcOverlayRoot.classList.toggle('hidden', state.enabled !== true && !hasToasts && !hasBanner);
-    hudEls.arcOverlayRoot.setAttribute('aria-hidden', (state.enabled === true || hasToasts || hasBanner) ? 'false' : 'true');
+    hudEls.arcOverlayRoot.classList.toggle('hidden', state.enabled !== true && !hasToasts && !hasBanner && !hasProgress);
+    hudEls.arcOverlayRoot.setAttribute('aria-hidden', (state.enabled === true || hasToasts || hasBanner || hasProgress) ? 'false' : 'true');
 
     hudEls.arcInfoPanel.classList.toggle('hidden', !hasInfo);
     hudEls.arcTeamPanel.classList.toggle('hidden', !(state.enabled === true && teamMembers.length > 0));
     hudEls.arcResultBanner.classList.toggle('hidden', !hasBanner);
+    hudEls.arcProgressCard.classList.toggle('hidden', !hasProgress);
     hudEls.arcResultBanner.classList.toggle('is-transition', bannerState.transition === true);
     hudEls.arcResultBanner.style.setProperty('--arc-banner-duration', String(Number(bannerState.duration || ARC_BANNER_DEFAULT_DURATION)) + 'ms');
     hudEls.arcResultBannerLabel.textContent = bannerState.label || ARC_BANNER_DEFAULT_LABEL;
     hudEls.arcResultBannerTitle.textContent = bannerState.title || ARC_BANNER_DEFAULT_TITLE;
+    hudEls.arcProgressTitle.textContent = progressState.title || ARC_PROGRESS_DEFAULT_TITLE;
+    hudEls.arcProgressLabel.textContent = progressState.label || ARC_PROGRESS_DEFAULT_LABEL;
+    hudEls.arcProgressCancel.textContent = progressState.canCancel === false ? ARC_PROGRESS_CANCEL_DISABLED_TEXT : ARC_PROGRESS_CANCEL_ENABLED_TEXT;
+    updateArcProgressVisuals(Date.now());
 
     hudEls.arcInfoTitle.textContent = state.title || ARC_HUD_DEFAULTS.title;
     hudEls.arcInfoSubtitle.textContent = state.subtitle || ARC_HUD_DEFAULTS.subtitle;
@@ -455,6 +490,74 @@ function renderArcHud() {
             '</div>' +
         '</div>';
     }).join('');
+}
+
+function cancelArcProgressFrame() {
+    if (arcProgressFrame) {
+        cancelAnimationFrame(arcProgressFrame);
+        arcProgressFrame = null;
+    }
+}
+
+function updateArcProgressVisuals(currentTime) {
+    var progressState = screenData.arcProgress || {};
+    var percent = 0;
+    var duration = Number(progressState.duration || 0);
+    var startedAt = Number(progressState.startedAt || 0);
+    var now = Number(currentTime || Date.now());
+
+    if (progressState.visible === true && duration > 0) {
+        percent = clamp(((now - startedAt) / duration) * 100, 0, 100);
+    }
+
+    if (hudEls.arcProgressFill) {
+        hudEls.arcProgressFill.style.width = percent + '%';
+    }
+    if (hudEls.arcProgressPercent) {
+        hudEls.arcProgressPercent.textContent = Math.round(percent) + '%';
+    }
+}
+
+function tickArcProgress() {
+    cancelArcProgressFrame();
+    var progressState = screenData.arcProgress || {};
+    var duration = Number(progressState.duration || 0);
+    var startedAt = Number(progressState.startedAt || 0);
+    var now = Date.now();
+
+    if (!progressState || progressState.visible !== true) {
+        updateArcProgressVisuals(now);
+        return;
+    }
+
+    updateArcProgressVisuals(now);
+
+    if ((now - startedAt) < duration) {
+        arcProgressFrame = requestAnimationFrame(tickArcProgress);
+    }
+}
+
+function clearArcProgress(skipRender) {
+    cancelArcProgressFrame();
+    screenData.arcProgress = getDefaultArcProgressState();
+    if (!skipRender) {
+        renderArcHud();
+    }
+}
+
+function showArcProgress(data) {
+    data = data || {};
+    cancelArcProgressFrame();
+    screenData.arcProgress = {
+        visible: true,
+        title: data.title || ARC_PROGRESS_DEFAULT_TITLE,
+        label: data.label || ARC_PROGRESS_DEFAULT_LABEL,
+        duration: clamp(Number(data.duration || 0), ARC_PROGRESS_MIN_DURATION, ARC_PROGRESS_MAX_DURATION),
+        canCancel: data.canCancel !== false,
+        startedAt: Date.now()
+    };
+    renderArcHud();
+    tickArcProgress();
 }
 
 function pushArcNotify(data) {
