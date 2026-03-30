@@ -671,7 +671,7 @@ local function GetArcBarricadePreviewPosition(ped, placementState)
     local testHeight = forwardCoords.z + 5.0
     local foundGround, groundZ = GetGroundZFor_3dCoord(forwardCoords.x, forwardCoords.y, testHeight, false)
     local zCoord = foundGround and groundZ or forwardCoords.z
-    return vector3(forwardCoords.x, forwardCoords.y, zCoord), placementState.heading
+    return vector3(forwardCoords.x, forwardCoords.y, zCoord), (tonumber(placementState.heading) or 0.0) % 360.0
 end
 
 local function ClearArcFriendlyBlips()

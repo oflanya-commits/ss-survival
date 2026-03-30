@@ -30,6 +30,7 @@ local arcPlayerBucketIndex = {}
 local arcPendingReconnectCounts = {}
 local bucketWaveState = {}
 local nextBucketId = 10000
+local nextArcBarricadeId = 1
 local FinalizeArcMatch
 local ResetBucketState
 local RestorePlayerInventory
@@ -4055,7 +4056,8 @@ RegisterNetEvent('gs-survival:server:placeArcBarricade', function(data)
     end
 
     arcPlacedBarricades[bucketId] = arcPlacedBarricades[bucketId] or {}
-    local barricadeId = ("arc_barricade_%s_%s_%s"):format(bucketId, src, math.random(1000, 9999))
+    local barricadeId = ("arc_barricade_%s_%s"):format(bucketId, nextArcBarricadeId)
+    nextArcBarricadeId = nextArcBarricadeId + 1
     arcPlacedBarricades[bucketId][barricadeId] = {
         coords = {
             x = placementCoords.x,
