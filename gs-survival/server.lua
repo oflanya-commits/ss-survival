@@ -2759,6 +2759,16 @@ local function GetPlayerCoordsSafe(playerId)
     return GetEntityCoords(ped)
 end
 
+local function IsPlayerNearCoords(playerId, coords, maxDistance)
+    local playerCoords = GetPlayerCoordsSafe(playerId)
+    local targetCoords = ToVector3(coords)
+    if not playerCoords or not targetCoords then
+        return false
+    end
+
+    return #(playerCoords - targetCoords) <= (tonumber(maxDistance) or 0.0)
+end
+
 local function IsPlayerWithinLobbyProximity(anchorId, targetId)
     local anchorCoords = GetPlayerCoordsSafe(anchorId)
     local targetCoords = GetPlayerCoordsSafe(targetId)
@@ -3988,12 +3998,7 @@ ResetBucketState = function(bucketId)
         end
     end
 
-    local bucketPrefix = ("%s:"):format(tostring(bucketId))
-    for npcLootKey in pairs(openedNpcLoot) do
-        if tostring(npcLootKey):sub(1, #bucketPrefix) == bucketPrefix then
-            openedNpcLoot[npcLootKey] = nil
-        end
-    end
+    openedNpcLoot[bucketId] = nil
 
     arcFinalizeLocks[bucketId] = nil
 end
@@ -4418,7 +4423,7 @@ RegisterNetEvent('gs-survival:server:finishSurvival', function(isVictory)
 
     if status then
         local playedStage = lobbyStage[bucketId] or 1
-        local currentWave = tonumber(bucketWaveState[bucketId] or 0) or 0
+        local currentWave = bucketWaveState[bucketId] or 0
         local maxWaves = GetClassicMaxWaveForStage(playedStage)
         local hasAliveNpc = CountAliveBucketNpcs(bucketId) > 0
         if currentWave <= 0 or currentWave < maxWaves or hasAliveNpc then
@@ -4718,8 +4723,7 @@ RegisterNetEvent('gs-survival:server:createNpcStash', function(npcNetId, current
     local src = source
     local bucketId = GetPlayerRoutingBucket(src)
     local resolvedNpcNetId = tonumber(npcNetId)
-    local wave = math.max(1, math.floor(tonumber(bucketWaveState[bucketId] or currentWave) or 1)) -- Eğer dalga bilgisi gelmezse varsayılan 1 yap
-    local npcLootKey = bucketId and ("%s:%s"):format(bucketId, tostring(resolvedNpcNetId or 'invalid')) or nil
+    local wave = math.max(1, math.floor(tonumber(bucketWaveState[bucketId] or 1))) -- Eğer dalga bilgisi gelmezse varsayılan 1 yap
 
     if bucketId == 0 or not IsBucketMember(bucketId, src) or not resolvedNpcNetId then
         beingLooted[npcNetId] = nil
@@ -4730,7 +4734,9 @@ RegisterNetEvent('gs-survival:server:createNpcStash', function(npcNetId, current
         return
     end
 
-    if npcLootKey and openedNpcLoot[npcLootKey] then
+    openedNpcLoot[bucketId] = openedNpcLoot[bucketId] or {}
+
+    if openedNpcLoot[bucketId][resolvedNpcNetId] then
         beingLooted[resolvedNpcNetId] = nil
         return
     end
@@ -4744,9 +4750,7 @@ RegisterNetEvent('gs-survival:server:createNpcStash', function(npcNetId, current
     local stashId = "surv_" .. resolvedNpcNetId .. "_" .. math.random(1111, 9999)
 
     beingLooted[npcNetId] = nil
-    if npcLootKey then
-        openedNpcLoot[npcLootKey] = true
-    end
+    openedNpcLoot[bucketId][resolvedNpcNetId] = true
 
     -- [DÜZENLEME]: Artık Config.Loot üzerinden değil, Config.LootTable üzerinden dönüyor
     -- 1. Stash'i oluştur
@@ -4927,9 +4931,7 @@ RegisterNetEvent('gs-survival:server:openArcLootContainer', function(containerId
         return
     end
 
-    local playerCoords = GetPlayerCoordsSafe(src)
-    local nodeCoords = ToVector3(nodeState.coords)
-    if not playerCoords or not nodeCoords or #(playerCoords - nodeCoords) > 4.0 then
+    if not IsPlayerNearCoords(src, nodeState.coords, 4.0) then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Bu loot kutusunu açmak için yanında olmalısın.", "error")
         return
     end
@@ -4981,9 +4983,7 @@ RegisterNetEvent('gs-survival:server:openArcDeathContainer', function(containerI
         return
     end
 
-    local playerCoords = GetPlayerCoordsSafe(src)
-    local containerCoords = ToVector3(containerState.coords)
-    if not playerCoords or not containerCoords or #(playerCoords - containerCoords) > 4.0 then
+    if not IsPlayerNearCoords(src, containerState.coords, 4.0) then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Bu ölüm kutusunu açmak için yanında olmalısın.", "error")
         return
     end
