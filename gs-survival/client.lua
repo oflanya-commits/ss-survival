@@ -1938,7 +1938,6 @@ Citizen.CreateThread(function()
 
                 -- DALGA ATLATMA MANTIĞI
                 if not waitingForWave and #spawnedPeds > 0 and aliveCount == 0 then
-                    spawnedPeds = {}
                     -- [DÜZELTME]: Bir sonraki dalga kontrolü mevcut stage altındaki Waves tablosundan yapılıyor
                     if survivalStage and survivalStage.Waves[currentWave + 1] then
                         currentWave = currentWave + 1
