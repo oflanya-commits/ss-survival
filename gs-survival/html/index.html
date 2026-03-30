@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GS Control UI</title>
+    <!-- PUBG benzeri endüstriyel fontlar -->
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+    <body>
+        <div id="app" class="hidden" aria-hidden="true">
+        <!-- Arka plan karanlık Lobi efekti -->
+        <div id="overlay"></div>
+
+        <div id="panel">
+            <!-- ÜST HEADER KISMI -->
+            <div id="panel-header" class="pubg-top-nav">
+                <div id="panel-titles">
+                    <div id="panel-main-title">GS KONTROL</div>
+                    <div id="panel-sub-title">OPERASYON AĞI</div>
+                </div>
+                <div class="pubg-nav-actions">
+                    <div id="breadcrumb">
+                        <span id="breadcrumb-text">Ana Menü</span>
+                    </div>
+                    <button id="close-btn" type="button" onclick="closeMenu()" aria-label="Menüyü kapat">X ESC</button>
+                </div>
+            </div>
+
+            <!-- ANA İÇERİK KUTUSU -->
+            <div id="pubg-main-container">
+                
+                <!-- SOL PANEL (HUD ve Brief) -->
+                <div class="pubg-side-panel">
+                    
+                    <!-- HUD DURUM KUTUSU -->
+                    <div id="status-strip" class="pubg-crafter-pass">
+                        <div id="status-strip-title" class="pass-header">OPERATÖR BİLGİSİ</div>
+                        
+                        <div class="status-card">
+                            <div class="status-row">
+                                <div class="status-label" id="hud-health-label" style="color: #a8d5e2;">KARAKTER</div>
+                                <div class="status-value" id="hud-health-value" aria-live="polite">84%</div>
+                            </div>
+                            <div class="status-bar"><span id="hud-health-bar" style="background: #a8d5e2;"></span></div>
+                        </div>
+
+                        <div class="status-card">
+                            <div class="status-row">
+                                <div class="status-label" id="hud-radiation-label" style="color: #ff4a4a;">BÖLGE</div>
+                                <div class="status-value" id="hud-radiation-value" aria-live="polite">22%</div>
+                            </div>
+                            <div class="status-bar"><span id="hud-radiation-bar" style="background: #ff4a4a;"></span></div>
+                        </div>
+
+                        <div class="status-card">
+                            <div class="status-row">
+                                <div class="status-label" id="hud-inventory-label" style="color: #7aff7a;">GELİŞTİRME</div>
+                                <div class="status-value" id="hud-inventory-value" aria-live="polite">03/06</div>
+                            </div>
+                            <div class="status-bar"><span id="hud-inventory-bar" style="background: #7aff7a;"></span></div>
+                        </div>
+
+                        <div class="status-card">
+                            <div class="status-row">
+                                <div class="status-label" id="hud-signal-label" style="color: #f2a900;">TAKIM</div>
+                                <div class="status-value" id="hud-signal-value" aria-live="polite">STABIL</div>
+                            </div>
+                            <div class="status-bar"><span id="hud-signal-bar" style="background: #f2a900;"></span></div>
+                        </div>
+                    </div>
+
+                    <!-- MISSION BRIEF (PUBG Ready / Eşleştirme Stili) -->
+                    <div id="mission-brief" class="pubg-matchmaking-panel">
+                        <div class="brief-label">TAKIM DURUMU</div>
+                        
+                        <div class="brief-main">
+                            <div>
+                                <div id="brief-title">Operasyon Hazır</div>
+                                <div id="brief-text">Takım durumunu kontrol et, bölgeyi seç ve ekipmanını hazırla.</div>
+                                <div id="brief-extraction" class="brief-extraction hidden">
+                                    <div class="brief-extraction-phase" id="brief-extraction-phase">Extraction available</div>
+                                    <div class="brief-extraction-objective" id="brief-extraction-objective">Extraction objective</div>
+                                    <div class="brief-extraction-countdown" id="brief-extraction-countdown">00:00</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Progress Bar -->
+                        <div class="brief-progress">
+                            <span id="brief-progress-bar"></span>
+                        </div>
+
+                        <!-- Dinamik READY Butonu -->
+                        <div class="brief-side">
+                            <button id="brief-tag" class="pubg-ready-btn" onclick="handleReadyButton()">BEKLE</button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- SAĞ PANEL (İçerik) -->
+                <div id="panel-body" class="pubg-right-panel">
+                    <div id="content"></div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Sistem 4: Bölge Seçimi için Harita Önizleme Kutusu (Sadece Bölgelerde Çıkar) -->
+        <div id="map-preview-box" class="hidden">
+            <div class="map-preview-title">BÖLGE İSTİHBARATI</div>
+            <div class="map-image-placeholder">Sinyal Aranıyor...</div>
+            <div class="map-desc">Seçilen bölgenin uydu görüntüsü ve tehlike seviyesi yükleniyor.</div>
+        </div>
+
+        <div id="hud-tooltip" class="hidden" role="status" aria-live="polite"></div>
+    </div>
+
+    <div id="arc-overlay-root" class="arc-overlay-root hidden" aria-hidden="true">
+        <div id="arc-result-banner" class="arc-result-banner hidden" aria-live="polite" role="status">
+            <div id="arc-result-banner-label" class="arc-result-banner-label">ARC TAHLİYE</div>
+            <div id="arc-result-banner-title" class="arc-result-banner-title">LOBİYE DÖNÜLÜYOR</div>
+        </div>
+
+        <div id="arc-info-panel" class="arc-info-panel hidden">
+            <div class="arc-card-header arc-info-header">
+                <div class="arc-card-heading">
+                    <div class="arc-card-kickers">
+                        <div class="arc-info-kicker">ARC BİLGİ</div>
+                        <div class="arc-card-chip">CANLI</div>
+                    </div>
+                    <div id="arc-info-title" class="arc-info-title">ARC Operasyonu</div>
+                    <div id="arc-info-subtitle" class="arc-info-subtitle">Saha telemetrisi</div>
+                </div>
+            </div>
+            <div id="arc-info-lines" class="arc-info-lines"></div>
+            <div id="arc-info-prompt" class="arc-info-prompt hidden"></div>
+        </div>
+
+        <div id="arc-team-panel" class="arc-team-panel hidden">
+            <div class="arc-team-header">
+                <div class="arc-card-heading">
+                    <div class="arc-card-kickers">
+                        <div class="arc-team-kicker">TAKIM</div>
+                        <div class="arc-card-chip">LINK</div>
+                    </div>
+                    <div class="arc-team-title">ARC Bağlantısı</div>
+                </div>
+                <div id="arc-team-count" class="arc-team-count">0 ÜYE</div>
+            </div>
+            <div id="arc-team-members" class="arc-team-members"></div>
+        </div>
+
+        <div id="arc-notify-stack" class="arc-notify-stack" aria-live="polite"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
