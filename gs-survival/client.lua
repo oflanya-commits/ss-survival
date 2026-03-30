@@ -2418,10 +2418,15 @@ local function StartArcBarricadePlacement(data)
     NotifyForMode("E ile yerleştir, ←/→ ile döndür, BACKSPACE ile iptal et.", "primary", 5000, "ARC Barricade")
 
     CreateThread(function()
+        local lastPedRefreshAt = GetGameTimer()
         while arcBarricadePreview and arcBarricadePreview.entity and DoesEntityExist(arcBarricadePreview.entity) do
             Wait(0)
 
-            ped = PlayerPedId()
+            local now = GetGameTimer()
+            if now - lastPedRefreshAt >= 200 then
+                ped = PlayerPedId()
+                lastPedRefreshAt = now
+            end
             DisableControlAction(0, 24, true)
             DisableControlAction(0, 25, true)
             DisableControlAction(0, 37, true)

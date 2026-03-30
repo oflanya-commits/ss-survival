@@ -4036,7 +4036,7 @@ RegisterNetEvent('gs-survival:server:placeArcBarricade', function(data)
     end
 
     local removeSlot = tonumber(data and data.slot or nil)
-    if removeSlot and removeSlot <= 0 then
+    if removeSlot and removeSlot < 1 then
         removeSlot = nil
     end
     local removed = exports.ox_inventory:RemoveItem(src, itemName, 1, nil, removeSlot)
@@ -4056,7 +4056,7 @@ RegisterNetEvent('gs-survival:server:placeArcBarricade', function(data)
     end
 
     arcPlacedBarricades[bucketId] = arcPlacedBarricades[bucketId] or {}
-    local barricadeId = ("arc_barricade_%s_%s"):format(bucketId, nextArcBarricadeId)
+    local barricadeId = ("arc_barricade_%s_%s_%s_%s"):format(bucketId, src, GetGameTimer(), nextArcBarricadeId)
     nextArcBarricadeId = nextArcBarricadeId + 1
     arcPlacedBarricades[bucketId][barricadeId] = {
         coords = {
