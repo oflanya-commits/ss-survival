@@ -65,6 +65,8 @@ local arcExtractionZoneCenterBlip = nil
 local arcExtractionHeli = nil
 local arcExtractionPilot = nil
 local arcExtractionHeliTaskKey = nil
+local arcExtractionHeliSpawnNonce = 0
+local arcExtractionHeliSpawnPending = false
 local arcExtractionMenuState = nil
 local arcExtractionLastPhase = nil
 local arcBarricadePreview = nil
@@ -1020,6 +1022,8 @@ local function ClearArcZoneBlips()
 end
 
 local function ClearArcExtractionScene()
+    arcExtractionHeliSpawnNonce = arcExtractionHeliSpawnNonce + 1
+    arcExtractionHeliSpawnPending = false
     if arcExtractionPilot and DoesEntityExist(arcExtractionPilot) then
         DeleteEntity(arcExtractionPilot)
     end
@@ -1407,9 +1411,30 @@ local function EnsureArcExtractionScene()
     local spawnCoords = shouldApproach and startCoords or hoverCoords
 
     if not arcExtractionHeli or not DoesEntityExist(arcExtractionHeli) then
+        if arcExtractionHeliSpawnPending then
+            return
+        end
+
+        arcExtractionHeliSpawnPending = true
+        arcExtractionHeliSpawnNonce = arcExtractionHeliSpawnNonce + 1
+        local spawnNonce = arcExtractionHeliSpawnNonce
         RequestModel(model)
-        while not HasModelLoaded(model) do Wait(10) end
+        while not HasModelLoaded(model) do
+            if spawnNonce ~= arcExtractionHeliSpawnNonce then
+                SetModelAsNoLongerNeeded(model)
+                return
+            end
+            Wait(10)
+        end
+
+        if spawnNonce ~= arcExtractionHeliSpawnNonce then
+            arcExtractionHeliSpawnPending = false
+            SetModelAsNoLongerNeeded(model)
+            return
+        end
+
         arcExtractionHeli = CreateVehicle(model, spawnCoords.x, spawnCoords.y, spawnCoords.z, heading, false, false)
+        arcExtractionHeliSpawnPending = false
         SetEntityAsMissionEntity(arcExtractionHeli, true, true)
         SetEntityInvincible(arcExtractionHeli, true)
         SetVehicleEngineOn(arcExtractionHeli, true, true, false)
@@ -1944,4 +1969,3 @@ local function HandleReconnectResult(result)
         end
     end
 end
-

@@ -1579,9 +1579,14 @@ end
 local function BuildArcExtractionZones()
     local zones = {}
     local zoneLookup = {}
+    local zoneCoordsLookup = {}
     local deploymentZones = (Config.ArcPvP and Config.ArcPvP.DeploymentZones) or {}
     local extractionConfig = GetArcExtractionConfig()
     local configuredZones = extractionConfig.Zones or {}
+
+    local function buildCoordsKey(coords)
+        return ("%.2f:%.2f:%.2f"):format(coords.x, coords.y, coords.z)
+    end
 
     local function addZone(zoneId, label, coords, heading)
         local zoneCoords = ToVector3(coords)
@@ -1590,6 +1595,22 @@ local function BuildArcExtractionZones()
         end
 
         local zoneKey = tostring(zoneId)
+        local coordsKey = buildCoordsKey(zoneCoords)
+        local existingIndex = zoneCoordsLookup[coordsKey]
+        if existingIndex then
+            local existingZone = zones[existingIndex]
+            if existingZone then
+                if label and label ~= '' then
+                    existingZone.label = label
+                end
+                if heading ~= nil then
+                    existingZone.heading = tonumber(heading) or existingZone.heading or 0.0
+                end
+            end
+            zoneLookup[zoneKey] = true
+            return
+        end
+
         if zoneLookup[zoneKey] then
             return
         end
@@ -1601,6 +1622,7 @@ local function BuildArcExtractionZones()
             coords = Vector3ToTable(zoneCoords),
             heading = tonumber(heading or 0.0) or 0.0
         }
+        zoneCoordsLookup[coordsKey] = #zones
     end
 
     local deploymentZoneIds = {}
@@ -2915,4 +2937,3 @@ local function BuildNearbyLobbyPlayers(leaderId)
 
     return nearbyPlayers
 end
-
