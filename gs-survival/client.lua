@@ -208,7 +208,7 @@ RegisterNetEvent('gs-survival:client:notify', function(notifyData)
         return
     end
 
-    local message = notifyData.message or notifyData.description or notifyData.text
+    local message = notifyData.message
     if not message or message == '' then
         return
     end

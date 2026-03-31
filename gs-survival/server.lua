@@ -60,7 +60,11 @@ end
 
 function ServerHelpers.NotifyPlayer(target, message, notifyType, title, duration)
     local playerId = tonumber(target)
-    if not playerId or playerId <= 0 or not GetPlayerName(playerId) or not message or message == '' then
+    if not playerId or playerId <= 0 or not GetPlayerName(playerId) then
+        return
+    end
+
+    if not message or message == '' then
         return
     end
 
