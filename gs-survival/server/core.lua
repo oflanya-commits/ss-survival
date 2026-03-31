@@ -1484,7 +1484,7 @@ local function BuildArcExtractionClientState(bucketId)
 
     local resolvedBucketId = tonumber(bucketId)
     if not resolvedBucketId then
-        print(('[ARC] Invalid extraction bucket for client state: %s'):format(tostring(bucketId)))
+        print(('[ARC] Invalid extraction bucket for client state, skipping sync payload: %s'):format(tostring(bucketId)))
         return nil
     end
 
@@ -2527,7 +2527,7 @@ local function StartArcExtractionCall(bucketId, callerSource, requestedZoneId)
     local callerName = GetArcPlayerName(callerSource)
     local resolvedBucketId = tonumber(bucketId)
     if not resolvedBucketId then
-        print(('[ARC] Invalid extraction call bucket: %s'):format(tostring(bucketId)))
+        print(('[ARC] Invalid extraction call bucket, rejecting flare request: %s'):format(tostring(bucketId)))
         return false, "Tahliye oturumu çözümlenemedi."
     end
     SetArcExtractionPhase(bucketId, 'called', extractionState.callAckDelayMs, {
