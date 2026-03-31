@@ -1585,7 +1585,7 @@ local function BuildArcExtractionZones()
     local configuredZones = extractionConfig.Zones or {}
 
     local function buildCoordsKey(coords)
-        return ("%.2f:%.2f:%.2f"):format(coords.x, coords.y, coords.z)
+        return ("%.3f:%.3f:%.3f"):format(coords.x, coords.y, coords.z)
     end
 
     local function addZone(zoneId, label, coords, heading)
@@ -1600,11 +1600,9 @@ local function BuildArcExtractionZones()
         if existingIndex then
             local existingZone = zones[existingIndex]
             if existingZone then
-                if label and label ~= '' then
-                    existingZone.label = label
-                end
-                if heading ~= nil then
-                    existingZone.heading = tonumber(heading) or existingZone.heading or 0.0
+                local parsedHeading = tonumber(heading)
+                if parsedHeading and parsedHeading ~= 0.0 and (tonumber(existingZone.heading) or 0.0) == 0.0 then
+                    existingZone.heading = parsedHeading
                 end
             end
             zoneLookup[zoneKey] = true
