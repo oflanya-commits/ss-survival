@@ -8,6 +8,7 @@ local clientModules = {
     'client/lobby.lua',
 }
 
+-- Client modülleri bootstrap tarafından LoadResourceFile ile birleştirilip tek chunk olarak çalıştırılır.
 local clientBundle = {}
 for _, modulePath in ipairs(clientModules) do
     local moduleSource = LoadResourceFile(resourceName, modulePath)
