@@ -120,7 +120,7 @@ RegisterNetEvent('gs-survival:client:inviteMenu', function()
         return
     end
 
-    if #invitedPlayers >= MAX_LOBBY_MEMBERS then 
+    if #invitedPlayers >= (MAX_LOBBY_SIZE - 1) then 
         NotifyForMode("Lobi zaten dolu! (Maksimum " .. MAX_LOBBY_SIZE .. " kişi)", "error", 3500, "Lobi")
         return 
     end

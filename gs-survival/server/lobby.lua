@@ -16,7 +16,7 @@ RegisterNetEvent('gs-survival:server:sendInvite', function(tId)
         return
     end
 
-    if ServerHelpers.CountMembers(lobby.members) >= MAX_LOBBY_MEMBERS then
+    if ServerHelpers.CountMembers(lobby.members) >= (MAX_LOBBY_SIZE - 1) then
         ServerHelpers.NotifyPlayer(src, "Lobi zaten dolu! (Maksimum " .. MAX_LOBBY_SIZE .. " kişi)", "error")
         return
     end
@@ -280,4 +280,3 @@ local function ValidateArcStartParticipants(playerIds)
 
     return true
 end
-

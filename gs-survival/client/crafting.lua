@@ -257,21 +257,12 @@ exports('arc_barricade_kit', function(data, slot)
 end)
 
 RegisterNetEvent('gs-survival:client:deleteNPC', function(netId)
-
     local entity = NetToPed(netId)
-
-   
-
     -- Eğer bu NPC'ye bağlı bir blip varsa önce onu sil
-
     if DoesEntityExist(entity) then
-
         local blip = GetBlipFromEntity(entity)
-
         if DoesBlipExist(blip) then
-
             RemoveBlip(blip)
-
         end
 
        
@@ -283,5 +274,4 @@ RegisterNetEvent('gs-survival:client:deleteNPC', function(netId)
     end
 
 end)
-
 

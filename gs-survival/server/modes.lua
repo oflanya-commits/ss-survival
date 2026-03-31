@@ -504,7 +504,7 @@ RegisterNetEvent('gs-survival:server:confirmInvite', function(leaderId)
             return
         end
 
-        if ServerHelpers.CountMembers(activeLobbies[leaderId].members) >= MAX_LOBBY_MEMBERS then
+        if ServerHelpers.CountMembers(activeLobbies[leaderId].members) >= (MAX_LOBBY_SIZE - 1) then
             ServerHelpers.NotifyPlayer(src, "Lobi dolu olduğu için katılamadın.", "error")
             return
         end
@@ -551,7 +551,7 @@ RegisterNetEvent('gs-survival:server:joinPublicLobby', function(leaderId)
         return
     end
 
-    if ServerHelpers.CountMembers(lobby.members) >= MAX_LOBBY_MEMBERS then
+    if ServerHelpers.CountMembers(lobby.members) >= (MAX_LOBBY_SIZE - 1) then
         ServerHelpers.NotifyPlayer(src, "Lobi dolu olduğu için katılamadın.", "error")
         return
     end
