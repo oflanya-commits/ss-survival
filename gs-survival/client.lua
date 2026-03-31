@@ -203,6 +203,19 @@ local function NotifyForMode(message, notifyType, duration, title)
     SendArcNotify(message, notifyType, duration, GetNotifyTitle(notifyType, title))
 end
 
+RegisterNetEvent('gs-survival:client:notify', function(notifyData)
+    if type(notifyData) ~= 'table' then
+        return
+    end
+
+    local message = notifyData.message
+    if not message or message == '' then
+        return
+    end
+
+    NotifyForMode(message, notifyData.type or 'primary', notifyData.duration, notifyData.title)
+end)
+
 local function ShowArcBarricadePlacementUi()
     SendNUIMessage({
         type = 'showArcBarricadePlacement',
@@ -2312,22 +2325,11 @@ Citizen.CreateThread(function()
                     if survivalStage and survivalStage.Waves[currentWave + 1] then
                         currentWave = currentWave + 1
                         waitingForWave = true
-                        exports.ox_lib:notify({
-                            title = 'Sektör Temizlendi',
-                            description = 'Yeni dalga için hazırlan!',
-                            type = 'success',
-                            position = 'top'
-                        })
+                        NotifyForMode('Yeni dalga için hazırlan!', 'success', 4500, 'Sektör Temizlendi')
                         StartWaveCountdown()
                     else
                         isEnding = true
-                        exports.ox_lib:notify({
-                            title = 'Operasyon Başarılı',
-                            description = 'Tüm dalgalar temizlendi! Ganimetleri topla.',
-                            type = 'info',
-                            position = 'top',
-                            duration = 5000
-                        })
+                        NotifyForMode('Tüm dalgalar temizlendi! Ganimetleri topla.', 'info', 5000, 'Operasyon Başarılı')
 
                         Citizen.CreateThread(function()
                             local lootTimer = math.floor(Config.Combat.LootTime / 1000)
