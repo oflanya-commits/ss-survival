@@ -1,7 +1,7 @@
-Config = {}
-
 -- Bu dosya, survival ve ARC modlarının bütün oynanış ayarlarını merkezi olarak yönetir.
 -- Aşağıdaki yorumlar her tablonun ve alanın ne işe yaradığını hızlıca anlamak için eklendi.
+
+Config = {}
 
 -- [CRAFT TARİFLERİ]
 -- Her kayıt, crafting menüsünde gösterilen tek bir üretim tarifidir.
