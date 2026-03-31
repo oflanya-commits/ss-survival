@@ -37,6 +37,7 @@ local RestorePlayerInventory
 local CleanBucketEntities
 local BuildArcDeploymentPayload
 local GetArcRaidRemainingMs
+local SyncArcRaidPlayers
 local ServerHelpers = {}
 
 function ServerHelpers.BuildLootItemSet()
@@ -219,6 +220,26 @@ function ServerHelpers.GetArcRaidSquadMembers(bucketId, playerId)
         if resolvedMemberId and not memberLookup[resolvedMemberId] then
             memberLookup[resolvedMemberId] = true
             members[#members + 1] = resolvedMemberId
+        end
+    end
+
+    if #members == 0 and squadState then
+        local loneSquadMembers = nil
+        for _, listedSquad in pairs(squadState.squads or {}) do
+            if loneSquadMembers then
+                loneSquadMembers = nil
+                break
+            end
+
+            loneSquadMembers = listedSquad and listedSquad.members or {}
+        end
+
+        for _, memberId in ipairs(loneSquadMembers or {}) do
+            local resolvedMemberId = tonumber(memberId)
+            if resolvedMemberId and not memberLookup[resolvedMemberId] then
+                memberLookup[resolvedMemberId] = true
+                members[#members + 1] = resolvedMemberId
+            end
         end
     end
 
