@@ -80,7 +80,6 @@ local arcOverlayState = {
 local arcOverlayCacheKey = nil
 local arcOverlayTeamCacheKey = nil
 local arcOverlayInfoLastRefreshAt = 0
-local arcOverlayInfoVisible = false
 local menuStateCacheKey = nil
 local isMenuOpen = false
 local ARC_OVERLAY_INFO_REFRESH_INTERVAL_MS = 1000
@@ -504,7 +503,6 @@ local function ClearArcOverlay()
     arcOverlayCacheKey = nil
     arcOverlayTeamCacheKey = nil
     arcOverlayInfoLastRefreshAt = 0
-    arcOverlayInfoVisible = false
     SendNUIMessage({ type = 'clearArcHud' })
 end
 
@@ -565,7 +563,7 @@ local function RefreshArcOverlayTeam()
     arcOverlayTeamCacheKey = teamCacheKey
     PushArcOverlayState({
         enabled = isSurvivalActive == true,
-        showInfo = arcOverlayInfoVisible == true,
+        showInfo = isSurvivalActive == true,
         teamMembers = teamMembers
     })
 end
@@ -643,7 +641,7 @@ local function RefreshArcOverlayInfo(promptText, force)
 
     PushArcOverlayState({
         enabled = isSurvivalActive == true,
-        showInfo = arcOverlayInfoVisible == true,
+        showInfo = isSurvivalActive == true,
         title = stageLabel,
         subtitle = "ARC saha telemetrisi",
         lines = lines,
@@ -2809,7 +2807,6 @@ RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers,
     currentModeId = 'arc_pvp'
     ClearArcBarricades()
     ApplyMinimapLayout(DEFAULT_MINIMAP_LAYOUT)
-    arcOverlayInfoVisible = false
     activeStageId = stageId or 1
     local stageData = GetModeStageData('arc_pvp', activeStageId)
     activeArcDeployment = deploymentData or {}
@@ -3205,24 +3202,6 @@ CreateThread(function()
             Wait(4000)
         else
             Wait(2000)
-        end
-    end
-end)
-
-CreateThread(function()
-    while resourceRunning do
-        if currentModeId == 'arc_pvp' and isSurvivalActive then
-            DisableControlAction(0, 37, true)
-            if IsDisabledControlJustPressed(0, 37) then
-                arcOverlayInfoVisible = not arcOverlayInfoVisible
-                PushArcOverlayState({
-                    enabled = true,
-                    showInfo = arcOverlayInfoVisible == true
-                }, true)
-            end
-            Wait(0)
-        else
-            Wait(250)
         end
     end
 end)

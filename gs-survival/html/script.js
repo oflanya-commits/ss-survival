@@ -519,6 +519,7 @@ function renderArcHud() {
             '</div>' +
         '</div>';
     }).join('');
+    updateArcBarricadePlacementPosition(state.enabled === true && teamMembers.length > 0);
 }
 
 function cancelArcProgressFrame() {
@@ -586,6 +587,19 @@ function clearArcBarricadePlacement(skipRender) {
     }
 }
 
+function updateArcBarricadePlacementPosition(hasTeamPanel) {
+    if (!hudEls.arcBarricadePlacementCard) {
+        return;
+    }
+
+    var bottomOffset = 34;
+    if (hasTeamPanel && hudEls.arcTeamPanel && !hudEls.arcTeamPanel.classList.contains('hidden')) {
+        bottomOffset = hudEls.arcTeamPanel.offsetHeight + 40;
+    }
+
+    hudEls.arcBarricadePlacementCard.style.bottom = bottomOffset + 'px';
+}
+
 function showArcBarricadePlacement(data) {
     data = data || {};
     screenData.arcBarricadePlacement = {
@@ -640,7 +654,7 @@ function pushArcNotify(data) {
                 toast.parentNode.removeChild(toast);
             }
             renderArcHud();
-        }, 220);
+        }, 300);
     }, duration);
     arcNotifyTimers.push(timerId);
 }
