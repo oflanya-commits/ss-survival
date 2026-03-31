@@ -151,7 +151,8 @@ body {
 .arc-info-panel,
 .arc-team-panel {
     position: absolute;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     border: 1px solid rgba(var(--arc-accent-blue-rgb), 0.14);
     border-radius: 20px;
     background:
@@ -187,8 +188,10 @@ body {
     top: 22px;
     left: 22px;
     width: 300px;
+    max-height: calc(100vh - 44px);
     padding: 14px 14px 15px;
     animation: ui-fade-left 0.28s ease-out both;
+    z-index: 4;
 }
 
 .arc-barricade-placement-card {
@@ -382,7 +385,9 @@ body {
     right: 22px;
     bottom: 22px;
     width: 250px;
+    max-height: min(420px, calc(100vh - 44px));
     padding: 13px;
+    z-index: 3;
 }
 
 .arc-team-header {
@@ -2386,12 +2391,14 @@ body {
 @media (max-width: 1600px) {
     .arc-info-panel {
         width: 280px;
+        max-height: calc(100vh - 36px);
         top: 18px;
         left: 18px;
     }
 
     .arc-team-panel {
         width: 232px;
+        max-height: min(380px, calc(100vh - 36px));
         right: 18px;
         bottom: 18px;
     }
