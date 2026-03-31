@@ -597,8 +597,9 @@ function updateArcBarricadePlacementPosition(hasTeamPanel) {
     }
 
     var bottomOffset = ARC_BARRICADE_DEFAULT_BOTTOM_OFFSET;
-    if (hasTeamPanel && hudEls.arcTeamPanel && !hudEls.arcTeamPanel.classList.contains('hidden')) {
-        bottomOffset = hudEls.arcTeamPanel.offsetHeight + ARC_TEAM_PANEL_BOTTOM_OFFSET + ARC_BARRICADE_TEAM_PANEL_GAP;
+    var teamPanel = hasTeamPanel ? hudEls.arcTeamPanel : null;
+    if (teamPanel && !teamPanel.classList.contains('hidden')) {
+        bottomOffset = teamPanel.offsetHeight + ARC_TEAM_PANEL_BOTTOM_OFFSET + ARC_BARRICADE_TEAM_PANEL_GAP;
     }
 
     hudEls.arcBarricadePlacementCard.style.bottom = bottomOffset + 'px';

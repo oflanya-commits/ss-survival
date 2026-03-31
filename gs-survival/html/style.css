@@ -12,6 +12,7 @@
     --arc-accent-blue-rgb: 168, 213, 226;
     --arc-accent-green-rgb: 122, 255, 122;
     --arc-accent-red-rgb: 255, 107, 107;
+    --arc-z-info-panel: 4;
     --arc-z-barricade-card: 4;
     --arc-z-progress-card: 5;
     
@@ -224,7 +225,7 @@ body {
         0 18px 40px rgba(0, 0, 0, 0.26),
         inset 0 1px 0 rgba(255,255,255,0.05);
     animation: ui-fade-up 0.25s ease-out both;
-    z-index: 4;
+    z-index: var(--arc-z-info-panel);
 }
 
 .arc-barricade-placement-kicker {
