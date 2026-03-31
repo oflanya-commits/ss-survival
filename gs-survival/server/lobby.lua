@@ -76,7 +76,7 @@ CleanBucketEntities = function(bucketId)
     end
 end
 
-SyncArcRaidPlayers = function(bucketId)
+ServerHelpers.SyncArcRaidPlayers = function(bucketId)
     if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not groupMembers[bucketId] then
         return
     end

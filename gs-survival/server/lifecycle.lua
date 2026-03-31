@@ -164,7 +164,7 @@ AddEventHandler('playerDropped', function(reason)
         local pendingReconnects = GetArcPendingReconnectCount(bucketId)
 
         if #groupMembers[bucketId] > 0 then
-            SyncArcRaidPlayers(bucketId)
+            ServerHelpers.SyncArcRaidPlayers(bucketId)
             if ServerHelpers.GetGameModeId(bucketModes[bucketId]) == 'arc_pvp' and #GetArcAlivePlayers(bucketId) == 0 and pendingReconnects == 0 then
                 FinalizeArcMatch(bucketId, {}, 'disconnect')
                 return
@@ -321,4 +321,3 @@ QBCore.Functions.CreateCallback('gs-survival:server:checkReconnectBackup', funct
             or "Aktif oyun durumu temizlendi ve güvenli bölgeye alındın."
     })
 end)
-

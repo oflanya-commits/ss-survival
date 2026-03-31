@@ -201,7 +201,7 @@ local function StartModeOperation(src, invited, stageId, modeId)
     end
 
     if selectedModeId == 'arc_pvp' then
-        SyncArcRaidPlayers(bId)
+        ServerHelpers.SyncArcRaidPlayers(bId)
         SyncArcExtractionState(bId)
         if not joiningExistingArcRaid and GetArcExtractionState(bId) then
             CreateThread(function()
@@ -1244,7 +1244,7 @@ local function RejoinArcDisconnectedPlayer(source, Player, disconnectState)
     end
     arcDisconnectStates[cid] = nil
 
-    SyncArcRaidPlayers(bucketId)
+    ServerHelpers.SyncArcRaidPlayers(bucketId)
     SyncArcExtractionState(bucketId, {
         message = ("%s ARC baskınına yeniden bağlandı."):format(GetArcPlayerName(source)),
         type = "success"

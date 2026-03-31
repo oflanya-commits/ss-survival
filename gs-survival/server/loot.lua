@@ -364,7 +364,7 @@ RegisterNetEvent('gs-survival:server:returnArcToLobby', function()
     eliminatedArcPlayers[bucketId][src] = nil
 
     if #groupMembers[bucketId] > 0 then
-        SyncArcRaidPlayers(bucketId)
+        ServerHelpers.SyncArcRaidPlayers(bucketId)
         SyncArcExtractionState(bucketId)
     else
         CleanupArcExtraction(bucketId)
