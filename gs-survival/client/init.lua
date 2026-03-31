@@ -1306,7 +1306,7 @@ local function PlaySignalFlare(coords)
     RemoveWeaponAsset(flareWeaponHash)
 end
 
-local function isArcBucketMatch(targetBucketId)
+isArcBucketMatch = function(targetBucketId)
     local activeBucketId = tonumber(myBucket)
     local resolvedTargetBucketId = tonumber(targetBucketId)
     if not activeBucketId or not resolvedTargetBucketId then
