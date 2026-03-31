@@ -100,6 +100,7 @@ local GetCharacterName
 local GetModeLabel
 local GetActiveArcStageData
 local BuildArcExtractionHudState
+local ToVector3
 
 -- [NUI YARDIMCI FONKSİYONLAR]
 local function OpenNUI(data)
@@ -198,6 +199,24 @@ end
 
 local function NotifyForMode(message, notifyType, duration, title)
     SendArcNotify(message, notifyType, duration, GetNotifyTitle(notifyType, title))
+end
+
+local function ShowArcBarricadePlacementUi()
+    SendNUIMessage({
+        type = 'showArcBarricadePlacement',
+        data = {
+            title = 'ARC Barricade Kit',
+            controls = {
+                { key = 'SOL TIK', action = 'Yerleştir' },
+                { key = 'Q / E', action = 'Döndür' },
+                { key = 'BACKSPACE', action = 'İptal' }
+            }
+        }
+    })
+end
+
+local function HideArcBarricadePlacementUi()
+    SendNUIMessage({ type = 'hideArcBarricadePlacement' })
 end
 
 local function HideUiProgress()
@@ -627,8 +646,12 @@ local function ClearArcBarricades()
         DeleteEntity(arcBarricadePreview.entity)
     end
     arcBarricadePreview = nil
+    HideArcBarricadePlacementUi()
 
     for barricadeId, barricade in pairs(arcPlacedBarricades or {}) do
+        if barricade and barricade.entity and DoesEntityExist(barricade.entity) and barricade.targetName then
+            exports.ox_target:removeLocalEntity(barricade.entity, barricade.targetName)
+        end
         if barricade and barricade.entity and DoesEntityExist(barricade.entity) then
             DeleteEntity(barricade.entity)
         end
@@ -636,18 +659,32 @@ local function ClearArcBarricades()
     end
 end
 
+local function RemoveLocalArcBarricade(barricadeId)
+    local barricade = arcPlacedBarricades[barricadeId]
+    if not barricade then
+        return
+    end
+
+    if barricade.entity and DoesEntityExist(barricade.entity) and barricade.targetName then
+        exports.ox_target:removeLocalEntity(barricade.entity, barricade.targetName)
+    end
+    if barricade.entity and DoesEntityExist(barricade.entity) then
+        DeleteEntity(barricade.entity)
+    end
+
+    arcPlacedBarricades[barricadeId] = nil
+end
+
 local function SpawnLocalArcBarricade(barricadeData)
     local barricadeId = barricadeData and barricadeData.id
     local coords = ToVector3(barricadeData and barricadeData.coords)
     local model = barricadeData and barricadeData.model
     if not barricadeId or not coords or not model then
+        print(('[gs-survival] Invalid ARC barricade payload: id=%s coords=%s model=%s'):format(tostring(barricadeId), tostring(coords), tostring(model)))
         return
     end
 
-    local existingBarricade = arcPlacedBarricades[barricadeId]
-    if existingBarricade and existingBarricade.entity and DoesEntityExist(existingBarricade.entity) then
-        DeleteEntity(existingBarricade.entity)
-    end
+    RemoveLocalArcBarricade(barricadeId)
 
     RequestModel(model)
     while not HasModelLoaded(model) do Wait(10) end
@@ -659,21 +696,130 @@ local function SpawnLocalArcBarricade(barricadeData)
     PlaceObjectOnGroundProperly(entity)
     SetModelAsNoLongerNeeded(model)
 
+    local targetName = ('arc_barricade_%s'):format(barricadeId)
+
     arcPlacedBarricades[barricadeId] = {
-        entity = entity
+        entity = entity,
+        ownerId = tonumber(barricadeData.ownerId) or 0,
+        targetName = targetName,
+        removing = false
     }
+
+    exports.ox_target:addLocalEntity(entity, {
+        {
+            name = targetName,
+            icon = 'fas fa-screwdriver-wrench',
+            label = 'Barricade Sök',
+            distance = 2.0,
+            canInteract = function()
+                local barricadeState = arcPlacedBarricades[barricadeId]
+                return barricadeState
+                    and barricadeState.removing ~= true
+                    and not arcBarricadePreview
+                    and tonumber(barricadeState.ownerId or 0) == GetPlayerServerId(PlayerId())
+            end,
+            onSelect = function()
+                local barricadeState = arcPlacedBarricades[barricadeId]
+                if not barricadeState or barricadeState.removing == true then
+                    return
+                end
+
+                barricadeState.removing = true
+                RunUiProgress({
+                    title = "ARC Barricade",
+                    label = "Barricade sökülüyor...",
+                    duration = 2500,
+                    canCancel = true,
+                    disable = {
+                        disableMovement = true,
+                        disableCarMovement = true,
+                        disableMouse = false,
+                        disableCombat = true,
+                    },
+                    anim = {
+                        dict = "mini@repair",
+                        anim = "fixing_a_ped",
+                        flags = 16,
+                    }
+                }, function()
+                    local activeState = arcPlacedBarricades[barricadeId]
+                    if activeState then
+                        activeState.removing = false
+                    end
+                    TriggerServerEvent('gs-survival:server:removeArcBarricade', barricadeId)
+                end, function()
+                    local activeState = arcPlacedBarricades[barricadeId]
+                    if activeState then
+                        activeState.removing = false
+                    end
+                    NotifyForMode("Barricade sökme iptal edildi.", "error", 3500, "ARC Barricade")
+                end)
+            end
+        }
+    })
 end
 
 local GetArcBarricadeConfig
 
-local function GetArcBarricadePreviewPosition(ped, placementState)
+local function RotationToDirection(rotation)
+    local rotX = math.rad(rotation.x)
+    local rotZ = math.rad(rotation.z)
+    local cosX = math.abs(math.cos(rotX))
+
+    return vector3(
+        -math.sin(rotZ) * cosX,
+        math.cos(rotZ) * cosX,
+        math.sin(rotX)
+    )
+end
+
+local function GetArcBarricadeAimPosition(ped, placementState)
     local config = GetArcBarricadeConfig()
-    local placementDistance = tonumber(config.PlaceDistance) or 2.2
-    local forwardCoords = GetOffsetFromEntityInWorldCoords(ped, 0.0, placementDistance, 0.0)
-    local testHeight = forwardCoords.z + 5.0
-    local foundGround, groundZ = GetGroundZFor_3dCoord(forwardCoords.x, forwardCoords.y, testHeight, false)
-    local zCoord = foundGround and groundZ or forwardCoords.z
-    return vector3(forwardCoords.x, forwardCoords.y, zCoord), (tonumber(placementState.heading) or 0.0) % 360.0
+    local maxDistance = math.max(
+        tonumber(config.InteractDistance) or 4.0,
+        tonumber(config.PlaceDistance) or 2.2
+    )
+    local pedCoords = GetEntityCoords(ped)
+    local cameraCoords = GetGameplayCamCoord()
+    local direction = RotationToDirection(GetGameplayCamRot(2))
+    local rayTarget = cameraCoords + (direction * (maxDistance + 6.0))
+    local rayHandle = StartExpensiveSynchronousShapeTestLosProbe(
+        cameraCoords.x, cameraCoords.y, cameraCoords.z,
+        rayTarget.x, rayTarget.y, rayTarget.z,
+        -1,
+        placementState and placementState.entity or ped,
+        7
+    )
+    local _, didHit, hitCoords = GetShapeTestResult(rayHandle)
+    local targetCoords = didHit == 1 and hitCoords or rayTarget
+    local offsetFromPed = targetCoords - pedCoords
+    local offsetDistance = #offsetFromPed
+
+    if offsetDistance <= 0.001 then
+        targetCoords = GetOffsetFromEntityInWorldCoords(ped, 0.0, tonumber(config.PlaceDistance) or 2.2, 0.0)
+    elseif offsetDistance > maxDistance then
+        targetCoords = pedCoords + (offsetFromPed / offsetDistance) * maxDistance
+    end
+
+    local foundGround, groundZ = GetGroundZFor_3dCoord(targetCoords.x, targetCoords.y, targetCoords.z + 5.0, false)
+    if not foundGround then
+        foundGround, groundZ = GetGroundZFor_3dCoord(targetCoords.x, targetCoords.y, targetCoords.z + 50.0, false)
+    end
+
+    if foundGround then
+        return vector3(targetCoords.x, targetCoords.y, groundZ)
+    end
+
+    return placementState and placementState.lastCoords or vector3(targetCoords.x, targetCoords.y, pedCoords.z)
+end
+
+local function GetArcBarricadePreviewPosition(ped, placementState)
+    local aimCoords = GetArcBarricadeAimPosition(ped, placementState)
+    if placementState then
+        placementState.lastCoords = aimCoords
+    end
+
+    return aimCoords, (tonumber(placementState.heading) or 0.0) % 360.0
 end
 
 local function ClearArcFriendlyBlips()
@@ -1039,7 +1185,7 @@ local function GetSurvivalMetadata()
     return (Config.Survival and Config.Survival.Metadata) or {}
 end
 
-local function ToVector3(coords)
+ToVector3 = function(coords)
     if not coords then return nil end
     if type(coords) == 'vector3' then return coords end
     if coords.x and coords.y and coords.z then
@@ -2403,21 +2549,25 @@ local function StartArcBarricadePlacement(data)
     RequestModel(model)
     while not HasModelLoaded(model) do Wait(10) end
 
-    local previewCoords = GetOffsetFromEntityInWorldCoords(ped, 0.0, tonumber(config.PlaceDistance) or 2.2, 0.0)
+    local previewCoords, previewHeading = GetArcBarricadePreviewPosition(ped, {
+        heading = GetEntityHeading(ped)
+    })
     local previewEntity = CreateObjectNoOffset(model, previewCoords.x, previewCoords.y, previewCoords.z, false, false, false)
     SetEntityAsMissionEntity(previewEntity, true, true)
     SetEntityCollision(previewEntity, false, false)
     SetEntityAlpha(previewEntity, math.max(60, math.min(tonumber(config.PreviewAlpha) or 160, 255)), false)
-    SetEntityHeading(previewEntity, GetEntityHeading(ped))
+    SetEntityHeading(previewEntity, previewHeading)
     SetModelAsNoLongerNeeded(model)
 
     arcBarricadePreview = {
         entity = previewEntity,
         slot = data and data.slot or nil,
-        heading = GetEntityHeading(ped)
+        heading = previewHeading,
+        lastCoords = previewCoords
     }
 
-    NotifyForMode("E ile yerleştir, ←/→ ile döndür, BACKSPACE ile iptal et.", "primary", 5000, "ARC Barricade")
+    ShowArcBarricadePlacementUi()
+    NotifyForMode("Sol tık ile yerleştir, Q / E ile döndür, BACKSPACE ile iptal et.", "primary", 5000, "ARC Barricade")
 
     CreateThread(function()
         local lastPedRefreshAt = GetGameTimer()
@@ -2432,14 +2582,15 @@ local function StartArcBarricadePlacement(data)
             DisableControlAction(0, 24, true)
             DisableControlAction(0, 25, true)
             DisableControlAction(0, 37, true)
+            DisableControlAction(0, 38, true)
             DisableControlAction(0, 44, true)
             DisableControlAction(0, 140, true)
             DisableControlAction(0, 141, true)
             DisableControlAction(0, 142, true)
 
-            if IsDisabledControlJustPressed(0, 174) then
+            if IsDisabledControlJustPressed(0, 44) then
                 arcBarricadePreview.heading = arcBarricadePreview.heading + (tonumber(config.RotationStep) or 3.0)
-            elseif IsDisabledControlJustPressed(0, 175) then
+            elseif IsDisabledControlJustPressed(0, 38) then
                 arcBarricadePreview.heading = arcBarricadePreview.heading - (tonumber(config.RotationStep) or 3.0)
             end
 
@@ -2451,16 +2602,18 @@ local function StartArcBarricadePlacement(data)
             if IsDisabledControlJustPressed(0, 177) then
                 DeleteEntity(arcBarricadePreview.entity)
                 arcBarricadePreview = nil
+                HideArcBarricadePlacementUi()
                 NotifyForMode("Barricade yerleştirme iptal edildi.", "error", 3500, "ARC Barricade")
                 return
             end
 
-            if IsDisabledControlJustPressed(0, 38) then
+            if IsDisabledControlJustPressed(0, 24) then
                 local finalizedCoords = GetEntityCoords(arcBarricadePreview.entity)
                 local finalizedHeading = GetEntityHeading(arcBarricadePreview.entity)
                 local itemSlot = arcBarricadePreview.slot
                 DeleteEntity(arcBarricadePreview.entity)
                 arcBarricadePreview = nil
+                HideArcBarricadePlacementUi()
 
                 RunUiProgress({
                     title = "ARC Barricade",
@@ -2511,6 +2664,10 @@ RegisterNetEvent('gs-survival:client:syncArcBarricades', function(barricades)
     for _, barricade in ipairs(type(barricades) == 'table' and barricades or {}) do
         SpawnLocalArcBarricade(barricade)
     end
+end)
+
+RegisterNetEvent('gs-survival:client:removeArcBarricade', function(barricadeId)
+    RemoveLocalArcBarricade(tostring(barricadeId or ''))
 end)
 
 exports('arc_barricade_kit', function(data, slot)

@@ -53,6 +53,14 @@ function getDefaultArcProgressState() {
     };
 }
 
+function getDefaultArcBarricadePlacementState() {
+    return {
+        visible: false,
+        title: 'ARC Barricade Kit',
+        controls: []
+    };
+}
+
 // ─── Per-screen data store (avoids inline JSON injection) ──────────────────
 var screenData = {
     upgrades: [],
@@ -85,6 +93,8 @@ var screenData = {
         transition: false
     },
     arcProgress: getDefaultArcProgressState()
+    ,
+    arcBarricadePlacement: getDefaultArcBarricadePlacementState()
 };
 
 // ─── Cached nodes for HUD, tooltip, and menu transitions ───────────────────
@@ -131,7 +141,10 @@ var hudEls = {
     arcProgressLabel: document.getElementById('arc-progress-label'),
     arcProgressFill: document.getElementById('arc-progress-fill'),
     arcProgressPercent: document.getElementById('arc-progress-percent'),
-    arcProgressCancel: document.getElementById('arc-progress-cancel')
+    arcProgressCancel: document.getElementById('arc-progress-cancel'),
+    arcBarricadePlacementCard: document.getElementById('arc-barricade-placement-card'),
+    arcBarricadePlacementTitle: document.getElementById('arc-barricade-placement-title'),
+    arcBarricadePlacementControls: document.getElementById('arc-barricade-placement-controls')
 };
 var hideTimer = null;
 var audioCtx = null;
@@ -205,6 +218,8 @@ window.addEventListener('message', function (event) {
         case 'clearArcBanner': clearArcBanner();                  break;
         case 'showArcProgress': showArcProgress(d.data);          break;
         case 'hideArcProgress': clearArcProgress();               break;
+        case 'showArcBarricadePlacement': showArcBarricadePlacement(d.data); break;
+        case 'hideArcBarricadePlacement': clearArcBarricadePlacement(); break;
         case 'openReconnectPrompt': showReconnectPrompt(d.data); showApp(); break;
         case 'receiveInvite': showReceiveInvite(d.data); showApp(); break;
         case 'closeMenu':     hideApp();                           break;
@@ -415,6 +430,7 @@ function clearArcHud() {
         transition: false
     };
     clearArcProgress(true);
+    clearArcBarricadePlacement(true);
     arcNotifyTimers.forEach(function (timerId) {
         clearTimeout(timerId);
     });
@@ -431,21 +447,24 @@ function renderArcHud() {
     var state = screenData.arcHud || {};
     var bannerState = screenData.arcBanner || {};
     var progressState = screenData.arcProgress || {};
+    var barricadePlacementState = screenData.arcBarricadePlacement || {};
     var teamMembers = Array.isArray(state.teamMembers) ? state.teamMembers : [];
     var infoLines = Array.isArray(state.lines) ? state.lines : [];
     var hasToasts = hudEls.arcNotifyStack.children.length > 0;
     var hasBanner = bannerState.visible === true && String(bannerState.title || '').trim().length > 0;
     var hasProgress = progressState.visible === true;
+    var hasBarricadePlacement = barricadePlacementState.visible === true;
     var hasPrompt = String(state.prompt || '').trim().length > 0;
     var hasInfo = state.enabled === true && state.showInfo === true && (String(state.title || '').trim() || String(state.subtitle || '').trim() || infoLines.length > 0 || hasPrompt);
 
-    hudEls.arcOverlayRoot.classList.toggle('hidden', state.enabled !== true && !hasToasts && !hasBanner && !hasProgress);
-    hudEls.arcOverlayRoot.setAttribute('aria-hidden', (state.enabled === true || hasToasts || hasBanner || hasProgress) ? 'false' : 'true');
+    hudEls.arcOverlayRoot.classList.toggle('hidden', state.enabled !== true && !hasToasts && !hasBanner && !hasProgress && !hasBarricadePlacement);
+    hudEls.arcOverlayRoot.setAttribute('aria-hidden', (state.enabled === true || hasToasts || hasBanner || hasProgress || hasBarricadePlacement) ? 'false' : 'true');
 
     hudEls.arcInfoPanel.classList.toggle('hidden', !hasInfo);
     hudEls.arcTeamPanel.classList.toggle('hidden', !(state.enabled === true && teamMembers.length > 0));
     hudEls.arcResultBanner.classList.toggle('hidden', !hasBanner);
     hudEls.arcProgressCard.classList.toggle('hidden', !hasProgress);
+    hudEls.arcBarricadePlacementCard.classList.toggle('hidden', !hasBarricadePlacement);
     hudEls.arcResultBanner.classList.toggle('is-transition', bannerState.transition === true);
     hudEls.arcResultBanner.style.setProperty('--arc-banner-duration', String(Number(bannerState.duration || ARC_BANNER_DEFAULT_DURATION)) + 'ms');
     hudEls.arcResultBannerLabel.textContent = bannerState.label || ARC_BANNER_DEFAULT_LABEL;
@@ -453,6 +472,14 @@ function renderArcHud() {
     hudEls.arcProgressTitle.textContent = progressState.title || ARC_PROGRESS_DEFAULT_TITLE;
     hudEls.arcProgressLabel.textContent = progressState.label || ARC_PROGRESS_DEFAULT_LABEL;
     hudEls.arcProgressCancel.textContent = progressState.canCancel === false ? ARC_PROGRESS_CANCEL_DISABLED_TEXT : ARC_PROGRESS_CANCEL_ENABLED_TEXT;
+    hudEls.arcBarricadePlacementTitle.textContent = barricadePlacementState.title || 'ARC Barricade Kit';
+    hudEls.arcBarricadePlacementControls.innerHTML = (Array.isArray(barricadePlacementState.controls) ? barricadePlacementState.controls : []).map(function (control) {
+        control = control || {};
+        return '<div class="arc-barricade-placement-control">' +
+            '<span class="arc-barricade-placement-key">' + esc(control.key || '-') + '</span>' +
+            '<span class="arc-barricade-placement-action">' + esc(control.action || '') + '</span>' +
+        '</div>';
+    }).join('');
     updateArcProgressVisuals(Date.now());
 
     hudEls.arcInfoTitle.textContent = state.title || ARC_HUD_DEFAULTS.title;
@@ -543,6 +570,23 @@ function clearArcProgress(skipRender) {
     if (!skipRender) {
         renderArcHud();
     }
+}
+
+function clearArcBarricadePlacement(skipRender) {
+    screenData.arcBarricadePlacement = getDefaultArcBarricadePlacementState();
+    if (!skipRender) {
+        renderArcHud();
+    }
+}
+
+function showArcBarricadePlacement(data) {
+    data = data || {};
+    screenData.arcBarricadePlacement = {
+        visible: true,
+        title: data.title || 'ARC Barricade Kit',
+        controls: Array.isArray(data.controls) ? data.controls : []
+    };
+    renderArcHud();
 }
 
 function showArcProgress(data) {

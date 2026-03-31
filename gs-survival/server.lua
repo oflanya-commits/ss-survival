@@ -1660,6 +1660,12 @@ local function BroadcastArcBarricade(bucketId, barricadeId)
     end
 end
 
+local function BroadcastArcBarricadeRemoval(bucketId, barricadeId)
+    for _, playerId in ipairs(groupMembers[bucketId] or {}) do
+        TriggerClientEvent('gs-survival:client:removeArcBarricade', playerId, barricadeId)
+    end
+end
+
 local function GetArcPlayersInsideExtractionZone(bucketId)
     local extractionState = GetArcExtractionState(bucketId)
     local zoneRadius = tonumber(extractionState and extractionState.zoneRadius or 0.0) or 0.0
@@ -4072,6 +4078,69 @@ RegisterNetEvent('gs-survival:server:placeArcBarricade', function(data)
 
     BroadcastArcBarricade(bucketId, barricadeId)
     TriggerClientEvent('QBCore:Functions:Notify', src, (config.Label or "ARC Barricade Kit") .. " kuruldu.", "success")
+end)
+
+RegisterNetEvent('gs-survival:server:removeArcBarricade', function(barricadeId)
+    local src = source
+    local bucketId = GetPlayerRoutingBucket(src)
+    local config = GetArcBarricadeConfig()
+    local itemName = config.Item or arcBarricadeItemName
+    local interactDistance = math.max(1.0, tonumber(config.InteractDistance) or 4.0)
+    local normalizedBarricadeId = tostring(barricadeId or '')
+    local bucketBarricades = arcPlacedBarricades[bucketId]
+    local barricadeState = bucketBarricades and bucketBarricades[normalizedBarricadeId] or nil
+    local barricadeCoords = ToVector3(barricadeState and barricadeState.coords)
+
+    if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not IsArcActivePlayer(bucketId, src) then
+        TriggerClientEvent('QBCore:Functions:Notify', src, "Barricade sökme işlemi şu anda kullanılamıyor.", "error")
+        return
+    end
+
+    if normalizedBarricadeId == '' or not barricadeState or not barricadeCoords then
+        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu barricade artık mevcut değil.", "error")
+        return
+    end
+
+    if tonumber(barricadeState.ownerId) ~= tonumber(src) then
+        TriggerClientEvent('QBCore:Functions:Notify', src, "Sadece kendi barricade kitini sökebilirsin.", "error")
+        return
+    end
+
+    if not IsPlayerNearCoords(src, barricadeCoords, interactDistance) then
+        TriggerClientEvent('QBCore:Functions:Notify', src, "Barricade sökmek için daha yakında olmalısın.", "error")
+        return
+    end
+
+    if exports.ox_inventory:CanCarryItem(src, itemName, 1) == false then
+        TriggerClientEvent('QBCore:Functions:Notify', src, "Envanterinde yer yok.", "error")
+        return
+    end
+
+    bucketBarricades[normalizedBarricadeId] = nil
+
+    local added = exports.ox_inventory:AddItem(src, itemName, 1)
+    if not added then
+        local Player = QBCore.Functions.GetPlayer(src)
+        if Player then
+            added = Player.Functions.AddItem(itemName, 1)
+            if added and QBCore.Shared and QBCore.Shared.Items and QBCore.Shared.Items[itemName] then
+                TriggerClientEvent('inventory:client:ItemBox', src, QBCore.Shared.Items[itemName], "add")
+            end
+        end
+    end
+
+    if not added then
+        bucketBarricades[normalizedBarricadeId] = barricadeState
+        TriggerClientEvent('QBCore:Functions:Notify', src, "Barricade kit envantere geri eklenemedi.", "error")
+        return
+    end
+
+    if not next(bucketBarricades) then
+        arcPlacedBarricades[bucketId] = nil
+    end
+
+    BroadcastArcBarricadeRemoval(bucketId, normalizedBarricadeId)
+    TriggerClientEvent('QBCore:Functions:Notify', src, (config.Label or "ARC Barricade Kit") .. " söküldü.", "success")
 end)
 
 RegisterNetEvent('gs-survival:server:buyUpgrade', function(data)

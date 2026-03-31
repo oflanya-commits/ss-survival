@@ -179,12 +179,88 @@ body {
     display: none;
 }
 
+.arc-barricade-placement-card.hidden {
+    display: none;
+}
+
 .arc-info-panel {
     top: 22px;
     left: 22px;
     width: 300px;
     padding: 14px 14px 15px;
     animation: ui-fade-left 0.28s ease-out both;
+}
+
+.arc-barricade-placement-card {
+    position: absolute;
+    right: 22px;
+    bottom: 34px;
+    min-width: 280px;
+    padding: 14px 16px;
+    border: 1px solid rgba(var(--arc-accent-blue-rgb), 0.18);
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at top right, rgba(168, 213, 226, 0.15), transparent 36%),
+        linear-gradient(180deg, rgba(9, 12, 18, 0.92), rgba(12, 16, 23, 0.86));
+    box-shadow:
+        0 18px 40px rgba(0, 0, 0, 0.26),
+        inset 0 1px 0 rgba(255,255,255,0.05);
+    animation: ui-fade-up 0.25s ease-out both;
+}
+
+.arc-barricade-placement-kicker {
+    font-size: 0.62rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.48);
+}
+
+.arc-barricade-placement-title {
+    margin-top: 4px;
+    font-family: var(--font-head);
+    font-size: 1.5rem;
+    line-height: 0.98;
+    color: #fff;
+}
+
+.arc-barricade-placement-controls {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.arc-barricade-placement-control {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+.arc-barricade-placement-key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 76px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(var(--arc-accent-blue-rgb), 0.12);
+    border: 1px solid rgba(var(--arc-accent-blue-rgb), 0.18);
+    color: rgba(255,255,255,0.88);
+    font-family: var(--font-head);
+    font-size: 0.95rem;
+    letter-spacing: 0.08em;
+}
+
+.arc-barricade-placement-action {
+    flex: 1;
+    text-align: right;
+    color: rgba(255,255,255,0.7);
+    font-size: 0.8rem;
 }
 
 .arc-team-panel {
