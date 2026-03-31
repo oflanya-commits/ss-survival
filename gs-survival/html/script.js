@@ -23,6 +23,10 @@ var ARC_TEAM_STATUS = {
 var ARC_NOTIFY_DEFAULT_DURATION = 4500;
 var ARC_NOTIFY_MIN_DURATION = 1200;
 var ARC_NOTIFY_MAX_DURATION = 15000;
+var ARC_NOTIFY_EXIT_DURATION_MS = 300;
+var ARC_BARRICADE_DEFAULT_BOTTOM_OFFSET = 34;
+var ARC_BARRICADE_TEAM_PANEL_GAP = 18;
+var ARC_TEAM_PANEL_BOTTOM_OFFSET = 22;
 var ARC_BANNER_DEFAULT_DURATION = 3200;
 var ARC_BANNER_MIN_DURATION = 1200;
 var ARC_BANNER_MAX_DURATION = 8000;
@@ -519,6 +523,7 @@ function renderArcHud() {
             '</div>' +
         '</div>';
     }).join('');
+    updateArcBarricadePlacementPosition(state.enabled === true && teamMembers.length > 0);
 }
 
 function cancelArcProgressFrame() {
@@ -586,6 +591,20 @@ function clearArcBarricadePlacement(skipRender) {
     }
 }
 
+function updateArcBarricadePlacementPosition(hasTeamPanel) {
+    if (!hudEls.arcBarricadePlacementCard) {
+        return;
+    }
+
+    var bottomOffset = ARC_BARRICADE_DEFAULT_BOTTOM_OFFSET;
+    var teamPanel = hudEls.arcTeamPanel;
+    if (hasTeamPanel && teamPanel && !teamPanel.classList.contains('hidden')) {
+        bottomOffset = teamPanel.offsetHeight + ARC_TEAM_PANEL_BOTTOM_OFFSET + ARC_BARRICADE_TEAM_PANEL_GAP;
+    }
+
+    hudEls.arcBarricadePlacementCard.style.bottom = bottomOffset + 'px';
+}
+
 function showArcBarricadePlacement(data) {
     data = data || {};
     screenData.arcBarricadePlacement = {
@@ -640,7 +659,7 @@ function pushArcNotify(data) {
                 toast.parentNode.removeChild(toast);
             }
             renderArcHud();
-        }, 220);
+        }, ARC_NOTIFY_EXIT_DURATION_MS);
     }, duration);
     arcNotifyTimers.push(timerId);
 }

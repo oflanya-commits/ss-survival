@@ -12,6 +12,9 @@
     --arc-accent-blue-rgb: 168, 213, 226;
     --arc-accent-green-rgb: 122, 255, 122;
     --arc-accent-red-rgb: 255, 107, 107;
+    --arc-z-info-panel: 4;
+    --arc-z-barricade-card: 5;
+    --arc-z-progress-card: 6;
     
     --font-head: 'Teko', sans-serif;
     --font-body: 'Roboto', sans-serif;
@@ -77,6 +80,19 @@ body {
     }
     to {
         opacity: 1;
+    }
+}
+
+@keyframes arc-notify-in {
+    from {
+        opacity: 0;
+        transform: translate3d(28px, -10px, 0) scale(0.965);
+        filter: blur(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+        filter: blur(0);
     }
 }
 
@@ -191,7 +207,7 @@ body {
     max-height: calc(100vh - 44px);
     padding: 14px 14px 15px;
     animation: ui-fade-left 0.28s ease-out both;
-    z-index: 4;
+    z-index: var(--arc-z-barricade-card);
 }
 
 .arc-barricade-placement-card {
@@ -209,6 +225,7 @@ body {
         0 18px 40px rgba(0, 0, 0, 0.26),
         inset 0 1px 0 rgba(255,255,255,0.05);
     animation: ui-fade-up 0.25s ease-out both;
+    z-index: var(--arc-z-info-panel);
 }
 
 .arc-barricade-placement-kicker {
@@ -537,15 +554,18 @@ body {
     border: 1px solid rgba(255,255,255,0.08);
     background: linear-gradient(180deg, rgba(12, 14, 18, 0.94), rgba(22, 24, 31, 0.88));
     box-shadow: 0 18px 36px rgba(0,0,0,0.22);
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
     opacity: 1;
-    transition: opacity 0.2s ease, transform 0.2s ease;
-    animation: ui-fade-right 0.22s ease-out both;
+    transform-origin: top right;
+    will-change: transform, opacity, filter;
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease;
+    animation: arc-notify-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .arc-notify.is-leaving {
     opacity: 0;
-    transform: translateY(-6px);
+    transform: translate3d(18px, -8px, 0) scale(0.975);
+    filter: blur(2px);
 }
 
 .arc-notify-title {
@@ -691,7 +711,7 @@ body {
 .arc-progress-card {
     position: absolute;
     left: 50%;
-    bottom: 56px;
+    bottom: 28px;
     transform: translateX(-50%);
     width: min(460px, calc(100vw - 32px));
     padding: 18px 20px;
@@ -702,6 +722,7 @@ body {
         linear-gradient(180deg, rgba(8, 11, 15, 0.94), rgba(14, 18, 24, 0.9));
     box-shadow: 0 18px 42px rgba(0, 0, 0, 0.3);
     animation: ui-fade-up 0.24s ease-out both;
+    z-index: var(--arc-z-progress-card);
 }
 
 .arc-progress-kicker {
