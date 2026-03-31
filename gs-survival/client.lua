@@ -2158,6 +2158,7 @@ RegisterNetEvent('gs-survival:client:cleanupBeforeLeave', function()
     ApplyMinimapLayout(DEFAULT_MINIMAP_LAYOUT)
     StopSpectating()
     ClearArcZoneBlips()
+    ClearArcDeploymentZoneBlips()
     RestoreHiddenBlips()
     ClearArcFriendlyBlips()
     ClearArcSessionVehicles()
@@ -2755,7 +2756,6 @@ end
 
 
 RegisterNetEvent('gs-survival:client:initSurvival', function(bucket, wave, partyMembers, stageId)
-    CloseNUI()
     currentModeId = 'classic'
     ClearArcBarricades()
     ClearArcOverlay()
@@ -2781,6 +2781,7 @@ RegisterNetEvent('gs-survival:client:initSurvival', function(bucket, wave, party
     activeBoundaryRadius = GetModeBoundaryRadius('classic', stageData)
 
     ShowScreenTransition(SCREEN_TRANSITION_ENTER_TITLE)
+    CloseNUI()
     Wait(100)
     DoScreenFadeOut(SCREEN_TRANSITION_FADE_DURATION_MS)
     Wait(SCREEN_TRANSITION_FADE_DURATION_MS + 100)
@@ -2803,7 +2804,6 @@ RegisterNetEvent('gs-survival:client:initSurvival', function(bucket, wave, party
 end)
 
 RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers, raidPlayers, stageId, deploymentData, rejoinData)
-    CloseNUI()
     currentModeId = 'arc_pvp'
     ClearArcBarricades()
     ApplyMinimapLayout(DEFAULT_MINIMAP_LAYOUT)
@@ -2846,6 +2846,7 @@ RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers,
     RefreshArcOverlayTeam()
     RefreshArcOverlayInfo('', true)
     ShowScreenTransition(SCREEN_TRANSITION_ENTER_TITLE)
+    CloseNUI()
     Wait(100)
     DoScreenFadeOut(SCREEN_TRANSITION_FADE_DURATION_MS)
     Wait(SCREEN_TRANSITION_FADE_DURATION_MS + 100)
