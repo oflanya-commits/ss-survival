@@ -1970,7 +1970,7 @@ RegisterNUICallback('nuiAction', function(data, cb)
         OpenArcLockerManager(data.data and data.data.focusSide)
 
     elseif action == 'arcProgressComplete' then
-        FinalizeUiProgress(tonumber(data.data and data.data.id or 0) or 0, false)
+        FinalizeUiProgress(tonumber(data.data and data.data.id) or 0, false)
 
     elseif action == 'moveArcLockerItem' then
         TriggerServerEvent(
