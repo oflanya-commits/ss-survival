@@ -1494,6 +1494,7 @@ local function BuildArcExtractionClientState(bucketId)
 
     return {
         enabled = true,
+        bucketId = tonumber(bucketId) or bucketId,
         phase = extractionState.phase or 'idle',
         phaseLabel = GetArcExtractionPhaseLabel(extractionState.phase),
         zone = extractionState.zone,
@@ -2525,6 +2526,7 @@ local function StartArcExtractionCall(bucketId, callerSource, requestedZoneId)
     })
     for _, playerId in ipairs(groupMembers[bucketId] or {}) do
         TriggerClientEvent('gs-survival:client:playSignalFlare', playerId, {
+            bucketId = tonumber(bucketId) or bucketId,
             coords = Vector3ToTable(ToVector3(selectedZone.coords))
         })
     end
@@ -2915,4 +2917,3 @@ local function BuildNearbyLobbyPlayers(leaderId)
 
     return nearbyPlayers
 end
-

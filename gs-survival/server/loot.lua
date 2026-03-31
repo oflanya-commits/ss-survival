@@ -301,6 +301,7 @@ RegisterNetEvent('gs-survival:server:handleArcDeath', function(reason)
 
     for _, playerId in ipairs(groupMembers[bucketId] or {}) do
         TriggerClientEvent('gs-survival:client:playSignalFlare', playerId, {
+            bucketId = tonumber(bucketId) or bucketId,
             coords = Vector3ToTable(deathCoords)
         })
     end

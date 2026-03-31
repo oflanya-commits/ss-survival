@@ -1490,6 +1490,11 @@ local function ApplyArcExtractionState(state, notifyPayload)
         return
     end
 
+    local targetBucketId = tonumber(state.bucketId)
+    if targetBucketId and tonumber(myBucket) and targetBucketId ~= tonumber(myBucket) then
+        return
+    end
+
     arcExtractionState = state
     arcExtractionMenuState = state
     arcExtractionLocalDeadline = GetGameTimer() + (tonumber(state.remainingMs or 0) or 0)
@@ -1944,4 +1949,3 @@ local function HandleReconnectResult(result)
         end
     end
 end
-
