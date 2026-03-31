@@ -232,7 +232,11 @@ function ServerHelpers.GetArcRaidSquadMembers(bucketId, playerId)
                 break
             end
 
-            singleSquadMembers = listedSquad and listedSquad.members or {}
+            if listedSquad and listedSquad.members then
+                singleSquadMembers = listedSquad.members
+            else
+                singleSquadMembers = {}
+            end
         end
 
         if squadCount == 1 then
