@@ -1667,7 +1667,7 @@ end
 
 local function GetModeBoundaryTexts(modeId)
     if modeId == 'arc_pvp' then
-        return "Güvenli sektörün dışına çıktın!", "UYARI: Güvenli sektörün dışına yaklaşıyorsun!"
+        return "Baskın alanının dışına çıktın!", "UYARI: Baskın alanının dışına yaklaşıyorsun!"
     end
 
     return "Savaş alanından çok uzaklaştın!", "UYARI: Sınırdan çıkıyorsun!"
@@ -1944,4 +1944,3 @@ local function HandleReconnectResult(result)
         end
     end
 end
-
