@@ -37,8 +37,9 @@ local RestorePlayerInventory
 local CleanBucketEntities
 local BuildArcDeploymentPayload
 local GetArcRaidRemainingMs
+local ServerHelpers = {}
 
-local function BuildLootItemSet()
+function ServerHelpers.BuildLootItemSet()
     lootItemSet = {}
     if Config and Config.LootTable then
         for _, loot in ipairs(Config.LootTable) do
@@ -47,9 +48,9 @@ local function BuildLootItemSet()
     end
 end
 
-BuildLootItemSet()
+ServerHelpers.BuildLootItemSet()
 
-local function CountMembers(memberTable)
+function ServerHelpers.CountMembers(memberTable)
     local count = 0
     for _ in pairs(memberTable or {}) do
         count = count + 1
@@ -57,7 +58,7 @@ local function CountMembers(memberTable)
     return count
 end
 
-local function IsPlayerInList(playerList, playerId)
+function ServerHelpers.IsPlayerInList(playerList, playerId)
     for _, listedPlayerId in ipairs(playerList or {}) do
         if tonumber(listedPlayerId) == tonumber(playerId) then
             return true
@@ -67,15 +68,15 @@ local function IsPlayerInList(playerList, playerId)
     return false
 end
 
-local function IsBucketMember(bucketId, playerId)
+function ServerHelpers.IsBucketMember(bucketId, playerId)
     if not bucketId or tonumber(bucketId) == 0 then
         return false
     end
 
-    return IsPlayerInList(groupMembers[bucketId] or {}, playerId)
+    return ServerHelpers.IsPlayerInList(groupMembers[bucketId] or {}, playerId)
 end
 
-local function IsPedEntityDead(entity)
+function ServerHelpers.IsPedEntityDead(entity)
     if not entity or entity == 0 or not DoesEntityExist(entity) then
         return true
     end
@@ -83,14 +84,14 @@ local function IsPedEntityDead(entity)
     return GetEntityHealth(entity) <= 0
 end
 
-local function CountAliveBucketNpcs(bucketId)
+function ServerHelpers.CountAliveBucketNpcs(bucketId)
     if not bucketId or bucketId == 0 then
         return 0
     end
 
     local aliveCount = 0
     for _, entity in ipairs(GetAllPeds()) do
-        if GetEntityRoutingBucket(entity) == bucketId and not IsPedAPlayer(entity) and not IsPedEntityDead(entity) then
+        if GetEntityRoutingBucket(entity) == bucketId and not IsPedAPlayer(entity) and not ServerHelpers.IsPedEntityDead(entity) then
             aliveCount = aliveCount + 1
         end
     end
@@ -98,7 +99,7 @@ local function CountAliveBucketNpcs(bucketId)
     return aliveCount
 end
 
-local function FindLobbyLeaderByMember(memberId)
+function ServerHelpers.FindLobbyLeaderByMember(memberId)
     for leaderId, data in pairs(activeLobbies) do
         if data.members and data.members[memberId] then
             return leaderId
@@ -108,30 +109,30 @@ local function FindLobbyLeaderByMember(memberId)
     return nil
 end
 
-local function GetGameMode(modeId)
+function ServerHelpers.GetGameMode(modeId)
     local gameModes = Config and Config.GameModes or {}
     return gameModes[modeId or 'classic'] or gameModes.classic
 end
 
-local function GetGameModeId(modeId)
-    local gameMode = GetGameMode(modeId)
+function ServerHelpers.GetGameModeId(modeId)
+    local gameMode = ServerHelpers.GetGameMode(modeId)
     return gameMode and gameMode.id or 'classic'
 end
 
-local function GetModeConfig(modeId)
-    if GetGameModeId(modeId) == 'arc_pvp' then
+function ServerHelpers.GetModeConfig(modeId)
+    if ServerHelpers.GetGameModeId(modeId) == 'arc_pvp' then
         return Config.ArcPvP or {}
     end
 
     return Config.Survival or {}
 end
 
-local function GetArcConfig()
+function ServerHelpers.GetArcConfig()
     return Config.ArcPvP or {}
 end
 
-local function GetArcRaidMaxPlayers()
-    local configuredLimit = tonumber(GetArcConfig().MaxPlayersPerRaid)
+function ServerHelpers.GetArcRaidMaxPlayers()
+    local configuredLimit = tonumber(ServerHelpers.GetArcConfig().MaxPlayersPerRaid)
     if not configuredLimit or configuredLimit <= 0 then
         return nil
     end
@@ -139,12 +140,12 @@ local function GetArcRaidMaxPlayers()
     return math.floor(configuredLimit)
 end
 
-local function GetArcRaidPopulation(bucketId)
+function ServerHelpers.GetArcRaidPopulation(bucketId)
     local members = groupMembers[bucketId] or {}
     return #members
 end
 
-local function EnsureArcRaidSquadState(bucketId)
+function ServerHelpers.EnsureArcRaidSquadState(bucketId)
     if not bucketId then
         return nil
     end
@@ -158,8 +159,8 @@ local function EnsureArcRaidSquadState(bucketId)
     return arcRaidSquads[bucketId]
 end
 
-local function CreateArcRaidSquad(bucketId, playerIds)
-    local squadState = EnsureArcRaidSquadState(bucketId)
+function ServerHelpers.CreateArcRaidSquad(bucketId, playerIds)
+    local squadState = ServerHelpers.EnsureArcRaidSquadState(bucketId)
     if not squadState then
         return nil
     end
@@ -170,7 +171,7 @@ local function CreateArcRaidSquad(bucketId, playerIds)
     local members = {}
     for _, playerId in ipairs(playerIds or {}) do
         local resolvedPlayerId = tonumber(playerId)
-        if resolvedPlayerId and not IsPlayerInList(members, resolvedPlayerId) then
+        if resolvedPlayerId and not ServerHelpers.IsPlayerInList(members, resolvedPlayerId) then
             members[#members + 1] = resolvedPlayerId
             squadState.playerMap[resolvedPlayerId] = squadId
         end
@@ -183,7 +184,7 @@ local function CreateArcRaidSquad(bucketId, playerIds)
     return squadId
 end
 
-local function GetArcRaidSquadMembers(bucketId, playerId)
+function ServerHelpers.GetArcRaidSquadMembers(bucketId, playerId)
     local squadState = arcRaidSquads[bucketId]
     local resolvedPlayerId = tonumber(playerId)
     local members = {}
@@ -206,7 +207,7 @@ local function GetArcRaidSquadMembers(bucketId, playerId)
     return members
 end
 
-local function RemoveArcRaidSquadPlayer(bucketId, playerId)
+function ServerHelpers.RemoveArcRaidSquadPlayer(bucketId, playerId)
     local squadState = arcRaidSquads[bucketId]
     local resolvedPlayerId = tonumber(playerId)
     if not squadState or not resolvedPlayerId then
@@ -231,8 +232,8 @@ local function RemoveArcRaidSquadPlayer(bucketId, playerId)
     squadState.playerMap[resolvedPlayerId] = nil
 end
 
-local function AddArcRaidPlayerToSquad(bucketId, playerId, preferredMembers)
-    local squadState = EnsureArcRaidSquadState(bucketId)
+function ServerHelpers.AddArcRaidPlayerToSquad(bucketId, playerId, preferredMembers)
+    local squadState = ServerHelpers.EnsureArcRaidSquadState(bucketId)
     local resolvedPlayerId = tonumber(playerId)
     if not squadState or not resolvedPlayerId then
         return nil
@@ -254,15 +255,15 @@ local function AddArcRaidPlayerToSquad(bucketId, playerId, preferredMembers)
     end
 
     if not preferredSquadId then
-        return CreateArcRaidSquad(bucketId, { resolvedPlayerId })
+        return ServerHelpers.CreateArcRaidSquad(bucketId, { resolvedPlayerId })
     end
 
     local squad = squadState.squads[preferredSquadId]
     if not squad then
-        return CreateArcRaidSquad(bucketId, { resolvedPlayerId })
+        return ServerHelpers.CreateArcRaidSquad(bucketId, { resolvedPlayerId })
     end
 
-    if not IsPlayerInList(squad.members, resolvedPlayerId) then
+    if not ServerHelpers.IsPlayerInList(squad.members, resolvedPlayerId) then
         squad.members[#squad.members + 1] = resolvedPlayerId
     end
     squadState.playerMap[resolvedPlayerId] = preferredSquadId
@@ -270,7 +271,7 @@ local function AddArcRaidPlayerToSquad(bucketId, playerId, preferredMembers)
     return preferredSquadId
 end
 
-local function EnsureArcRaidPlayerProfileState(bucketId)
+function ServerHelpers.EnsureArcRaidPlayerProfileState(bucketId)
     if not bucketId then
         return nil
     end
@@ -279,7 +280,7 @@ local function EnsureArcRaidPlayerProfileState(bucketId)
     return arcRaidPlayerProfiles[bucketId]
 end
 
-local function BuildArcPlayerDisplayName(Player, fallbackPlayerId)
+function ServerHelpers.BuildArcPlayerDisplayName(Player, fallbackPlayerId)
     local charinfo = Player and Player.PlayerData and Player.PlayerData.charinfo or nil
     local firstname = charinfo and tostring(charinfo.firstname or '') or ''
     local lastname = charinfo and tostring(charinfo.lastname or '') or ''
@@ -292,27 +293,27 @@ local function BuildArcPlayerDisplayName(Player, fallbackPlayerId)
     return ("ID %s"):format(tostring(fallbackPlayerId))
 end
 
-local function RememberArcRaidPlayerProfile(bucketId, playerId, Player)
+function ServerHelpers.RememberArcRaidPlayerProfile(bucketId, playerId, Player)
     local resolvedPlayerId = tonumber(playerId)
-    local profileState = EnsureArcRaidPlayerProfileState(bucketId)
+    local profileState = ServerHelpers.EnsureArcRaidPlayerProfileState(bucketId)
     if not resolvedPlayerId or not profileState then
         return nil
     end
 
     profileState[resolvedPlayerId] = {
         citizenid = Player and Player.PlayerData and Player.PlayerData.citizenid or nil,
-        name = BuildArcPlayerDisplayName(Player, resolvedPlayerId)
+        name = ServerHelpers.BuildArcPlayerDisplayName(Player, resolvedPlayerId)
     }
 
     return profileState[resolvedPlayerId]
 end
 
-local function GetArcRaidPlayerProfile(bucketId, playerId)
+function ServerHelpers.GetArcRaidPlayerProfile(bucketId, playerId)
     local resolvedPlayerId = tonumber(playerId)
     return resolvedPlayerId and arcRaidPlayerProfiles[bucketId] and arcRaidPlayerProfiles[bucketId][resolvedPlayerId] or nil
 end
 
-local function SetArcPlayerBucketIndex(playerId, bucketId)
+function ServerHelpers.SetArcPlayerBucketIndex(playerId, bucketId)
     local resolvedPlayerId = tonumber(playerId)
     if not resolvedPlayerId then
         return
@@ -326,7 +327,7 @@ local function SetArcPlayerBucketIndex(playerId, bucketId)
     arcPlayerBucketIndex[resolvedPlayerId] = nil
 end
 
-local function AdjustArcPendingReconnectCount(bucketId, delta)
+function ServerHelpers.AdjustArcPendingReconnectCount(bucketId, delta)
     local resolvedBucketId = tonumber(bucketId)
     local change = tonumber(delta) or 0
     if not resolvedBucketId or resolvedBucketId == 0 or change == 0 then
@@ -341,7 +342,7 @@ local function AdjustArcPendingReconnectCount(bucketId, delta)
     end
 end
 
-local function FindArcBucketByPlayer(playerId)
+function ServerHelpers.FindArcBucketByPlayer(playerId)
     local resolvedPlayerId = tonumber(playerId)
     if not resolvedPlayerId then
         return nil
@@ -349,7 +350,7 @@ local function FindArcBucketByPlayer(playerId)
 
     local indexedBucketId = tonumber(arcPlayerBucketIndex[resolvedPlayerId])
     if indexedBucketId and indexedBucketId ~= 0 then
-        if groupMembers[indexedBucketId] and IsPlayerInList(groupMembers[indexedBucketId], resolvedPlayerId) then
+        if groupMembers[indexedBucketId] and ServerHelpers.IsPlayerInList(groupMembers[indexedBucketId], resolvedPlayerId) then
             return indexedBucketId
         end
 
@@ -357,7 +358,7 @@ local function FindArcBucketByPlayer(playerId)
     end
 
     for bucketId, members in pairs(groupMembers) do
-        if IsPlayerInList(members, resolvedPlayerId) then
+        if ServerHelpers.IsPlayerInList(members, resolvedPlayerId) then
             arcPlayerBucketIndex[resolvedPlayerId] = tonumber(bucketId)
             return bucketId
         end
@@ -367,7 +368,7 @@ local function FindArcBucketByPlayer(playerId)
 end
 
 local function GetArcExtractionConfig()
-    return (GetArcConfig() and GetArcConfig().Extraction) or {}
+    return (ServerHelpers.GetArcConfig() and ServerHelpers.GetArcConfig().Extraction) or {}
 end
 
 local function GetArcExtractionSettings()
@@ -413,7 +414,7 @@ end
 
 local function GetArcLootRegion(regionId)
     local normalizedRegionId = NormalizeArcLootRegionId(regionId)
-    local lootRegions = GetArcConfig().LootRegions or {}
+    local lootRegions = ServerHelpers.GetArcConfig().LootRegions or {}
     local regionData = normalizedRegionId and lootRegions[normalizedRegionId] or nil
 
     if regionData and type(regionData.lootTable) == 'table' and #regionData.lootTable > 0 then
@@ -429,7 +430,7 @@ local function ResolveArcLootTable(regionId)
         return regionData.lootTable, resolvedRegionId, regionData
     end
 
-    return GetArcConfig().LootTable or {}, nil, nil
+    return ServerHelpers.GetArcConfig().LootTable or {}, nil, nil
 end
 
 local function GetArcLootNodeState(bucketId, containerId)
@@ -448,7 +449,7 @@ local function GetArcLootNodeState(bucketId, containerId)
 end
 
 local function GetArcDisconnectPolicy()
-    local policy = tostring(GetArcConfig().DisconnectPolicy or 'rollback'):lower()
+    local policy = tostring(ServerHelpers.GetArcConfig().DisconnectPolicy or 'rollback'):lower()
     if policy ~= 'rollback' and policy ~= 'death' and policy ~= 'rejoin' then
         policy = 'rollback'
     end
@@ -485,7 +486,7 @@ local function BuildArcDisconnectPolicyInfo(policy)
 end
 
 local function GetArcAdmissionSettings()
-    local arcConfig = GetArcConfig()
+    local arcConfig = ServerHelpers.GetArcConfig()
     local lateJoinCutoffSeconds = tonumber(arcConfig.LateJoinCutoffSeconds or 0) or 0
     local configuredBackfillSeconds = arcConfig.MinimumRemainingSecondsForBackfill
     if configuredBackfillSeconds == nil then
@@ -517,7 +518,7 @@ end
 
 local function AcquireArcStartLock(src)
     local lockKey = GetArcStartLockKey(src)
-    local debounceMs = tonumber(GetArcConfig().StartDebounceMs) or 6000
+    local debounceMs = tonumber(ServerHelpers.GetArcConfig().StartDebounceMs) or 6000
     local now = GetGameTimer()
     local lockState = arcStartLocks[lockKey]
 
@@ -546,12 +547,12 @@ local function ReleaseArcStartLock(lockKey)
 end
 
 local function GetModeMetadata(modeId)
-    local modeConfig = GetModeConfig(modeId)
+    local modeConfig = ServerHelpers.GetModeConfig(modeId)
     return modeConfig.Metadata or {}
 end
 
 local function GetModeStages(modeId)
-    if GetGameModeId(modeId) == 'arc_pvp' then
+    if ServerHelpers.GetGameModeId(modeId) == 'arc_pvp' then
         return (Config.ArcPvP and Config.ArcPvP.Arenas) or {}
     end
 
@@ -594,7 +595,7 @@ local function GetRandomUnlockedStageId(maxLevel, modeId)
 end
 
 local function GetBackupStashId(modeId, citizenId)
-    if GetGameModeId(modeId) == 'arc_pvp' then
+    if ServerHelpers.GetGameModeId(modeId) == 'arc_pvp' then
         return (Config.ArcPvP and Config.ArcPvP.BackupStashPrefix or 'arc_backup_') .. citizenId
     end
 
@@ -603,7 +604,7 @@ local function GetBackupStashId(modeId, citizenId)
 end
 
 local function RegisterBackupStash(modeId, stashId)
-    if GetGameModeId(modeId) == 'arc_pvp' then
+    if ServerHelpers.GetGameModeId(modeId) == 'arc_pvp' then
         exports.ox_inventory:RegisterStash(
             stashId,
             (Config.ArcPvP and Config.ArcPvP.BackupStashLabel) or "Arc Geçici Stash",
@@ -631,7 +632,7 @@ local function SetModeActiveState(Player, modeId, isActive)
     end
 
     if metadata.modeKey and metadata.modeKey ~= '' then
-        Player.Functions.SetMetaData(metadata.modeKey, isActive and GetGameModeId(modeId) or nil)
+        Player.Functions.SetMetaData(metadata.modeKey, isActive and ServerHelpers.GetGameModeId(modeId) or nil)
     end
 end
 
@@ -651,16 +652,16 @@ local function IsModeActive(Player, modeId)
         return true
     end
 
-    if metadata.modeKey and Player.PlayerData.metadata[metadata.modeKey] == GetGameModeId(modeId) then
+    if metadata.modeKey and Player.PlayerData.metadata[metadata.modeKey] == ServerHelpers.GetGameModeId(modeId) then
         return true
     end
 
     local legacyModeId = Player.PlayerData.metadata["survival_mode"]
-    if legacyModeId == GetGameModeId(modeId) then
+    if legacyModeId == ServerHelpers.GetGameModeId(modeId) then
         return true
     end
 
-    if GetGameModeId(modeId) == 'classic' and Player.PlayerData.metadata["in_survival"] then
+    if ServerHelpers.GetGameModeId(modeId) == 'classic' and Player.PlayerData.metadata["in_survival"] then
         return true
     end
 
@@ -670,7 +671,7 @@ end
 local function GetActiveModeId(Player)
     for configuredModeId, _ in pairs((Config and Config.GameModes) or {}) do
         if IsModeActive(Player, configuredModeId) then
-            return GetGameModeId(configuredModeId)
+            return ServerHelpers.GetGameModeId(configuredModeId)
         end
     end
 
@@ -701,7 +702,7 @@ local function ResolvePlayerActiveModeState(playerId, Player)
     end
     local hasBackupItems = backupItems and next(backupItems)
     local hasCachedBackup = playerBackups[cid] and next(playerBackups[cid]) ~= nil
-    local hasArcReconnectState = GetGameModeId(activeModeId) == 'arc_pvp' and arcDisconnectStates[cid] ~= nil
+    local hasArcReconnectState = ServerHelpers.GetGameModeId(activeModeId) == 'arc_pvp' and arcDisconnectStates[cid] ~= nil
 
     if hasBackupItems or hasCachedBackup or hasArcReconnectState then
         return activeModeId
@@ -714,7 +715,7 @@ local function ResolvePlayerActiveModeState(playerId, Player)
 end
 
 local function GetPlayerStarterLoadout(Player, modeId)
-    if GetGameModeId(modeId) == 'arc_pvp' then
+    if ServerHelpers.GetGameModeId(modeId) == 'arc_pvp' then
         local arcLoadout = (Config.ArcPvP and Config.ArcPvP.Loadout) or {}
         return {
             items = arcLoadout.Items or {},
@@ -748,7 +749,7 @@ local function GetPlayerStarterLoadout(Player, modeId)
 end
 
 local function GiveModeLoadout(playerId, Player, modeId, preparedLoadout)
-    if GetGameModeId(modeId) == 'arc_pvp' and preparedLoadout and #preparedLoadout > 0 then
+    if ServerHelpers.GetGameModeId(modeId) == 'arc_pvp' and preparedLoadout and #preparedLoadout > 0 then
         for _, itemData in ipairs(preparedLoadout) do
             local metadata = itemData.metadata or {}
             metadata.survivalItem = true
@@ -1002,7 +1003,7 @@ local function CountInventoryEntries(items)
 end
 
 local function BuildArcLoadoutReadinessState(loadoutStacks, loadoutItems)
-    local requirePrepared = GetArcConfig().RequirePreparedLoadout == true
+    local requirePrepared = ServerHelpers.GetArcConfig().RequirePreparedLoadout == true
     local isReady = (tonumber(loadoutStacks) or 0) > 0
     local usesFallback = not isReady and not requirePrepared
     local status = 'prepared'
@@ -1273,7 +1274,7 @@ local function GetLobbyContext(source)
         return source, activeLobbies[source], true
     end
 
-    local leaderId = FindLobbyLeaderByMember(source)
+    local leaderId = ServerHelpers.FindLobbyLeaderByMember(source)
     return leaderId, leaderId and activeLobbies[leaderId] or nil, false
 end
 
@@ -1283,8 +1284,8 @@ local function BuildArcUiSummaryState(source, prepState)
     local leaderId, lobby, isLeader = GetLobbyContext(source)
     local isMember = leaderId ~= nil and not isLeader
     local localPed = GetPlayerPed(source)
-    local strictValidation = GetArcConfig().StrictDeploymentValidation == true
-    local allowInventory = GetArcConfig().AllowPersonalInventory ~= false
+    local strictValidation = ServerHelpers.GetArcConfig().StrictDeploymentValidation == true
+    local allowInventory = ServerHelpers.GetArcConfig().AllowPersonalInventory ~= false
     local disconnectInfo = BuildArcDisconnectPolicyInfo()
     local extractionSettings = GetArcExtractionSettings()
     local missingReadyNames = {}
@@ -1686,7 +1687,7 @@ local function GetArcSpawnValidationPlayers(bucketId)
     local scopedPlayers = {}
     local scopedLookup = {}
 
-    if not bucketId or GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
+    if not bucketId or ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
         return scopedPlayers
     end
 
@@ -1958,7 +1959,7 @@ end
 local function IsArcSessionJoinable(bucketId, incomingPlayerIds, options)
     options = options or {}
 
-    if GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
+    if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
         return false, 'invalid_mode'
     end
 
@@ -1973,9 +1974,9 @@ local function IsArcSessionJoinable(bucketId, incomingPlayerIds, options)
         return false, admissionState and admissionState.reason or 'inactive_session'
     end
 
-    local maxRaidPlayers = GetArcRaidMaxPlayers()
+    local maxRaidPlayers = ServerHelpers.GetArcRaidMaxPlayers()
     local incomingCount = #(incomingPlayerIds or {})
-    if maxRaidPlayers and (GetArcRaidPopulation(bucketId) + incomingCount) > maxRaidPlayers then
+    if maxRaidPlayers and (ServerHelpers.GetArcRaidPopulation(bucketId) + incomingCount) > maxRaidPlayers then
         return false, 'session_full'
     end
 
@@ -1989,7 +1990,7 @@ local function IsArcSessionJoinable(bucketId, incomingPlayerIds, options)
             return false, 'already_eliminated'
         end
 
-        if HasArcRaidParticipant(bucketId, playerId) or IsPlayerInList(members, playerId) then
+        if HasArcRaidParticipant(bucketId, playerId) or ServerHelpers.IsPlayerInList(members, playerId) then
             return false, 'already_participant'
         end
     end
@@ -2002,7 +2003,7 @@ local function FindBestArcSessionForLobby(incomingPlayerIds, playerLevel)
     local candidates = {}
 
     for bucketId, modeId in pairs(bucketModes) do
-        if GetGameModeId(modeId) == 'arc_pvp' then
+        if ServerHelpers.GetGameModeId(modeId) == 'arc_pvp' then
             local joinable, denyReason = IsArcSessionJoinable(bucketId, incomingPlayerIds, {
                 playerLevel = playerLevel
             })
@@ -2010,7 +2011,7 @@ local function FindBestArcSessionForLobby(incomingPlayerIds, playerLevel)
                 candidates[#candidates + 1] = {
                     bucketId = bucketId,
                     remainingMs = GetArcRaidRemainingMs(bucketId),
-                    population = GetArcRaidPopulation(bucketId)
+                    population = ServerHelpers.GetArcRaidPopulation(bucketId)
                 }
             elseif denyReason then
                 RefreshArcSessionAdmissionState(bucketId)
@@ -2071,7 +2072,7 @@ local function CanPlayerRejoinArcSession(bucketId, playerId, citizenId)
         return false, "ARC yeniden bağlanma kaydı başka bir oturuma ait."
     end
 
-    if GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not arcRaidState[bucketId] then
+    if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not arcRaidState[bucketId] then
         return false, "Eski ARC oturumu artık aktif değil."
     end
 
@@ -2095,12 +2096,12 @@ local function CanPlayerRejoinArcSession(bucketId, playerId, citizenId)
         return false, "Bu ARC oturumu için katılımcı kaydı bulunamadı."
     end
 
-    if IsPlayerInList(groupMembers[bucketId] or {}, playerId) then
+    if ServerHelpers.IsPlayerInList(groupMembers[bucketId] or {}, playerId) then
         return false, "Bu ARC oturumuna zaten bağlısın."
     end
 
-    local maxRaidPlayers = GetArcRaidMaxPlayers()
-    if maxRaidPlayers and (GetArcRaidPopulation(bucketId) + 1) > maxRaidPlayers then
+    local maxRaidPlayers = ServerHelpers.GetArcRaidMaxPlayers()
+    if maxRaidPlayers and (ServerHelpers.GetArcRaidPopulation(bucketId) + 1) > maxRaidPlayers then
         return false, "ARC oturumu dolduğu için geri dönüş reddedildi."
     end
 
@@ -2108,7 +2109,7 @@ local function CanPlayerRejoinArcSession(bucketId, playerId, citizenId)
 end
 
 local function CleanupArcSessionIfAbandoned(bucketId)
-    if not bucketId or GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not arcRaidState[bucketId] then
+    if not bucketId or ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not arcRaidState[bucketId] then
         return false
     end
 
@@ -2460,12 +2461,12 @@ local function RemoveArcRaidPlayer(bucketId, playerId)
         end
     end
 
-    RemoveArcRaidSquadPlayer(bucketId, playerId)
+    ServerHelpers.RemoveArcRaidSquadPlayer(bucketId, playerId)
     if arcRaidPlayerProfiles[bucketId] then
         arcRaidPlayerProfiles[bucketId][tonumber(playerId)] = nil
     end
     groupSizes[bucketId] = #members
-    SetArcPlayerBucketIndex(playerId, nil)
+    ServerHelpers.SetArcPlayerBucketIndex(playerId, nil)
 end
 
 local GetArcPlayerName
@@ -2874,7 +2875,7 @@ local function BuildNearbyLobbyPlayers(leaderId)
             if targetPlayer
                 and GetPlayerRoutingBucket(playerId) == 0
                 and not activeLobbies[playerId]
-                and not FindLobbyLeaderByMember(playerId)
+                and not ServerHelpers.FindLobbyLeaderByMember(playerId)
                 and IsPlayerWithinLobbyProximity(normalizedLeaderId, playerId) then
                 nearbyPlayers[#nearbyPlayers + 1] = {
                     id = playerId,
@@ -2909,7 +2910,7 @@ RegisterNetEvent('gs-survival:server:sendInvite', function(tId)
         return
     end
 
-    if CountMembers(lobby.members) >= MAX_LOBBY_MEMBERS then
+    if ServerHelpers.CountMembers(lobby.members) >= MAX_LOBBY_MEMBERS then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Lobi zaten dolu! (Maksimum " .. MAX_LOBBY_SIZE .. " kişi)", "error")
         return
     end
@@ -2919,7 +2920,7 @@ RegisterNetEvent('gs-survival:server:sendInvite', function(tId)
         return
     end
 
-    if activeLobbies[tId] or FindLobbyLeaderByMember(tId) then
+    if activeLobbies[tId] or ServerHelpers.FindLobbyLeaderByMember(tId) then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Bu oyuncunun zaten aktif bir lobisi var.", "error")
         return
     end
@@ -2970,12 +2971,12 @@ CleanBucketEntities = function(bucketId)
 end
 
 local function SyncArcRaidPlayers(bucketId)
-    if GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not groupMembers[bucketId] then
+    if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not groupMembers[bucketId] then
         return
     end
 
     for _, playerId in ipairs(groupMembers[bucketId]) do
-        TriggerClientEvent('gs-survival:client:updateArcRaidPlayers', playerId, GetArcRaidSquadMembers(bucketId, playerId), groupMembers[bucketId])
+        TriggerClientEvent('gs-survival:client:updateArcRaidPlayers', playerId, ServerHelpers.GetArcRaidSquadMembers(bucketId, playerId), groupMembers[bucketId])
     end
 end
 
@@ -3021,7 +3022,7 @@ end
 
 local function BuildActiveLobbyList(source)
     local lobbies = {}
-    local memberLobbyLeaderId = FindLobbyLeaderByMember(source)
+    local memberLobbyLeaderId = ServerHelpers.FindLobbyLeaderByMember(source)
 
     for leaderId, lobby in pairs(activeLobbies) do
         local isOwnLobby = tonumber(leaderId) == tonumber(source)
@@ -3030,7 +3031,7 @@ local function BuildActiveLobbyList(source)
         local isNearbyLeader = IsPlayerWithinLobbyProximity(leaderId, source)
 
         if isPublic or isOwnLobby or isJoinedLobby then
-            local memberCount = CountMembers(lobby.members)
+            local memberCount = ServerHelpers.CountMembers(lobby.members)
             local readyCount = 0
 
             for _, info in pairs(lobby.members or {}) do
@@ -3108,7 +3109,7 @@ local function GetMinimumPlayerSurvivalLevel(playerIds)
 end
 
 local function ResolveModeStageId(modeId, requestedStageId, playerLevel)
-    if GetGameModeId(modeId) == 'arc_pvp' then
+    if ServerHelpers.GetGameModeId(modeId) == 'arc_pvp' then
         return 1
     end
 
@@ -3151,7 +3152,7 @@ local function BuildStartingGroup(src, invited)
 end
 
 local function ValidateArcStartParticipants(playerIds)
-    if GetArcConfig().StrictDeploymentValidation ~= true then
+    if ServerHelpers.GetArcConfig().StrictDeploymentValidation ~= true then
         return true
     end
 
@@ -3178,12 +3179,12 @@ local function StartModeOperation(src, invited, stageId, modeId)
     local Player = QBCore.Functions.GetPlayer(src)
     if not Player then return end
 
-    if FindLobbyLeaderByMember(src) then
+    if ServerHelpers.FindLobbyLeaderByMember(src) then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Operasyonu yalnızca lobi lideri başlatabilir.", "error")
         return
     end
 
-    local selectedModeId = GetGameModeId(modeId)
+    local selectedModeId = ServerHelpers.GetGameModeId(modeId)
     if not Config.GameModes or not Config.GameModes[selectedModeId] then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Geçersiz oyun modu!", "error")
         return
@@ -3275,7 +3276,7 @@ local function StartModeOperation(src, invited, stageId, modeId)
     if joiningExistingArcRaid then
         groupMembers[bId] = groupMembers[bId] or {}
         for _, playerId in ipairs(peps) do
-            if not IsPlayerInList(groupMembers[bId], playerId) then
+            if not ServerHelpers.IsPlayerInList(groupMembers[bId], playerId) then
                 groupMembers[bId][#groupMembers[bId] + 1] = playerId
             end
         end
@@ -3314,7 +3315,7 @@ local function StartModeOperation(src, invited, stageId, modeId)
     end
 
     if selectedModeId == 'arc_pvp' then
-        CreateArcRaidSquad(bId, peps)
+        ServerHelpers.CreateArcRaidSquad(bId, peps)
     else
         bucketWaveState[bId] = 0
     end
@@ -3351,7 +3352,7 @@ local function StartModeOperation(src, invited, stageId, modeId)
             if selectedModeId == 'arc_pvp' then
                 RegisterArcMainStash(targetPlayer)
                 RegisterArcLoadoutStash(targetPlayer)
-                RememberArcRaidPlayerProfile(bId, playerId, targetPlayer)
+                ServerHelpers.RememberArcRaidPlayerProfile(bId, playerId, targetPlayer)
             end
 
             GiveModeLoadout(playerId, targetPlayer, selectedModeId, preparedArcLoadouts and preparedArcLoadouts[playerId] and preparedArcLoadouts[playerId].items or nil)
@@ -3359,7 +3360,7 @@ local function StartModeOperation(src, invited, stageId, modeId)
                 exports.ox_inventory:ClearInventory(preparedArcLoadouts[playerId].stashId)
             end
             SetPlayerRoutingBucket(playerId, bId)
-            SetArcPlayerBucketIndex(playerId, bId)
+            ServerHelpers.SetArcPlayerBucketIndex(playerId, bId)
 
             if selectedModeId == 'arc_pvp' and deploymentState and deploymentState.insertion then
                 SetEntityCoords(GetPlayerPed(playerId), deploymentState.insertion.x, deploymentState.insertion.y, deploymentState.insertion.z)
@@ -3369,7 +3370,7 @@ local function StartModeOperation(src, invited, stageId, modeId)
 
             TriggerClientEvent('hospital:client:Revive', playerId)
             if selectedModeId == 'arc_pvp' then
-                TriggerClientEvent('gs-survival:client:initArcPvP', playerId, bId, GetArcRaidSquadMembers(bId, playerId), groupMembers[bId], resolvedStageId, deploymentState)
+                TriggerClientEvent('gs-survival:client:initArcPvP', playerId, bId, ServerHelpers.GetArcRaidSquadMembers(bId, playerId), groupMembers[bId], resolvedStageId, deploymentState)
             else
                 TriggerClientEvent('gs-survival:client:initSurvival', playerId, bId, 1, peps, resolvedStageId)
             end
@@ -3392,7 +3393,7 @@ local function StartModeOperation(src, invited, stageId, modeId)
     if selectedModeId == 'arc_pvp' and deploymentState and not joiningExistingArcRaid then
         CreateThread(function()
             Wait(tonumber(deploymentState.raidDurationMs or 0) or 0)
-            if not groupMembers[bId] or GetGameModeId(bucketModes[bId]) ~= 'arc_pvp' then
+            if not groupMembers[bId] or ServerHelpers.GetGameModeId(bucketModes[bId]) ~= 'arc_pvp' then
                 return
             end
 
@@ -3410,7 +3411,7 @@ end
 -- [Başlatma]
 RegisterNetEvent('gs-survival:server:startSurvival', function(invited, stageId, modeId)
     local src = source
-    local requestedMode = GetGameModeId(modeId or 'classic')
+    local requestedMode = ServerHelpers.GetGameModeId(modeId or 'classic')
     if requestedMode ~= 'classic' then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Klasik Hayatta Kalma için startSurvival, ARC Baskını için startArcPvP akışı kullanılmalıdır.", "error")
         return
@@ -3444,7 +3445,7 @@ RegisterNetEvent('gs-survival:server:startArcExtractionCall', function(zoneId)
     local src = source
     local bucketId = GetPlayerRoutingBucket(src)
 
-    if bucketId == 0 or not IsBucketMember(bucketId, src) or GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
+    if bucketId == 0 or not ServerHelpers.IsBucketMember(bucketId, src) or ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Tahliye yalnızca ARC baskını sırasında çağrılabilir.", "error")
         return
     end
@@ -3459,7 +3460,7 @@ RegisterNetEvent('gs-survival:server:departArcExtraction', function()
     local src = source
     local bucketId = GetPlayerRoutingBucket(src)
 
-    if GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
+    if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Kalkış yalnızca ARC baskını sırasında başlatılabilir.", "error")
         return
     end
@@ -3479,11 +3480,11 @@ RegisterNetEvent('gs-survival:server:spawnWave', function(bId, wave, stageId)
         return
     end
 
-    if not IsBucketMember(bucketId, src) then
+    if not ServerHelpers.IsBucketMember(bucketId, src) then
         return
     end
 
-    if GetGameModeId(bucketModes[bucketId]) == 'arc_pvp' then
+    if ServerHelpers.GetGameModeId(bucketModes[bucketId]) == 'arc_pvp' then
         return
     end
 
@@ -3496,7 +3497,7 @@ RegisterNetEvent('gs-survival:server:spawnWave', function(bId, wave, stageId)
         return
     end
 
-    if previousWave > 0 and CountAliveBucketNpcs(bucketId) > 0 then
+    if previousWave > 0 and ServerHelpers.CountAliveBucketNpcs(bucketId) > 0 then
         return
     end
 
@@ -3618,7 +3619,7 @@ RegisterNetEvent('gs-survival:server:createLobby', function(isPublic)
         return
     end
 
-    if FindLobbyLeaderByMember(src) then
+    if ServerHelpers.FindLobbyLeaderByMember(src) then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Önce mevcut lobinden ayrılmalısın.", "error")
         return
     end
@@ -3675,12 +3676,12 @@ RegisterNetEvent('gs-survival:server:confirmInvite', function(leaderId)
             return
         end
 
-        if activeLobbies[src] or FindLobbyLeaderByMember(src) then
+        if activeLobbies[src] or ServerHelpers.FindLobbyLeaderByMember(src) then
             TriggerClientEvent('QBCore:Functions:Notify', src, "Zaten başka bir lobidesin.", "error")
             return
         end
 
-        if CountMembers(activeLobbies[leaderId].members) >= MAX_LOBBY_MEMBERS then
+        if ServerHelpers.CountMembers(activeLobbies[leaderId].members) >= MAX_LOBBY_MEMBERS then
             TriggerClientEvent('QBCore:Functions:Notify', src, "Lobi dolu olduğu için katılamadın.", "error")
             return
         end
@@ -3722,12 +3723,12 @@ RegisterNetEvent('gs-survival:server:joinPublicLobby', function(leaderId)
         return
     end
 
-    if activeLobbies[src] or FindLobbyLeaderByMember(src) then
+    if activeLobbies[src] or ServerHelpers.FindLobbyLeaderByMember(src) then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Zaten başka bir lobidesin.", "error")
         return
     end
 
-    if CountMembers(lobby.members) >= MAX_LOBBY_MEMBERS then
+    if ServerHelpers.CountMembers(lobby.members) >= MAX_LOBBY_MEMBERS then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Lobi dolu olduğu için katılamadın.", "error")
         return
     end
@@ -3799,7 +3800,7 @@ local function RecoverPlayerAfterResourceRestart(playerId)
 
     playerBackups[cid] = nil
     if arcDisconnectStates[cid] and arcDisconnectStates[cid].allowRejoin == true and arcDisconnectStates[cid].resolved ~= true then
-        AdjustArcPendingReconnectCount(arcDisconnectStates[cid].bucketId, -1)
+        ServerHelpers.AdjustArcPendingReconnectCount(arcDisconnectStates[cid].bucketId, -1)
     end
     arcDisconnectStates[cid] = nil
     ClearAllModeState(Player)
@@ -3986,7 +3987,7 @@ RegisterNetEvent('gs-survival:server:requestArcBarricadeSync', function()
     local src = source
     local bucketId = GetPlayerRoutingBucket(src)
 
-    if GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
+    if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
         return TriggerClientEvent('gs-survival:client:syncArcBarricades', src, {})
     end
 
@@ -4006,7 +4007,7 @@ RegisterNetEvent('gs-survival:server:placeArcBarricade', function(data)
     local interactDistance = math.max(1.0, tonumber(config.InteractDistance) or 4.0)
     local minSpacing = math.max(0.5, tonumber(config.MinSpacing) or 2.5)
 
-    if GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not IsArcActivePlayer(bucketId, src) then
+    if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not IsArcActivePlayer(bucketId, src) then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Barricade kit sadece aktif ARC oyuncuları tarafından kullanılabilir.", "error")
         return
     end
@@ -4180,7 +4181,7 @@ local function RestoreBaseInventoryState(targetId, modeId)
     if not TPlayer then return nil end
 
     local cid = TPlayer.PlayerData.citizenid
-    local resolvedModeId = GetGameModeId(modeId)
+    local resolvedModeId = ServerHelpers.GetGameModeId(modeId)
     local backupStashId = GetBackupStashId(resolvedModeId, cid)
 
     ClearAllModeState(TPlayer)
@@ -4189,7 +4190,7 @@ local function RestoreBaseInventoryState(targetId, modeId)
     TriggerClientEvent('gs-survival:client:cleanupBeforeLeave', targetId)
     TriggerClientEvent('ox_inventory:disarm', targetId)
     if arcDisconnectStates[cid] and arcDisconnectStates[cid].allowRejoin == true and arcDisconnectStates[cid].resolved ~= true then
-        AdjustArcPendingReconnectCount(arcDisconnectStates[cid].bucketId, -1)
+        ServerHelpers.AdjustArcPendingReconnectCount(arcDisconnectStates[cid].bucketId, -1)
     end
     arcDisconnectStates[cid] = nil
 
@@ -4212,7 +4213,7 @@ local function RestoreSurvivalInventory(targetId, victoryStatus, modeId)
     exports.ox_inventory:ClearInventory(targetId)
     Wait(600)
     SetPlayerRoutingBucket(targetId, 0)
-    SetArcPlayerBucketIndex(targetId, nil)
+    ServerHelpers.SetArcPlayerBucketIndex(targetId, nil)
     Wait(200)
 
     if playerBackups[cid] then
@@ -4248,7 +4249,7 @@ local function RestoreArcInventory(targetId, victoryStatus, modeId)
     exports.ox_inventory:ClearInventory(targetId)
     Wait(600)
     SetPlayerRoutingBucket(targetId, 0)
-    SetArcPlayerBucketIndex(targetId, nil)
+    ServerHelpers.SetArcPlayerBucketIndex(targetId, nil)
     Wait(200)
 
     if playerBackups[cid] then
@@ -4262,7 +4263,7 @@ local function RestoreArcInventory(targetId, victoryStatus, modeId)
 end
 
 RestorePlayerInventory = function(targetId, victoryStatus, modeId)
-    if GetGameModeId(modeId) == 'arc_pvp' then
+    if ServerHelpers.GetGameModeId(modeId) == 'arc_pvp' then
         RestoreArcInventory(targetId, victoryStatus, modeId)
         return
     end
@@ -4272,7 +4273,7 @@ end
 
 local function HandleArcDisconnect(source, bucketId, reason)
     local Player = QBCore.Functions.GetPlayer(source)
-    local profile = GetArcRaidPlayerProfile(bucketId, source)
+    local profile = ServerHelpers.GetArcRaidPlayerProfile(bucketId, source)
     local cid = Player and Player.PlayerData and Player.PlayerData.citizenid or (profile and profile.citizenid) or nil
     if not cid or cid == '' then return end
 
@@ -4285,7 +4286,7 @@ local function HandleArcDisconnect(source, bucketId, reason)
 
     local previousDisconnectState = arcDisconnectStates[cid]
     if previousDisconnectState and previousDisconnectState.allowRejoin == true and previousDisconnectState.resolved ~= true then
-        AdjustArcPendingReconnectCount(previousDisconnectState.bucketId, -1)
+        ServerHelpers.AdjustArcPendingReconnectCount(previousDisconnectState.bucketId, -1)
     end
 
     arcDisconnectStates[cid] = {
@@ -4298,9 +4299,9 @@ local function HandleArcDisconnect(source, bucketId, reason)
         extraction = BuildArcExtractionDisconnectState(bucketId),
         allowRejoin = allowRejoin,
         resolved = false,
-        playerName = profile and profile.name or BuildArcPlayerDisplayName(Player, source),
+        playerName = profile and profile.name or ServerHelpers.BuildArcPlayerDisplayName(Player, source),
         lastCoords = lastCoords,
-        squadMembers = GetArcRaidSquadMembers(bucketId, source)
+        squadMembers = ServerHelpers.GetArcRaidSquadMembers(bucketId, source)
     }
 
     eliminatedArcPlayers[bucketId] = eliminatedArcPlayers[bucketId] or {}
@@ -4317,7 +4318,7 @@ local function HandleArcDisconnect(source, bucketId, reason)
         })
     end
     if allowRejoin then
-        AdjustArcPendingReconnectCount(bucketId, 1)
+        ServerHelpers.AdjustArcPendingReconnectCount(bucketId, 1)
     end
 
     FinalizeArcExtractionResult(source, 'disconnected', bucketId)
@@ -4337,14 +4338,14 @@ local function RejoinArcDisconnectedPlayer(source, Player, disconnectState)
     end
 
     groupMembers[bucketId] = groupMembers[bucketId] or {}
-    if not IsPlayerInList(groupMembers[bucketId], source) then
+    if not ServerHelpers.IsPlayerInList(groupMembers[bucketId], source) then
         groupMembers[bucketId][#groupMembers[bucketId] + 1] = source
     end
     groupSizes[bucketId] = #groupMembers[bucketId]
-    SetArcPlayerBucketIndex(source, bucketId)
+    ServerHelpers.SetArcPlayerBucketIndex(source, bucketId)
 
-    AddArcRaidPlayerToSquad(bucketId, source, disconnectState.squadMembers)
-    RememberArcRaidPlayerProfile(bucketId, source, Player)
+    ServerHelpers.AddArcRaidPlayerToSquad(bucketId, source, disconnectState.squadMembers)
+    ServerHelpers.RememberArcRaidPlayerProfile(bucketId, source, Player)
 
     eliminatedArcPlayers[bucketId] = eliminatedArcPlayers[bucketId] or {}
     eliminatedArcPlayers[bucketId][source] = nil
@@ -4357,20 +4358,20 @@ local function RejoinArcDisconnectedPlayer(source, Player, disconnectState)
         or (arcRaidState[bucketId] and arcRaidState[bucketId].deployment and arcRaidState[bucketId].deployment.center)
 
     SetPlayerRoutingBucket(source, bucketId)
-    SetArcPlayerBucketIndex(source, bucketId)
+    ServerHelpers.SetArcPlayerBucketIndex(source, bucketId)
     if rejoinCoords and rejoinCoords.x and rejoinCoords.y and rejoinCoords.z then
         SetEntityCoords(GetPlayerPed(source), rejoinCoords.x, rejoinCoords.y, rejoinCoords.z)
     end
 
     TriggerClientEvent('hospital:client:Revive', source)
-    TriggerClientEvent('gs-survival:client:initArcPvP', source, bucketId, GetArcRaidSquadMembers(bucketId, source), groupMembers[bucketId], GetArcRaidStageId(bucketId), deploymentState, {
+    TriggerClientEvent('gs-survival:client:initArcPvP', source, bucketId, ServerHelpers.GetArcRaidSquadMembers(bucketId, source), groupMembers[bucketId], GetArcRaidStageId(bucketId), deploymentState, {
         wasReconnect = true,
         coords = rejoinCoords
     })
 
     disconnectState.resolved = true
     if disconnectState.allowRejoin == true then
-        AdjustArcPendingReconnectCount(bucketId, -1)
+        ServerHelpers.AdjustArcPendingReconnectCount(bucketId, -1)
     end
     arcDisconnectStates[cid] = nil
 
@@ -4403,7 +4404,7 @@ local function FinalizeArcReconnectCleanup(source, Player, cid, backupStashId, d
 
     if GetPlayerRoutingBucket(source) ~= 0 then
         SetPlayerRoutingBucket(source, 0)
-        SetArcPlayerBucketIndex(source, nil)
+        ServerHelpers.SetArcPlayerBucketIndex(source, nil)
     end
 
     TriggerClientEvent('gs-survival:client:cleanupBeforeLeave', source)
@@ -4580,7 +4581,7 @@ RegisterNetEvent('gs-survival:server:finishSurvival', function(isVictory)
     if not Player then finishingPlayers[src] = nil return end
 
     local bucketId = GetPlayerRoutingBucket(src)
-    local modeId = GetGameModeId(bucketModes[bucketId])
+    local modeId = ServerHelpers.GetGameModeId(bucketModes[bucketId])
 
     if modeId == 'arc_pvp' then
         finishingPlayers[src] = nil
@@ -4599,7 +4600,7 @@ RegisterNetEvent('gs-survival:server:finishSurvival', function(isVictory)
         local playedStage = lobbyStage[bucketId] or 1
         local currentWave = bucketWaveState[bucketId] or 0
         local maxWaves = GetClassicMaxWaveForStage(playedStage)
-        local hasAliveNpc = CountAliveBucketNpcs(bucketId) > 0
+        local hasAliveNpc = ServerHelpers.CountAliveBucketNpcs(bucketId) > 0
         if currentWave <= 0 or currentWave < maxWaves or hasAliveNpc then
             status = false
         end
@@ -4715,12 +4716,12 @@ AddEventHandler('playerDropped', function(reason)
     -- 2. [MAÇ TEMİZLİĞİ] (Senin mevcut bucket mantığın)
     local bucketId = GetPlayerRoutingBucket(src)
     if bucketId == 0 or not (groupMembers and groupMembers[bucketId]) then
-        bucketId = FindArcBucketByPlayer(src)
+        bucketId = ServerHelpers.FindArcBucketByPlayer(src)
     end
     if bucketId ~= 0 and groupMembers and groupMembers[bucketId] then
-        if GetGameModeId(bucketModes[bucketId]) == 'arc_pvp' then
+        if ServerHelpers.GetGameModeId(bucketModes[bucketId]) == 'arc_pvp' then
             local disconnectState = HandleArcDisconnect(src, bucketId, reason)
-            local droppedProfile = GetArcRaidPlayerProfile(bucketId, src)
+            local droppedProfile = ServerHelpers.GetArcRaidPlayerProfile(bucketId, src)
             local droppedName = disconnectState and disconnectState.playerName or (droppedProfile and droppedProfile.name) or ("ID " .. tostring(src))
             local disconnectInfo = BuildArcDisconnectPolicyInfo()
             for _, playerId in ipairs(groupMembers[bucketId]) do
@@ -4735,7 +4736,7 @@ AddEventHandler('playerDropped', function(reason)
 
         if #groupMembers[bucketId] > 0 then
             SyncArcRaidPlayers(bucketId)
-            if GetGameModeId(bucketModes[bucketId]) == 'arc_pvp' and #GetArcAlivePlayers(bucketId) == 0 and pendingReconnects == 0 then
+            if ServerHelpers.GetGameModeId(bucketModes[bucketId]) == 'arc_pvp' and #GetArcAlivePlayers(bucketId) == 0 and pendingReconnects == 0 then
                 FinalizeArcMatch(bucketId, {}, 'disconnect')
                 return
             end
@@ -4743,7 +4744,7 @@ AddEventHandler('playerDropped', function(reason)
 
         -- Eğer odada kimse kalmadıysa dünyayı temizle
         if #groupMembers[bucketId] == 0 then
-            if GetGameModeId(bucketModes[bucketId]) == 'arc_pvp' and pendingReconnects > 0 then
+            if ServerHelpers.GetGameModeId(bucketModes[bucketId]) == 'arc_pvp' and pendingReconnects > 0 then
                 local admissionState = EnsureArcSessionAdmissionState(bucketId)
                 if admissionState then
                     admissionState.phase = 'awaiting_rejoin'
@@ -4802,7 +4803,7 @@ QBCore.Functions.CreateCallback('gs-survival:server:checkReconnectBackup', funct
             CleanupArcSessionIfAbandoned(disconnectState.bucketId)
         end
         if arcDisconnectStates[cid] and arcDisconnectStates[cid].allowRejoin == true and arcDisconnectStates[cid].resolved ~= true then
-            AdjustArcPendingReconnectCount(arcDisconnectStates[cid].bucketId, -1)
+            ServerHelpers.AdjustArcPendingReconnectCount(arcDisconnectStates[cid].bucketId, -1)
         end
         arcDisconnectStates[cid] = nil
         return cb({ restored = false })
@@ -4899,7 +4900,7 @@ RegisterNetEvent('gs-survival:server:createNpcStash', function(npcNetId, current
     local resolvedNpcNetId = tonumber(npcNetId)
     local wave = math.max(1, math.floor(tonumber(bucketWaveState[bucketId] or 1))) -- Eğer dalga bilgisi gelmezse varsayılan 1 yap
 
-    if bucketId == 0 or not IsBucketMember(bucketId, src) or not resolvedNpcNetId then
+    if bucketId == 0 or not ServerHelpers.IsBucketMember(bucketId, src) or not resolvedNpcNetId then
         beingLooted[npcNetId] = nil
         return
     end
@@ -4916,7 +4917,7 @@ RegisterNetEvent('gs-survival:server:createNpcStash', function(npcNetId, current
     end
 
     local npc = NetworkGetEntityFromNetworkId(resolvedNpcNetId)
-    if npc == 0 or not DoesEntityExist(npc) or GetEntityRoutingBucket(npc) ~= bucketId or not IsPedEntityDead(npc) then
+    if npc == 0 or not DoesEntityExist(npc) or GetEntityRoutingBucket(npc) ~= bucketId or not ServerHelpers.IsPedEntityDead(npc) then
         beingLooted[resolvedNpcNetId] = nil
         return
     end
@@ -5083,7 +5084,7 @@ RegisterNetEvent('gs-survival:server:openArcLootContainer', function(containerId
     local src = source
     local bucketId = GetPlayerRoutingBucket(src)
 
-    if GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
+    if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Bu sandık yalnızca ARC Baskını sırasında açılabilir.", "error")
         return
     end
@@ -5146,7 +5147,7 @@ RegisterNetEvent('gs-survival:server:openArcDeathContainer', function(containerI
     local src = source
     local bucketId = GetPlayerRoutingBucket(src)
 
-    if GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
+    if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
         TriggerClientEvent('QBCore:Functions:Notify', src, "Bu düşüş kutusu yalnızca ARC Baskını sırasında açılabilir.", "error")
         return
     end
@@ -5176,7 +5177,7 @@ RegisterNetEvent('gs-survival:server:handleArcDeath', function(reason)
     local src = source
     local bucketId = GetPlayerRoutingBucket(src)
 
-    if GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not groupMembers[bucketId] then
+    if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not groupMembers[bucketId] then
         return
     end
 
@@ -5236,7 +5237,7 @@ RegisterNetEvent('gs-survival:server:returnArcToLobby', function()
     local src = source
     local bucketId = GetPlayerRoutingBucket(src)
 
-    if GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not groupMembers[bucketId] then
+    if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not groupMembers[bucketId] then
         return
     end
 
@@ -5273,7 +5274,7 @@ QBCore.Functions.CreateCallback('gs-survival:server:checkLootStatus', function(s
     local bucketId = GetPlayerRoutingBucket(source)
     local resolvedNpcNetId = tonumber(npcNetId)
 
-    if bucketId == 0 or not IsBucketMember(bucketId, source) or not resolvedNpcNetId then
+    if bucketId == 0 or not ServerHelpers.IsBucketMember(bucketId, source) or not resolvedNpcNetId then
         return cb(false)
     end
 
@@ -5306,7 +5307,7 @@ RegisterNetEvent('gs-survival:server:giveStarterItems', function(weaponName)
     if not Player then return end
 
     local bucketId = GetPlayerRoutingBucket(src)
-    if bucketId == 0 or GetGameModeId(bucketModes[bucketId]) ~= 'classic' or not IsModeActive(Player, 'classic') then
+    if bucketId == 0 or ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'classic' or not IsModeActive(Player, 'classic') then
         return
     end
 
