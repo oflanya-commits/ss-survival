@@ -300,6 +300,7 @@ RegisterNetEvent('gs-survival:server:handleArcDeath', function(reason)
     local deathItems = exports.ox_inventory:GetInventoryItems(src)
     local resolvedBucketId = tonumber(bucketId)
     if not resolvedBucketId then
+        print(('[ARC] Invalid death flare bucket: %s'):format(tostring(bucketId)))
         return
     end
 
