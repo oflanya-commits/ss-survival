@@ -65,6 +65,8 @@ local arcExtractionZoneCenterBlip = nil
 local arcExtractionHeli = nil
 local arcExtractionPilot = nil
 local arcExtractionHeliTaskKey = nil
+local arcExtractionHeliSpawnNonce = 0
+local arcExtractionHeliSpawnPendingNonce = 0
 local arcExtractionMenuState = nil
 local arcExtractionLastPhase = nil
 local arcBarricadePreview = nil
@@ -1020,6 +1022,8 @@ local function ClearArcZoneBlips()
 end
 
 local function ClearArcExtractionScene()
+    arcExtractionHeliSpawnNonce = arcExtractionHeliSpawnNonce + 1
+    arcExtractionHeliSpawnPendingNonce = 0
     if arcExtractionPilot and DoesEntityExist(arcExtractionPilot) then
         DeleteEntity(arcExtractionPilot)
     end
@@ -1407,9 +1411,37 @@ local function EnsureArcExtractionScene()
     local spawnCoords = shouldApproach and startCoords or hoverCoords
 
     if not arcExtractionHeli or not DoesEntityExist(arcExtractionHeli) then
+        if arcExtractionHeliSpawnPendingNonce ~= 0 then
+            return
+        end
+
+        arcExtractionHeliSpawnNonce = arcExtractionHeliSpawnNonce + 1
+        local spawnNonce = arcExtractionHeliSpawnNonce
+        arcExtractionHeliSpawnPendingNonce = spawnNonce
         RequestModel(model)
-        while not HasModelLoaded(model) do Wait(10) end
+        while not HasModelLoaded(model) do
+            if spawnNonce ~= arcExtractionHeliSpawnNonce then
+                if arcExtractionHeliSpawnPendingNonce == spawnNonce then
+                    arcExtractionHeliSpawnPendingNonce = 0
+                end
+                SetModelAsNoLongerNeeded(model)
+                return
+            end
+            Wait(10)
+        end
+
+        if spawnNonce ~= arcExtractionHeliSpawnNonce then
+            if arcExtractionHeliSpawnPendingNonce == spawnNonce then
+                arcExtractionHeliSpawnPendingNonce = 0
+            end
+            SetModelAsNoLongerNeeded(model)
+            return
+        end
+
         arcExtractionHeli = CreateVehicle(model, spawnCoords.x, spawnCoords.y, spawnCoords.z, heading, false, false)
+        if arcExtractionHeliSpawnPendingNonce == spawnNonce then
+            arcExtractionHeliSpawnPendingNonce = 0
+        end
         SetEntityAsMissionEntity(arcExtractionHeli, true, true)
         SetEntityInvincible(arcExtractionHeli, true)
         SetVehicleEngineOn(arcExtractionHeli, true, true, false)
@@ -1944,4 +1976,3 @@ local function HandleReconnectResult(result)
         end
     end
 end
-
