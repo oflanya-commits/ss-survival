@@ -1,8 +1,19 @@
+-- Bu dosya, survival ve ARC modlarının bütün oynanış ayarlarını merkezi olarak yönetir.
+-- Aşağıdaki yorumlar her tablonun ve alanın ne işe yaradığını hızlıca anlamak için eklendi.
+
 Config = {}
 
--- [GENEL AYARLAR]
--- [KORUNACAK EŞYALAR]
-
+-- [CRAFT TARİFLERİ]
+-- Her kayıt, crafting menüsünde gösterilen tek bir üretim tarifidir.
+-- header: Menüde görünen başlık
+-- txt: Oyuncuya gösterilen gereksinim özeti
+-- icon: Menü ikonu
+-- category: Menüde hangi sekmede/listede gruplanacağını belirler
+-- params.event: Tarif seçildiğinde tetiklenecek client event'i
+-- params.args.item: Üretilecek item adı
+-- params.args.amount: Üretilecek adet
+-- params.args.label: İlerleme/notify tarafında kullanılacak okunabilir isim
+-- params.args.requirements: Gerekli item ve adet listesi
 Config.CraftRecipes = {
     {
         header = "9mm Mermi Paketi",
@@ -216,6 +227,17 @@ Config.CraftRecipes = {
 }
 
 -- [BÖLÜM (STAGE) YAPILANDIRMASI]
+-- Her stage, klasik survival modunda oynanabilecek ayrı bir senaryoyu temsil eder.
+-- label: Menüde görünen stage adı
+-- center: Sınır kontrolü ve genel odak noktası için merkezin koordinatı
+-- multiplier: Zorluk/ölçek çarpanı; NPC doğruluğu ve benzeri hesaplarda kullanılır
+-- spawnPoints: Düşmanların doğabileceği pozisyonlar
+-- Waves: Dalga listesi
+--   npcCount: O dalgada toplam spawn olacak NPC sayısı
+--   pedModel: NPC modeli
+--   isDogWave: Bu dalganın köpek dalgası olup olmadığını belirtir
+--   label: Dalga etiketi
+--   weapon: NPC'ye verilecek silah
 Config.Stages = {
     [1] = {
         label = "Gecekondu Baskını - Kolay",
@@ -271,12 +293,17 @@ Config.Stages = {
     },
 }
 -- [BAŞLANGIÇ NPC AYARLARI]
+-- Lobi/başlangıç menüsünü açan sabit NPC'nin modelini, konumunu ve etiketini tanımlar.
 Config.Npc = {
     Model = `a_m_m_og_boss_01`,
     Coords = vector4(-122.5, -1500.2, 33.5, 120.0), 
     Label = "Operasyon Menüsü"
 }
 
+-- Oyun modu seçim menüsünde listelenecek modlar.
+-- id: Sistem içi benzersiz mod anahtarı
+-- label: Oyuncuya gösterilecek isim
+-- description: Menü açıklaması
 Config.GameModes = {
     classic = {
         id = "classic",
@@ -291,6 +318,7 @@ Config.GameModes = {
 }
 
 Config.Survival = {
+    -- Oyuncunun survival oturum durumunu metadata üzerinde takip etmek için kullanılan anahtar adları.
     Metadata = {
         activeFlag = "in_survival",
         modeKey = "survival_mode",
@@ -298,6 +326,10 @@ Config.Survival = {
         armor = "survival_armor",
         level = "survival_level"
     },
+    -- Survival başlarken alınan envanteri geçici olarak saklayan yedek stash ayarları.
+    -- Prefix: Her oyuncu için oluşturulan stash ID'sinin ön eki
+    -- Label: Envanter arayüzünde görünen depo adı
+    -- Slots/Weight: ox_inventory kapasite ayarları
     BackupStash = {
         Prefix = "surv_backup_",
         Label = "Survival Yedek",
@@ -307,6 +339,15 @@ Config.Survival = {
 }
 
 -- [SAVAŞ VE ZORLUK AYARLARI]
+-- Klasik survival modunun savaş akışını belirleyen temel ayarlar.
+-- WaveWaitTime: Dalgalar arası bekleme süresi
+-- NpcAccuracy: NPC doğruluk taban değeri
+-- BoundaryDistance: Oyuncunun stage merkezinden ne kadar uzaklaşabileceği
+-- BoundaryWarningBufferPct: Sınır uyarısının toplam sınırın yüzde kaç kala başlayacağı
+-- MinBoundaryWarningBuffer: Yüzde hesabı düşük kalsa bile minimum uyarı tamponu
+-- SpawnProtectionMs: Oyuncu spawn olduktan sonra verilen geçici koruma süresi
+-- LootTime: NPC loot açma süresi
+-- DefaultWeapon/DefaultAmmo/DefaultAmmoAmount: Oyuncuya varsayılan verilen başlangıç loadout'u
 Config.Combat = {
     WaveWaitTime = 16, 
     NpcAccuracy = 25, 
@@ -321,6 +362,13 @@ Config.Combat = {
 }
 
 -- [LOOT AYARLARI]
+-- Klasik survival NPC loot havuzu.
+-- item: Düşebilecek item adı
+-- min/max: Tek düşüşte verilebilecek minimum ve maksimum adet
+-- chance: Yüzdelik düşme ihtimali
+-- type: İç sınıflandırma/analiz etiketi
+-- minWave: Bu item'in hangi dalgadan sonra çıkabileceği
+-- keepOnExit: Mod bitince oyuncuda kalıp kalmayacağı
 Config.LootTable = {
     -- Combat (Para ve Mermi)
     { item = "money", min = 100, max = 500, chance = 50, type = "combat", keepOnExit = true },
@@ -350,29 +398,53 @@ Config.LootTable = {
 }
 
 Config.ArcPvP = {
+    -- ARC baskını sırasında oyuncunun metadata'sında tutulan durum anahtarları.
     Metadata = {
         activeFlag = "in_arc_pvp",
         modeKey = "arc_mode"
     },
+    -- true ise oyuncu kendi kişisel envanterini ARC oturumuna da taşıyabilir.
     AllowPersonalInventory = true,
+    -- Oyuncu bağlantı kestiğinde ne yapılacağını belirler: rollback / death / rejoin.
     DisconnectPolicy = "rejoin", --rollback - death - rejoin
+    -- true yapılırsa oyuncunun baskına girmeden önce loadout çantasını hazırlamış olması zorunlu olur.
     RequirePreparedLoadout = false,
+    -- Arka arkaya baskın başlatma denemeleri arasındaki debounce süresi.
     StartDebounceMs = 6000,
+    -- true ise deployment verisi server tarafında daha katı doğrulanır.
     StrictDeploymentValidation = true,
+    -- Oyuncuya özel ARC stash ID'leri oluşturulurken kullanılan önekler.
     MainStashPrefix = "arc_main_",
     LoadoutStashPrefix = "arc_loadout_",
     BackupStashPrefix = "arc_backup_",
+    -- ARC stash arayüzlerinde görünen adlar.
     MainStashLabel = "ARC Ana Depo",
     LoadoutStashLabel = "ARC Baskın Çantası",
+    -- Kalıcı ana deponun kapasite ayarları.
     MainStashSlots = 80,
     MainStashWeight = 200000,
+    -- Baskın loadout çantasının kapasite ayarları.
     LoadoutStashSlots = 24,
     LoadoutStashWeight = 75000,
+    -- Kişisel eşya yedeği için kullanılan geçici emanet deposu ayarları.
     BackupStashLabel = "ARC Geçici Emanet",
     BackupStashSlots = 50,
     BackupStashWeight = 100000,
+    -- Dünya üzerinde spawn edilen loot objelerinin modelleri.
     ChestModel = `prop_box_wood02a_pu`,
     DropModel = `prop_drop_crate_01_set2`,
+    -- Yerleştirilebilir ARC barikat item'inin davranış ayarları.
+    -- Item: Kullanılacak item adı
+    -- Label: UI/notify etiketi
+    -- Model: Yerleştirilecek obje modeli
+    -- PlaceDistance: Oyuncudan ne kadar öne preview atılacağı
+    -- InteractDistance: Barikata yaklaşma/etkileşim mesafesi
+    -- PreviewAlpha: Preview objesinin saydamlık değeri
+    -- PlacementDurationMs: Yerleştirme süresi
+    -- RotationStep: Her döndürmede kaç derece çevrileceği
+    -- MaxPerPlayer: Bir oyuncunun aynı baskında koyabileceği maksimum barikat
+    -- MaxPerRaid: Tüm baskın boyunca izin verilen toplam barikat
+    -- MinSpacing: İki barikat arasında bırakılması gereken minimum mesafe
     BarricadeKit = {
         Item = "arc_barricade_kit",
         Label = "ARC Barricade Kit",
@@ -386,6 +458,21 @@ Config.ArcPvP = {
         MaxPerRaid = 16,
         MinSpacing = 2.5
     },
+    -- ARC baskınlarında sınır/yeniden giriş/oturum eşleştirme davranışları.
+    -- BoundaryPadding: Deployment merkezine göre ekstra izinli hareket alanı
+    -- SpawnProtectionMs: Deployment sonrası geçici koruma
+    -- SpawnClearRadius: Spawn çevresinde loot/engeller temizlenirken baz alınan yarıçap
+    -- MinInsertionLootDistance: Spawn noktasına çok yakın loot çıkmasını engeller
+    -- RaidDurationSeconds: Tek baskının toplam süresi
+    -- MaxPlayersPerRaid: Bir aktif ARC oturumundaki toplam oyuncu sınırı
+    -- ReuseMinimumRemainingSeconds: Var olan bir baskını tekrar kullanmak için gereken minimum kalan süre
+    -- RejoinPolicy: Yeniden bağlanan oyuncunun aynı oturuma dönme kuralı
+    -- LateJoinCutoffSeconds: Bu süre geçince yeni squad baskına alınmaz
+    -- AllowJoinAfterExtractionUnlocked: Extraction açıldıktan sonra yeni takım kabul edilip edilmeyeceği
+    -- DenyJoinIfSquadPreviouslyEliminated: O baskında elenmiş takımın tekrar girişinin engellenmesi
+    -- MinimumRemainingSecondsForBackfill: Backfill için gerekli minimum kalan süre
+    -- SessionReuseStrategy: Uygun oturum seçilirken hangi stratejinin kullanılacağı
+    -- DeploymentNotifyDelay: Deployment ekranı ile oyun içi bildirim arasındaki gecikme
     BoundaryPadding = 35.0,
     SpawnProtectionMs = 8000,
     SpawnClearRadius = 125.0,
@@ -400,6 +487,22 @@ Config.ArcPvP = {
     MinimumRemainingSecondsForBackfill = 1080, -- active raid must have at least this much time left to accept a new squad
     SessionReuseStrategy = "most_remaining", -- most_remaining / least_population
     DeploymentNotifyDelay = 1200,
+    -- Extraction fazının çalışma kuralları.
+    -- UnlockMode: Çıkışın nasıl açılacağı (manuel çağrı, süreye bağlı, her zaman açık, son faz)
+    -- UnlockAfterSeconds/LastPhaseUnlockSeconds: Çıkış kilidi açılma zamanları
+    -- CallDelay: Helikopter/çıkış çağrısından sonra aktif olmaya kadar geçecek süre
+    -- ReadyWindowSeconds: Biniş/çıkış için tanınan pencere
+    -- ManualDepartureCountdownSeconds: Manuel kalkış başlatılınca geri sayım
+    -- ZoneRadius: Çıkış alanının yarıçapı
+    -- RequireFullTeam/AllowSoloExtract/AllowPartialTeamExtract: Takım bütünlüğü kuralları
+    -- CancelIfZoneEmpty: Alan boş kalırsa extraction'ın iptal edilmesi
+    -- BoardingInterruptOnLeave: Alan terk edilince binişin bozulması
+    -- AutoFailIfNoExtract: Süre bitince çıkılamadıysa baskının başarısız sayılması
+    -- ManualDepartureEnabled/AutoDepartureOnTimeout: Kalkışın nasıl tetikleneceği
+    -- NotifyAllPlayers: Extraction bildirimlerinin herkese gidip gitmeyeceği
+    -- SpawnHelicopter/UseHelicopterScene/HelicopterModel/HelicopterHeight: Sinematik helikopter ayarları
+    -- CleanupDelay: Extraction sonrası temizleme gecikmesi
+    -- Zones: Kullanılabilecek çıkış noktaları (label/coords/heading)
     Extraction = {
         Enabled = true,
         Debug = false,
@@ -430,6 +533,11 @@ Config.ArcPvP = {
             { label = "South Extraction", coords = vector3(1232.22, -3157.42, 5.53), heading = 179.0 }
         }
     },
+    -- ARC baskını başında oyuncuya verilen varsayılan loadout.
+    -- Weapon: Başlangıç silahı
+    -- Ammo/AmmoAmount: Verilecek mermi tipi ve miktarı
+    -- Armor: Başlangıç zırhı
+    -- Items: Ek başlangıç item listesi
     Loadout = {
         Weapon = "weapon_pistol",
         Ammo = "ammo-9",
@@ -440,6 +548,11 @@ Config.ArcPvP = {
             { item = "water_bottle", count = 1 }
         }
     },
+    -- ARC arena havuzu; server uygun bir arena seçerken bu listeyi kullanır.
+    -- center: Baskın merkezin koordinatı
+    -- multiplier: Zorluk/ödül ölçeği
+    -- lootNodeCount: Rastgele seçilecek standart loot noktası sayısı
+    -- highValueNodeCount: Yüksek değerli loot noktası sayısı
     Arenas = {
         [1] = {
             label = "Tarama Protokolü I",
@@ -463,6 +576,15 @@ Config.ArcPvP = {
             highValueNodeCount = 3
         }
     },
+    -- Deployment bölgeleri, oyuncuların map üzerinde konuşlandırıldığı baskın alanlarıdır.
+    -- lootRegion: O bölgenin hangi loot kalitesi tablosunu kullanacağını belirtir
+    -- insertionPoints: Takımların bırakılabileceği giriş noktaları
+    -- extractionPoint: Bölgenin önerilen/ana çıkış koordinatı
+    -- lootNodes: Bölge içine dağılacak loot noktaları
+    --   coords: Kasanın/sandığın doğacağı konum
+    --   type: chest veya drop; hangi model/görselin kullanılacağını etkiler
+    --   rollCount: Bu node açıldığında kaç kez loot roll yapılacağı
+    --   label: Etkileşim etiket adı
     DeploymentZones = {
         [1] = {
             label = "Güney Los Santos Taraması",
@@ -665,6 +787,9 @@ Config.ArcPvP = {
             }
         }
     },
+    -- Bölge renklerine göre ayrılmış loot tabloları.
+    -- label: UI/map üzerinde görünen renk bölgesi adı
+    -- lootTable: O renk bölgesine ait item havuzu
     LootRegions = {
         blue = {
             label = "Mavi Bölge",
@@ -738,6 +863,7 @@ Config.ArcPvP = {
             }
         }
     },
+    -- Bölgesel loot tanımı yoksa fallback olarak kullanılan genel ARC loot havuzu.
     LootTable = {
         { item = "ammo-9", min = 20, max = 60, chance = 100 },
         { item = "metalscrap", min = 2, max = 5, chance = 58 },
@@ -755,6 +881,13 @@ Config.ArcPvP = {
     }
 }
 -- [MARKET GELİŞTİRMELERİ]
+-- Marketten satın alınabilen kalıcı geliştirmeler.
+-- price: Satın alma maliyeti
+-- value: Metadata'ya yazılacak gerçek değer
+-- label: Menüde görünen isim
+-- metadataName: Oyuncu metadata'sında güncellenecek alan
+-- sqlColumn: Kalıcılık için veritabanında güncellenecek kolon
+-- ammoType/ammoAmount: Silah paketleri için yanında verilecek mühimmat
 Config.Upgrades = {
     ["armor"] = {
         price = 50000,

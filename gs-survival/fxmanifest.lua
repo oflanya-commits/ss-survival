@@ -18,6 +18,12 @@ files {
     'html/index.html',
     'html/style.css',
     'html/script.js',
+    'client/init.lua',
+    'client/nui.lua',
+    'client/world.lua',
+    'client/crafting.lua',
+    'client/gameplay.lua',
+    'client/lobby.lua',
 }
 
 shared_scripts {
