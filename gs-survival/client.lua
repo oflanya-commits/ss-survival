@@ -1,7 +1,6 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 local MAX_LOBBY_SIZE = 4
 local MAX_LOBBY_MEMBERS = MAX_LOBBY_SIZE - 1
-local ARC_DEPLOYMENT_BLIP_INIT_DELAY_MS = 1500
 local ARC_EXTRACTION_HELI_SPAWN_OFFSET = vector3(110.0, -70.0, 18.0)
 local ARC_EXTRACTION_HELI_MIN_SPEED = 4.0
 local ARC_EXTRACTION_HELI_MAX_SPEED = 25.0
@@ -80,6 +79,7 @@ local arcOverlayState = {
 local arcOverlayCacheKey = nil
 local arcOverlayTeamCacheKey = nil
 local arcOverlayInfoLastRefreshAt = 0
+local arcOverlaySessionVisible = false
 local menuStateCacheKey = nil
 local isMenuOpen = false
 local ARC_OVERLAY_INFO_REFRESH_INTERVAL_MS = 1000
@@ -503,6 +503,7 @@ local function ClearArcOverlay()
     arcOverlayCacheKey = nil
     arcOverlayTeamCacheKey = nil
     arcOverlayInfoLastRefreshAt = 0
+    arcOverlaySessionVisible = false
     SendNUIMessage({ type = 'clearArcHud' })
 end
 
@@ -562,8 +563,8 @@ local function RefreshArcOverlayTeam()
 
     arcOverlayTeamCacheKey = teamCacheKey
     PushArcOverlayState({
-        enabled = isSurvivalActive == true,
-        showInfo = isSurvivalActive == true,
+        enabled = isSurvivalActive == true and arcOverlaySessionVisible == true,
+        showInfo = isSurvivalActive == true and arcOverlaySessionVisible == true,
         teamMembers = teamMembers
     })
 end
@@ -640,8 +641,8 @@ local function RefreshArcOverlayInfo(promptText, force)
     end
 
     PushArcOverlayState({
-        enabled = isSurvivalActive == true,
-        showInfo = isSurvivalActive == true,
+        enabled = isSurvivalActive == true and arcOverlaySessionVisible == true,
+        showInfo = isSurvivalActive == true and arcOverlaySessionVisible == true,
         title = stageLabel,
         subtitle = "ARC saha telemetrisi",
         lines = lines,
@@ -1472,6 +1473,11 @@ local function EnsureArcExtractionScene()
 end
 
 local function ApplyArcExtractionState(state, notifyPayload)
+    if currentModeId ~= 'arc_pvp' or isSurvivalActive ~= true then
+        ClearArcExtractionState()
+        return
+    end
+
     if not state or state.enabled ~= true then
         ClearArcExtractionState()
         return
@@ -2094,11 +2100,6 @@ Citizen.CreateThread(function()
     AddRelationshipGroup('HATES_PLAYER')
     SetRelationshipBetweenGroups(5, `HATES_PLAYER`, `PLAYER`)
     SetRelationshipBetweenGroups(5, `PLAYER`, `HATES_PLAYER`)
-end)
-
-Citizen.CreateThread(function()
-    Wait(ARC_DEPLOYMENT_BLIP_INIT_DELAY_MS)
-    CreateArcDeploymentZoneBlips()
 end)
 
 -- [BAŞLANGIÇ NPC VE TARGET]
@@ -2806,6 +2807,7 @@ end)
 RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers, raidPlayers, stageId, deploymentData, rejoinData)
     currentModeId = 'arc_pvp'
     ClearArcBarricades()
+    arcOverlaySessionVisible = false
     ApplyMinimapLayout(DEFAULT_MINIMAP_LAYOUT)
     activeStageId = stageId or 1
     local stageData = GetModeStageData('arc_pvp', activeStageId)
@@ -2859,7 +2861,9 @@ RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers,
     SetEntityCoords(PlayerPedId(), spawnPoint.x, spawnPoint.y, spawnPoint.z)
 
     ClearArcZoneBlips()
+    ClearArcDeploymentZoneBlips()
     HideNonArcBlips()
+    CreateArcDeploymentZoneBlips()
     CreateArcZoneBlips(activeArcDeployment)
     SpawnArcLootWorld(bucket, activeArcDeployment)
     RefreshArcSessionVehicleBlips()
@@ -2870,6 +2874,9 @@ RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers,
     Wait(tonumber(Config.ArcPvP and Config.ArcPvP.DeploymentNotifyDelay or 1200) or 1200)
     Wait(math.max(0, SCREEN_TRANSITION_BLACK_HOLD_MS - (tonumber(Config.ArcPvP and Config.ArcPvP.DeploymentNotifyDelay or 1200) or 1200)))
     DoScreenFadeIn(SCREEN_TRANSITION_FADE_DURATION_MS)
+    arcOverlaySessionVisible = true
+    RefreshArcOverlayTeam()
+    RefreshArcOverlayInfo('', true)
     NotifyForMode(arrivalNotifyMessage, "success", 3500, "ARC Dağıtım")
     NotifyForMode(string.format("Baskın bölgesi: %s", deploymentLabel), "primary", 5000, "ARC Bölge")
     NotifyForMode("TAB ile envanterini aç, kasaları topla ve tahliye açıldığında extraction hattına yönel.", "success", 6000, "ARC Görev")
