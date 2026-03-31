@@ -81,8 +81,9 @@ ServerHelpers.SyncArcRaidPlayers = function(bucketId)
         return
     end
 
+    local alivePlayers = GetArcAlivePlayers(bucketId)
     for _, playerId in ipairs(groupMembers[bucketId]) do
-        TriggerClientEvent('gs-survival:client:updateArcRaidPlayers', playerId, ServerHelpers.GetArcRaidSquadMembers(bucketId, playerId), groupMembers[bucketId])
+        TriggerClientEvent('gs-survival:client:updateArcRaidPlayers', playerId, ServerHelpers.GetArcRaidSquadMembers(bucketId, playerId), groupMembers[bucketId], alivePlayers)
     end
 end
 

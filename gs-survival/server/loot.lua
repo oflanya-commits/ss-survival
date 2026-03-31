@@ -335,6 +335,8 @@ RegisterNetEvent('gs-survival:server:handleArcDeath', function(reason)
     local alivePlayers = GetArcAlivePlayers(bucketId)
     if #alivePlayers == 0 then
         FinalizeArcMatch(bucketId, {}, reason)
+    else
+        ServerHelpers.SyncArcRaidPlayers(bucketId)
     end
 end)
 
