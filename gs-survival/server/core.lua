@@ -236,7 +236,7 @@ function ServerHelpers.GetArcRaidSquadMembers(bucketId, playerId)
         end
 
         if squadCount == 1 then
-            for _, memberId in ipairs(singleSquadMembers or {}) do
+            for _, memberId in ipairs(singleSquadMembers) do
                 local resolvedMemberId = tonumber(memberId)
                 if resolvedMemberId and not memberLookup[resolvedMemberId] then
                     memberLookup[resolvedMemberId] = true
