@@ -202,6 +202,30 @@ function ServerHelpers.CreateArcRaidSquad(bucketId, playerIds)
     return squadId
 end
 
+local function GetSingleArcRaidSquadMembers(squadState)
+    local singleSquadMembers = {}
+    local squadCount = 0
+
+    for _, listedSquad in pairs(squadState and squadState.squads or {}) do
+        squadCount = squadCount + 1
+        if squadCount > 1 then
+            return {}
+        end
+
+        if listedSquad and listedSquad.members then
+            singleSquadMembers = listedSquad.members
+        else
+            singleSquadMembers = {}
+        end
+    end
+
+    if squadCount == 1 then
+        return singleSquadMembers
+    end
+
+    return {}
+end
+
 function ServerHelpers.GetArcRaidSquadMembers(bucketId, playerId)
     local squadState = arcRaidSquads[bucketId]
     local resolvedPlayerId = tonumber(playerId)
@@ -219,6 +243,16 @@ function ServerHelpers.GetArcRaidSquadMembers(bucketId, playerId)
         if resolvedMemberId and not memberLookup[resolvedMemberId] then
             memberLookup[resolvedMemberId] = true
             members[#members + 1] = resolvedMemberId
+        end
+    end
+
+    if #members == 0 and squadState then
+        for _, memberId in ipairs(GetSingleArcRaidSquadMembers(squadState)) do
+            local resolvedMemberId = tonumber(memberId)
+            if resolvedMemberId and not memberLookup[resolvedMemberId] then
+                memberLookup[resolvedMemberId] = true
+                members[#members + 1] = resolvedMemberId
+            end
         end
     end
 
@@ -2648,7 +2682,7 @@ TryCompletePlayerExtraction = function(source, bucketId, options)
     eliminatedArcPlayers[bucketId][source] = nil
 
     if #groupMembers[bucketId] > 0 then
-        SyncArcRaidPlayers(bucketId)
+        ServerHelpers.SyncArcRaidPlayers(bucketId)
         if options.suppressStateNotify ~= true then
             SyncArcExtractionState(bucketId, {
                 message = ("Takımdan bir operatif tahliye edildi. Sahadaki baskın devam ediyor."),
