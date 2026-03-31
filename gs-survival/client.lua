@@ -664,6 +664,8 @@ local function SpawnLocalArcBarricade(barricadeData)
     }
 end
 
+local GetArcBarricadeConfig
+
 local function GetArcBarricadePreviewPosition(ped, placementState)
     local config = GetArcBarricadeConfig()
     local placementDistance = tonumber(config.PlaceDistance) or 2.2
@@ -1046,7 +1048,7 @@ local function ToVector3(coords)
     return nil
 end
 
-local function GetArcBarricadeConfig()
+GetArcBarricadeConfig = function()
     return (Config.ArcPvP and Config.ArcPvP.BarricadeKit) or {}
 end
 
