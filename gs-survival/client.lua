@@ -20,6 +20,7 @@ local DEFAULT_PROGRESS_LABEL = 'İşlem sürüyor...'
 local SCREEN_TRANSITION_LABEL = 'OTURUM GEÇİŞİ'
 local SCREEN_TRANSITION_ENTER_TITLE = "SESSION'A GİRİLİYOR"
 local SCREEN_TRANSITION_RETURN_TITLE = 'LOBİYE DÖNÜLÜYOR'
+local ARC_OVERLAY_EMPTY_PROMPT = ''
 local nextUiProgressId = 0
 local activeUiProgress = nil
 local currentWave, isSurvivalActive, myBucket = 0, false, 0
@@ -2433,13 +2434,13 @@ Citizen.CreateThread(function()
                     RefreshArcOverlayInfo(("Airlift inbound • %s sn"):format(GetArcExtractionCountdownSeconds()))
                 end
             elseif currentModeId == 'arc_pvp' then
-                RefreshArcOverlayInfo('')
+                RefreshArcOverlayInfo(ARC_OVERLAY_EMPTY_PROMPT)
             end
 
             EnsureArcExtractionScene()
         else
             if currentModeId == 'arc_pvp' then
-                RefreshArcOverlayInfo('')
+                RefreshArcOverlayInfo(ARC_OVERLAY_EMPTY_PROMPT)
             end
             if currentModeId ~= 'arc_pvp' then
                 ClearArcExtractionScene()
@@ -2852,7 +2853,7 @@ RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers,
     ApplyArcSessionVehicles(activeArcDeployment and activeArcDeployment.sessionVehicles or {})
 
     RefreshArcOverlayTeam()
-    RefreshArcOverlayInfo('', true)
+    RefreshArcOverlayInfo(ARC_OVERLAY_EMPTY_PROMPT, true)
     ShowScreenTransition(SCREEN_TRANSITION_ENTER_TITLE)
     CloseNUI()
     Wait(100)
@@ -2875,14 +2876,14 @@ RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers,
     RefreshArcSessionVehicleBlips()
     RefreshArcFriendlyBlips()
     RefreshArcOverlayTeam()
-    RefreshArcOverlayInfo('', true)
+    RefreshArcOverlayInfo(ARC_OVERLAY_EMPTY_PROMPT, true)
     TriggerServerEvent('gs-survival:server:requestArcBarricadeSync')
     Wait(tonumber(Config.ArcPvP and Config.ArcPvP.DeploymentNotifyDelay or 1200) or 1200)
     Wait(math.max(0, SCREEN_TRANSITION_BLACK_HOLD_MS - (tonumber(Config.ArcPvP and Config.ArcPvP.DeploymentNotifyDelay or 1200) or 1200)))
     DoScreenFadeIn(SCREEN_TRANSITION_FADE_DURATION_MS)
     arcOverlaySessionVisible = true
     RefreshArcOverlayTeam()
-    RefreshArcOverlayInfo('', true)
+    RefreshArcOverlayInfo(ARC_OVERLAY_EMPTY_PROMPT, true)
     NotifyForMode(arrivalNotifyMessage, "success", 3500, "ARC Dağıtım")
     NotifyForMode(string.format("Baskın bölgesi: %s", deploymentLabel), "primary", 5000, "ARC Bölge")
     NotifyForMode("TAB ile envanterini aç, kasaları topla ve tahliye açıldığında extraction hattına yönel.", "success", 6000, "ARC Görev")
