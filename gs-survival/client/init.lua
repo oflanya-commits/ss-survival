@@ -1490,8 +1490,9 @@ local function ApplyArcExtractionState(state, notifyPayload)
         return
     end
 
+    local activeBucketId = tonumber(myBucket)
     local targetBucketId = tonumber(state.bucketId)
-    if targetBucketId and tonumber(myBucket) and targetBucketId ~= tonumber(myBucket) then
+    if targetBucketId and activeBucketId and targetBucketId ~= activeBucketId then
         return
     end
 

@@ -298,10 +298,11 @@ RegisterNetEvent('gs-survival:server:handleArcDeath', function(reason)
     local deathStashId = BuildArcDeathStashId(bucketId, deathContainerId)
     local deathCoords = GetEntityCoords(GetPlayerPed(src))
     local deathItems = exports.ox_inventory:GetInventoryItems(src)
+    local resolvedBucketId = tonumber(bucketId) or bucketId
 
     for _, playerId in ipairs(groupMembers[bucketId] or {}) do
         TriggerClientEvent('gs-survival:client:playSignalFlare', playerId, {
-            bucketId = tonumber(bucketId) or bucketId,
+            bucketId = resolvedBucketId,
             coords = Vector3ToTable(deathCoords)
         })
     end

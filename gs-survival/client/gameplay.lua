@@ -512,8 +512,9 @@ RegisterNetEvent('gs-survival:client:playSignalFlare', function(data)
     if not data or not data.coords then return end
     if currentModeId ~= 'arc_pvp' or isSurvivalActive ~= true then return end
 
+    local activeBucketId = tonumber(myBucket)
     local targetBucketId = tonumber(data.bucketId)
-    if targetBucketId and tonumber(myBucket) and targetBucketId ~= tonumber(myBucket) then
+    if targetBucketId and activeBucketId and targetBucketId ~= activeBucketId then
         return
     end
 

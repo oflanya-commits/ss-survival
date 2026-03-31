@@ -1482,6 +1482,8 @@ local function BuildArcExtractionClientState(bucketId)
         return nil
     end
 
+    local resolvedBucketId = tonumber(bucketId) or bucketId
+
     local now = GetGameTimer()
     local availableInMs = 0
     local remainingMs = 0
@@ -1494,7 +1496,7 @@ local function BuildArcExtractionClientState(bucketId)
 
     return {
         enabled = true,
-        bucketId = tonumber(bucketId) or bucketId,
+        bucketId = resolvedBucketId,
         phase = extractionState.phase or 'idle',
         phaseLabel = GetArcExtractionPhaseLabel(extractionState.phase),
         zone = extractionState.zone,
@@ -2519,6 +2521,7 @@ local function StartArcExtractionCall(bucketId, callerSource, requestedZoneId)
     end
 
     local callerName = GetArcPlayerName(callerSource)
+    local resolvedBucketId = tonumber(bucketId) or bucketId
     SetArcExtractionPhase(bucketId, 'called', extractionState.callAckDelayMs, {
         zone = selectedZone,
         calledBy = callerSource,
@@ -2526,7 +2529,7 @@ local function StartArcExtractionCall(bucketId, callerSource, requestedZoneId)
     })
     for _, playerId in ipairs(groupMembers[bucketId] or {}) do
         TriggerClientEvent('gs-survival:client:playSignalFlare', playerId, {
-            bucketId = tonumber(bucketId) or bucketId,
+            bucketId = resolvedBucketId,
             coords = Vector3ToTable(ToVector3(selectedZone.coords))
         })
     end
