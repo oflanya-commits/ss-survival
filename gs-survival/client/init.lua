@@ -1270,8 +1270,6 @@ local function GetArcExtractionPhaseLabel(phase)
     return labels[tostring(phase or 'idle')] or "Extraction"
 end
 
-local isArcBucketMatch
-
 local function PlaySignalFlare(coords)
     local flareCoords = ToVector3(coords)
     local ownerPed = PlayerPedId()
@@ -1308,7 +1306,7 @@ local function PlaySignalFlare(coords)
     RemoveWeaponAsset(flareWeaponHash)
 end
 
-isArcBucketMatch = function(targetBucketId)
+local function isArcBucketMatch(targetBucketId)
     local activeBucketId = tonumber(myBucket)
     local resolvedTargetBucketId = tonumber(targetBucketId)
     if not activeBucketId or not resolvedTargetBucketId then
