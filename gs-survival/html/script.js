@@ -23,6 +23,10 @@ var ARC_TEAM_STATUS = {
 var ARC_NOTIFY_DEFAULT_DURATION = 4500;
 var ARC_NOTIFY_MIN_DURATION = 1200;
 var ARC_NOTIFY_MAX_DURATION = 15000;
+var ARC_NOTIFY_EXIT_DURATION_MS = 300;
+var ARC_BARRICADE_DEFAULT_BOTTOM_OFFSET = 34;
+var ARC_BARRICADE_TEAM_PANEL_GAP = 18;
+var ARC_TEAM_PANEL_BOTTOM_OFFSET = 22;
 var ARC_BANNER_DEFAULT_DURATION = 3200;
 var ARC_BANNER_MIN_DURATION = 1200;
 var ARC_BANNER_MAX_DURATION = 8000;
@@ -592,9 +596,9 @@ function updateArcBarricadePlacementPosition(hasTeamPanel) {
         return;
     }
 
-    var bottomOffset = 34;
+    var bottomOffset = ARC_BARRICADE_DEFAULT_BOTTOM_OFFSET;
     if (hasTeamPanel && hudEls.arcTeamPanel && !hudEls.arcTeamPanel.classList.contains('hidden')) {
-        bottomOffset = hudEls.arcTeamPanel.offsetHeight + 40;
+        bottomOffset = hudEls.arcTeamPanel.offsetHeight + ARC_TEAM_PANEL_BOTTOM_OFFSET + ARC_BARRICADE_TEAM_PANEL_GAP;
     }
 
     hudEls.arcBarricadePlacementCard.style.bottom = bottomOffset + 'px';
@@ -654,7 +658,7 @@ function pushArcNotify(data) {
                 toast.parentNode.removeChild(toast);
             }
             renderArcHud();
-        }, 300);
+        }, ARC_NOTIFY_EXIT_DURATION_MS);
     }, duration);
     arcNotifyTimers.push(timerId);
 }
