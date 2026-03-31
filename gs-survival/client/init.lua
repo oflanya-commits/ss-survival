@@ -757,7 +757,6 @@ local function SpawnLocalArcBarricade(barricadeData)
                 return barricadeState
                     and barricadeState.removing ~= true
                     and not arcBarricadePreview
-                    and tonumber(barricadeState.ownerId or 0) == GetPlayerServerId(PlayerId())
             end,
             onSelect = function()
                 local barricadeState = arcPlacedBarricades[barricadeId]
@@ -1944,4 +1943,3 @@ local function HandleReconnectResult(result)
         end
     end
 end
-
