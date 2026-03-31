@@ -45,11 +45,13 @@ var ARC_NOTIFY_TYPES = {
 function getDefaultArcProgressState() {
     return {
         visible: false,
+        id: 0,
         title: ARC_PROGRESS_DEFAULT_TITLE,
         label: ARC_PROGRESS_DEFAULT_LABEL,
         duration: 0,
         canCancel: true,
-        startedAt: 0
+        startedAt: 0,
+        completedNotified: false
     };
 }
 
@@ -561,6 +563,11 @@ function tickArcProgress() {
 
     if ((now - startedAt) < duration) {
         arcProgressFrame = requestAnimationFrame(tickArcProgress);
+    } else if (progressState.completedNotified !== true) {
+        progressState.completedNotified = true;
+        sendAction('arcProgressComplete', {
+            id: Number(progressState.id || 0)
+        });
     }
 }
 
@@ -594,11 +601,13 @@ function showArcProgress(data) {
     cancelArcProgressFrame();
     screenData.arcProgress = {
         visible: true,
+        id: Number(data.id || 0),
         title: data.title || ARC_PROGRESS_DEFAULT_TITLE,
         label: data.label || ARC_PROGRESS_DEFAULT_LABEL,
         duration: clamp(Number(data.duration || 0), ARC_PROGRESS_MIN_DURATION, ARC_PROGRESS_MAX_DURATION),
         canCancel: data.canCancel !== false,
-        startedAt: Date.now()
+        startedAt: Date.now(),
+        completedNotified: false
     };
     renderArcHud();
     tickArcProgress();

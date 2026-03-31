@@ -21,6 +21,8 @@ local DEFAULT_PROGRESS_LABEL = 'İşlem sürüyor...'
 local SCREEN_TRANSITION_LABEL = 'OTURUM GEÇİŞİ'
 local SCREEN_TRANSITION_ENTER_TITLE = "SESSION'A GİRİLİYOR"
 local SCREEN_TRANSITION_RETURN_TITLE = 'LOBİYE DÖNÜLÜYOR'
+local nextUiProgressId = 0
+local activeUiProgress = nil
 local currentWave, isSurvivalActive, myBucket = 0, false, 0
 local activeStageId = 1
 local currentModeId = 'classic'
@@ -223,6 +225,31 @@ local function HideUiProgress()
     SendNUIMessage({ type = 'hideArcProgress' })
 end
 
+local function FinalizeUiProgress(progressId, wasCancelled)
+    local progressState = activeUiProgress
+    if not progressState or progressState.id ~= progressId or progressState.finished then
+        return false
+    end
+
+    progressState.finished = true
+    activeUiProgress = nil
+    HideUiProgress()
+
+    if progressState.anim.dict and progressState.anim.anim then
+        StopAnimTask(progressState.ped, progressState.anim.dict, progressState.anim.anim, 1.0)
+    end
+
+    if wasCancelled then
+        if progressState.onCancel then
+            progressState.onCancel()
+        end
+    elseif progressState.onComplete then
+        progressState.onComplete()
+    end
+
+    return true
+end
+
 local function RunUiProgress(options, onComplete, onCancel)
     options = options or {}
     local duration = math.floor(tonumber(options.duration) or 0)
@@ -238,9 +265,9 @@ local function RunUiProgress(options, onComplete, onCancel)
     local disable = options.disable or {}
     local anim = options.anim or {}
     local canCancel = options.canCancel ~= false
-    local cancelled = false
-    local finished = false
     local endsAt = GetGameTimer() + duration
+    nextUiProgressId = nextUiProgressId + 1
+    local progressId = nextUiProgressId
 
     if anim.dict and anim.anim then
         RequestAnimDict(anim.dict)
@@ -266,6 +293,7 @@ local function RunUiProgress(options, onComplete, onCancel)
     SendNUIMessage({
         type = 'showArcProgress',
         data = {
+            id = progressId,
             title = options.title or DEFAULT_PROGRESS_TITLE,
             label = options.label or DEFAULT_PROGRESS_LABEL,
             duration = duration,
@@ -273,8 +301,17 @@ local function RunUiProgress(options, onComplete, onCancel)
         }
     })
 
+    activeUiProgress = {
+        id = progressId,
+        ped = ped,
+        anim = anim,
+        onComplete = onComplete,
+        onCancel = onCancel,
+        finished = false
+    }
+
     CreateThread(function()
-        while not finished do
+        while activeUiProgress and activeUiProgress.id == progressId and activeUiProgress.finished ~= true do
             Wait(0)
 
             if disable.disableMovement then
@@ -331,25 +368,10 @@ local function RunUiProgress(options, onComplete, onCancel)
             end
 
             if cancelRequested then
-                cancelled = true
-                finished = true
+                FinalizeUiProgress(progressId, true)
             elseif GetGameTimer() >= endsAt then
-                finished = true
+                FinalizeUiProgress(progressId, false)
             end
-        end
-
-        HideUiProgress()
-
-        if anim.dict and anim.anim then
-            StopAnimTask(ped, anim.dict, anim.anim, 1.0)
-        end
-
-        if cancelled then
-            if onCancel then
-                onCancel()
-            end
-        elseif onComplete then
-            onComplete()
         end
     end)
 end
@@ -1946,6 +1968,9 @@ RegisterNUICallback('nuiAction', function(data, cb)
 
     elseif action == 'swapArcLockerFocus' then
         OpenArcLockerManager(data.data and data.data.focusSide)
+
+    elseif action == 'arcProgressComplete' then
+        FinalizeUiProgress(tonumber(data.data and data.data.id or 0) or 0, false)
 
     elseif action == 'moveArcLockerItem' then
         TriggerServerEvent(
