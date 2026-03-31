@@ -58,6 +58,19 @@ function ServerHelpers.CountMembers(memberTable)
     return count
 end
 
+function ServerHelpers.NotifyPlayer(target, message, notifyType, title, duration)
+    if not target or not message or message == '' then
+        return
+    end
+
+    TriggerClientEvent('gs-survival:client:notify', target, {
+        message = message,
+        type = notifyType or 'primary',
+        title = title,
+        duration = duration
+    })
+end
+
 function ServerHelpers.IsPlayerInList(playerList, playerId)
     for _, listedPlayerId in ipairs(playerList or {}) do
         if tonumber(listedPlayerId) == tonumber(playerId) then
@@ -2617,7 +2630,7 @@ TryCompletePlayerExtraction = function(source, bucketId, options)
     RestorePlayerInventory(source, true, 'arc_pvp')
     TriggerClientEvent('gs-survival:client:arcExtracted', source)
     TriggerClientEvent('gs-survival:client:stopEverything', source, true, 'arc_pvp')
-    TriggerClientEvent('QBCore:Functions:Notify', source, "Tahliye başarılı. Baskın ekipmanın ana depoya aktarıldı.", "success")
+    ServerHelpers.NotifyPlayer(source, "Tahliye başarılı. Baskın ekipmanın ana depoya aktarıldı.", "success")
 
     RemoveArcRaidPlayer(bucketId, source)
     eliminatedArcPlayers[bucketId] = eliminatedArcPlayers[bucketId] or {}
@@ -2908,7 +2921,7 @@ RegisterNetEvent('gs-survival:server:sendInvite', function(tId)
     local lobby = activeLobbies[src]
 
     if not lobby then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Önce bir lobi kurmalısın!", "error")
+        ServerHelpers.NotifyPlayer(src, "Önce bir lobi kurmalısın!", "error")
         return
     end
 
@@ -2917,34 +2930,34 @@ RegisterNetEvent('gs-survival:server:sendInvite', function(tId)
     end
 
     if ServerHelpers.CountMembers(lobby.members) >= MAX_LOBBY_MEMBERS then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Lobi zaten dolu! (Maksimum " .. MAX_LOBBY_SIZE .. " kişi)", "error")
+        ServerHelpers.NotifyPlayer(src, "Lobi zaten dolu! (Maksimum " .. MAX_LOBBY_SIZE .. " kişi)", "error")
         return
     end
 
     if lobby.members[tId] then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu oyuncu zaten senin lobinde.", "error")
+        ServerHelpers.NotifyPlayer(src, "Bu oyuncu zaten senin lobinde.", "error")
         return
     end
 
     if activeLobbies[tId] or ServerHelpers.FindLobbyLeaderByMember(tId) then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu oyuncunun zaten aktif bir lobisi var.", "error")
+        ServerHelpers.NotifyPlayer(src, "Bu oyuncunun zaten aktif bir lobisi var.", "error")
         return
     end
 
     local targetPlayer = QBCore.Functions.GetPlayer(tId)
     if not targetPlayer or GetPlayerRoutingBucket(tId) ~= 0 then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu oyuncu şu anda ARC/lobi daveti alamaz.", "error")
+        ServerHelpers.NotifyPlayer(src, "Bu oyuncu şu anda ARC/lobi daveti alamaz.", "error")
         return
     end
 
     local canInvite, proximityError = EnsureLobbyProximity(src, tId, targetPlayer and (targetPlayer.PlayerData.charinfo.firstname .. " " .. targetPlayer.PlayerData.charinfo.lastname) or nil)
     if not canInvite then
-        TriggerClientEvent('QBCore:Functions:Notify', src, proximityError, "error")
+        ServerHelpers.NotifyPlayer(src, proximityError, "error")
         return
     end
 
     TriggerClientEvent('gs-survival:client:receiveInvite', tId, src)
-    TriggerClientEvent('QBCore:Functions:Notify', src, "Davet gönderildi!", "success")
+    ServerHelpers.NotifyPlayer(src, "Davet gönderildi!", "success")
 end)
 
 AddEventHandler('ox_inventory:onItemDropped', function(source, inventory, slot, item)
@@ -2952,7 +2965,7 @@ AddEventHandler('ox_inventory:onItemDropped', function(source, inventory, slot, 
     if item.metadata and item.metadata.survivalItem then
         -- Eşyayı yerden (drop'tan) anında sil, kimse alamasın
         exports.ox_inventory:RemoveItem(inventory, item.name, item.count, item.metadata, slot)
-        TriggerClientEvent('QBCore:Functions:Notify', source, "Survival eşyalarını yere atamazsın, eşya imha edildi!", "error")
+        ServerHelpers.NotifyPlayer(source, "Survival eşyalarını yere atamazsın, eşya imha edildi!", "error")
     end
 end)
 
@@ -3088,7 +3101,7 @@ local function AddMemberToLobby(leaderId, memberId, memberName)
         isPublic = activeLobbies[leaderId].isPublic == true
     })
     TriggerClientEvent('gs-survival:client:setReadyState', memberId, false)
-    TriggerClientEvent('QBCore:Functions:Notify', leaderId, memberName .. " lobiye katıldı!", "success")
+    ServerHelpers.NotifyPlayer(leaderId, memberName .. " lobiye katıldı!", "success")
     SyncLobbyMembers(leaderId)
 end
 local function GetPlayerSurvivalLevel(Player)
@@ -3186,13 +3199,13 @@ local function StartModeOperation(src, invited, stageId, modeId)
     if not Player then return end
 
     if ServerHelpers.FindLobbyLeaderByMember(src) then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Operasyonu yalnızca lobi lideri başlatabilir.", "error")
+        ServerHelpers.NotifyPlayer(src, "Operasyonu yalnızca lobi lideri başlatabilir.", "error")
         return
     end
 
     local selectedModeId = ServerHelpers.GetGameModeId(modeId)
     if not Config.GameModes or not Config.GameModes[selectedModeId] then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Geçersiz oyun modu!", "error")
+        ServerHelpers.NotifyPlayer(src, "Geçersiz oyun modu!", "error")
         return
     end
 
@@ -3201,20 +3214,20 @@ local function StartModeOperation(src, invited, stageId, modeId)
 
     local peps, groupError = BuildStartingGroup(src, invited)
     if not peps then
-        TriggerClientEvent('QBCore:Functions:Notify', src, groupError or "Takım oluşturulamadı.", "error")
+        ServerHelpers.NotifyPlayer(src, groupError or "Takım oluşturulamadı.", "error")
         return
     end
 
     if selectedModeId == 'arc_pvp' then
         local validParticipants, validationError = ValidateArcStartParticipants(peps)
         if not validParticipants then
-            TriggerClientEvent('QBCore:Functions:Notify', src, validationError or "ARC deploy doğrulaması başarısız.", "error")
+            ServerHelpers.NotifyPlayer(src, validationError or "ARC deploy doğrulaması başarısız.", "error")
             return
         end
 
         arcJoinLevel, groupError = GetMinimumPlayerSurvivalLevel(peps)
         if not arcJoinLevel then
-            TriggerClientEvent('QBCore:Functions:Notify', src, groupError or "ARC seviye doğrulaması başarısız.", "error")
+            ServerHelpers.NotifyPlayer(src, groupError or "ARC seviye doğrulaması başarısız.", "error")
             return
         end
     end
@@ -3230,13 +3243,13 @@ local function StartModeOperation(src, invited, stageId, modeId)
     if selectedModeId == 'arc_pvp' then
         preparedArcLoadouts, groupError = BuildArcPreparedLoadouts(peps)
         if not preparedArcLoadouts then
-            TriggerClientEvent('QBCore:Functions:Notify', src, groupError or "ARC loadout hazırlığı eksik.", "error")
+            ServerHelpers.NotifyPlayer(src, groupError or "ARC loadout hazırlığı eksik.", "error")
             return
         end
 
         local canJoinArc, admissionResult = CanLobbyJoinArcSession(peps, arcJoinLevel)
         if not canJoinArc then
-            TriggerClientEvent('QBCore:Functions:Notify', src, admissionResult or "ARC admission doğrulaması başarısız.", "error")
+            ServerHelpers.NotifyPlayer(src, admissionResult or "ARC admission doğrulaması başarısız.", "error")
             return
         end
 
@@ -3254,21 +3267,21 @@ local function StartModeOperation(src, invited, stageId, modeId)
             bId = nil
             resolvedStageId, stageError = ResolveModeStageId(selectedModeId, stageId, selectedModeId == 'arc_pvp' and arcJoinLevel or playerLevel)
             if not resolvedStageId then
-                TriggerClientEvent('QBCore:Functions:Notify', src, stageError or "Geçersiz operasyon bölgesi!", "error")
+                ServerHelpers.NotifyPlayer(src, stageError or "Geçersiz operasyon bölgesi!", "error")
                 return
             end
 
             stageData = GetStageData(selectedModeId, resolvedStageId)
             deploymentState, groupError = BuildArcDeploymentState(stageData, resolvedStageId, bId)
             if not deploymentState then
-                TriggerClientEvent('QBCore:Functions:Notify', src, groupError or "ARC deployment bölgesi seçilemedi.", "error")
+                ServerHelpers.NotifyPlayer(src, groupError or "ARC deployment bölgesi seçilemedi.", "error")
                 return
             end
         end
     else
         resolvedStageId, stageError = ResolveModeStageId(selectedModeId, stageId, playerLevel)
         if not resolvedStageId then
-            TriggerClientEvent('QBCore:Functions:Notify', src, stageError or "Geçersiz operasyon bölgesi!", "error")
+            ServerHelpers.NotifyPlayer(src, stageError or "Geçersiz operasyon bölgesi!", "error")
             return
         end
 
@@ -3419,14 +3432,14 @@ RegisterNetEvent('gs-survival:server:startSurvival', function(invited, stageId, 
     local src = source
     local requestedMode = ServerHelpers.GetGameModeId(modeId or 'classic')
     if requestedMode ~= 'classic' then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Klasik Hayatta Kalma için startSurvival, ARC Baskını için startArcPvP akışı kullanılmalıdır.", "error")
+        ServerHelpers.NotifyPlayer(src, "Klasik Hayatta Kalma için startSurvival, ARC Baskını için startArcPvP akışı kullanılmalıdır.", "error")
         return
     end
 
     local ok, err = pcall(StartModeOperation, src, invited, stageId, 'classic')
     if not ok then
         print(string.format("^1[CLASSIC START]^7 %s", tostring(err)))
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Klasik operasyon başlatılırken beklenmeyen bir hata oluştu.", "error")
+        ServerHelpers.NotifyPlayer(src, "Klasik operasyon başlatılırken beklenmeyen bir hata oluştu.", "error")
     end
 end)
 
@@ -3434,7 +3447,7 @@ RegisterNetEvent('gs-survival:server:startArcPvP', function(invited, stageId)
     local src = source
     local acquired, lockState = AcquireArcStartLock(src)
     if not acquired then
-        TriggerClientEvent('QBCore:Functions:Notify', src, lockState or "ARC deploy isteği reddedildi.", "error")
+        ServerHelpers.NotifyPlayer(src, lockState or "ARC deploy isteği reddedildi.", "error")
         return
     end
 
@@ -3443,7 +3456,7 @@ RegisterNetEvent('gs-survival:server:startArcPvP', function(invited, stageId)
 
     if not ok then
         print(string.format("^1[ARC START]^7 %s", tostring(err)))
-        TriggerClientEvent('QBCore:Functions:Notify', src, "ARC deploy sırasında beklenmeyen bir hata oluştu.", "error")
+        ServerHelpers.NotifyPlayer(src, "ARC deploy sırasında beklenmeyen bir hata oluştu.", "error")
     end
 end)
 
@@ -3452,13 +3465,13 @@ RegisterNetEvent('gs-survival:server:startArcExtractionCall', function(zoneId)
     local bucketId = GetPlayerRoutingBucket(src)
 
     if bucketId == 0 or not ServerHelpers.IsBucketMember(bucketId, src) or ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Tahliye yalnızca ARC baskını sırasında çağrılabilir.", "error")
+        ServerHelpers.NotifyPlayer(src, "Tahliye yalnızca ARC baskını sırasında çağrılabilir.", "error")
         return
     end
 
     local ok, err = StartArcExtractionCall(bucketId, src, zoneId)
     if not ok then
-        TriggerClientEvent('QBCore:Functions:Notify', src, err or "Tahliye hattı çağrılamadı.", "error")
+        ServerHelpers.NotifyPlayer(src, err or "Tahliye hattı çağrılamadı.", "error")
     end
 end)
 
@@ -3467,13 +3480,13 @@ RegisterNetEvent('gs-survival:server:departArcExtraction', function()
     local bucketId = GetPlayerRoutingBucket(src)
 
     if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Kalkış yalnızca ARC baskını sırasında başlatılabilir.", "error")
+        ServerHelpers.NotifyPlayer(src, "Kalkış yalnızca ARC baskını sırasında başlatılabilir.", "error")
         return
     end
 
     local ok, err = TryResolveArcExtractionDeparture(bucketId, src, true)
     if not ok then
-        TriggerClientEvent('QBCore:Functions:Notify', src, err or "Kalkış başlatılamadı.", "error")
+        ServerHelpers.NotifyPlayer(src, err or "Kalkış başlatılamadı.", "error")
     end
 end)
 
@@ -3621,12 +3634,12 @@ RegisterNetEvent('gs-survival:server:createLobby', function(isPublic)
     if not Player then return end
 
     if activeLobbies[src] then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Zaten aktif bir lobin var.", "error")
+        ServerHelpers.NotifyPlayer(src, "Zaten aktif bir lobin var.", "error")
         return
     end
 
     if ServerHelpers.FindLobbyLeaderByMember(src) then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Önce mevcut lobinden ayrılmalısın.", "error")
+        ServerHelpers.NotifyPlayer(src, "Önce mevcut lobinden ayrılmalısın.", "error")
         return
     end
 
@@ -3678,30 +3691,30 @@ RegisterNetEvent('gs-survival:server:confirmInvite', function(leaderId)
 
     if leader and member then
         if not activeLobbies[leaderId] then
-            TriggerClientEvent('QBCore:Functions:Notify', src, "Bu lobi artık aktif değil.", "error")
+            ServerHelpers.NotifyPlayer(src, "Bu lobi artık aktif değil.", "error")
             return
         end
 
         if activeLobbies[src] or ServerHelpers.FindLobbyLeaderByMember(src) then
-            TriggerClientEvent('QBCore:Functions:Notify', src, "Zaten başka bir lobidesin.", "error")
+            ServerHelpers.NotifyPlayer(src, "Zaten başka bir lobidesin.", "error")
             return
         end
 
         if ServerHelpers.CountMembers(activeLobbies[leaderId].members) >= MAX_LOBBY_MEMBERS then
-            TriggerClientEvent('QBCore:Functions:Notify', src, "Lobi dolu olduğu için katılamadın.", "error")
+            ServerHelpers.NotifyPlayer(src, "Lobi dolu olduğu için katılamadın.", "error")
             return
         end
 
         if GetPlayerRoutingBucket(src) ~= 0 or GetPlayerRoutingBucket(leaderId) ~= 0 then
-            TriggerClientEvent('QBCore:Functions:Notify', src, "Bu lobiye katılmak için aktif operasyon dışında olmalısın.", "error")
+            ServerHelpers.NotifyPlayer(src, "Bu lobiye katılmak için aktif operasyon dışında olmalısın.", "error")
             return
         end
 
         local memberName = member.PlayerData.charinfo.firstname .. " " .. member.PlayerData.charinfo.lastname
         local canJoin, proximityError = EnsureLobbyProximity(leaderId, src, memberName)
         if not canJoin then
-            TriggerClientEvent('QBCore:Functions:Notify', src, proximityError, "error")
-            TriggerClientEvent('QBCore:Functions:Notify', leaderId, memberName .. " daveti kabul etmeye çalıştı ama yanında olmadığı için alınmadı.", "error")
+            ServerHelpers.NotifyPlayer(src, proximityError, "error")
+            ServerHelpers.NotifyPlayer(leaderId, memberName .. " daveti kabul etmeye çalıştı ama yanında olmadığı için alınmadı.", "error")
             return
         end
 
@@ -3720,35 +3733,35 @@ RegisterNetEvent('gs-survival:server:joinPublicLobby', function(leaderId)
 
     local lobby = activeLobbies[leaderId]
     if not lobby then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu lobi artık aktif değil.", "error")
+        ServerHelpers.NotifyPlayer(src, "Bu lobi artık aktif değil.", "error")
         return
     end
 
     if lobby.isPublic ~= true then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu lobi private olduğu için doğrudan katılamazsın.", "error")
+        ServerHelpers.NotifyPlayer(src, "Bu lobi private olduğu için doğrudan katılamazsın.", "error")
         return
     end
 
     if activeLobbies[src] or ServerHelpers.FindLobbyLeaderByMember(src) then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Zaten başka bir lobidesin.", "error")
+        ServerHelpers.NotifyPlayer(src, "Zaten başka bir lobidesin.", "error")
         return
     end
 
     if ServerHelpers.CountMembers(lobby.members) >= MAX_LOBBY_MEMBERS then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Lobi dolu olduğu için katılamadın.", "error")
+        ServerHelpers.NotifyPlayer(src, "Lobi dolu olduğu için katılamadın.", "error")
         return
     end
 
     if GetPlayerRoutingBucket(src) ~= 0 or GetPlayerRoutingBucket(leaderId) ~= 0 then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu lobiye katılmak için aktif operasyon dışında olmalısın.", "error")
+        ServerHelpers.NotifyPlayer(src, "Bu lobiye katılmak için aktif operasyon dışında olmalısın.", "error")
         return
     end
 
     local memberName = member.PlayerData.charinfo.firstname .. " " .. member.PlayerData.charinfo.lastname
     local canJoin, proximityError = EnsureLobbyProximity(leaderId, src, memberName)
     if not canJoin then
-        TriggerClientEvent('QBCore:Functions:Notify', src, proximityError, "error")
-        TriggerClientEvent('QBCore:Functions:Notify', leaderId, memberName .. " public lobiye uzaktan katılmaya çalıştı.", "error")
+        ServerHelpers.NotifyPlayer(src, proximityError, "error")
+        ServerHelpers.NotifyPlayer(leaderId, memberName .. " public lobiye uzaktan katılmaya çalıştı.", "error")
         return
     end
 
@@ -3765,7 +3778,7 @@ RegisterNetEvent('gs-survival:server:denyInvite', function(leaderId)
     end
 
     local playerName = Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname
-    TriggerClientEvent('QBCore:Functions:Notify', leaderId, playerName .. " daveti reddetti.", "error")
+    ServerHelpers.NotifyPlayer(leaderId, playerName .. " daveti reddetti.", "error")
 end)
 
 -- Lobi Üyelerini Çekme (Hem Lider hem Üye için)
@@ -3819,11 +3832,11 @@ local function RecoverPlayerAfterResourceRestart(playerId)
     TriggerClientEvent('gs-survival:client:cleanupBeforeLeave', playerId)
 
     if restored then
-        TriggerClientEvent('QBCore:Functions:Notify', playerId,
+        ServerHelpers.NotifyPlayer(playerId,
             "Kaynak yeniden başlatıldı; eşyaların yedekten geri verildi ve aktif baskın güvenli şekilde kapatıldı.",
             "primary")
     else
-        TriggerClientEvent('QBCore:Functions:Notify', playerId,
+        ServerHelpers.NotifyPlayer(playerId,
             "Kaynak yeniden başlatıldı; yedek bulunamadığı için geçici baskın yükün temizlendi ve eski mod durumu kapatıldı.",
             "error")
     end
@@ -3869,8 +3882,8 @@ RegisterNetEvent('gs-survival:server:toggleReady', function()
             local nextReadyState = data.members[src].isReady ~= true
             data.members[src].isReady = nextReadyState
             TriggerClientEvent('gs-survival:client:setReadyState', src, nextReadyState)
-            TriggerClientEvent('QBCore:Functions:Notify', src, nextReadyState and "Hazır durumun liderine iletildi." or "Hazır durumun kaldırıldı.", nextReadyState and "success" or "primary")
-            TriggerClientEvent('QBCore:Functions:Notify', leaderId, data.members[src].name .. (nextReadyState and " hazır durumda." or " artık hazır değil."), nextReadyState and "success" or "primary")
+            ServerHelpers.NotifyPlayer(src, nextReadyState and "Hazır durumun liderine iletildi." or "Hazır durumun kaldırıldı.", nextReadyState and "success" or "primary")
+            ServerHelpers.NotifyPlayer(leaderId, data.members[src].name .. (nextReadyState and " hazır durumda." or " artık hazır değil."), nextReadyState and "success" or "primary")
             SyncLobbyMembers(leaderId)
             return
         end
@@ -3896,7 +3909,7 @@ RegisterNetEvent('gs-survival:server:leaveLobby', function(leaderId)
         activeLobbies[leaderId].members[src] = nil
         TriggerClientEvent('gs-survival:client:setReadyState', src, false)
         TriggerClientEvent('gs-survival:client:removeFromInvited', leaderId, src)
-        TriggerClientEvent('QBCore:Functions:Notify', leaderId, "Bir üye lobiden ayrıldı.", "error")
+        ServerHelpers.NotifyPlayer(leaderId, "Bir üye lobiden ayrıldı.", "error")
         SyncLobbyMembers(leaderId)
     end
 end)
@@ -3912,13 +3925,13 @@ RegisterNetEvent('gs-survival:server:finishCrafting', function(data)
     local validRecipe = FindCraftRecipeArgs(data.item, data.amount)
 
     if not validRecipe then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Geçersiz üretim talebi!", "error")
+        ServerHelpers.NotifyPlayer(src, "Geçersiz üretim talebi!", "error")
         return
     end
 
     local craftSource = ResolveArcCraftSource(Player, data.stashId)
     if data.stashId and not craftSource then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Geçersiz ARC depo talebi!", "error")
+        ServerHelpers.NotifyPlayer(src, "Geçersiz ARC depo talebi!", "error")
         return
     end
 
@@ -3926,7 +3939,7 @@ RegisterNetEvent('gs-survival:server:finishCrafting', function(data)
     local inventoryItems = GetCraftInventoryItems(Player, craftSource)
     local maxCraftable = GetCraftMaxCraftable(inventoryItems, validRecipe.requirements)
     if multiplier > maxCraftable then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Seçtiğin üretim adedi için yeterli malzeme yok!", "error")
+        ServerHelpers.NotifyPlayer(src, "Seçtiğin üretim adedi için yeterli malzeme yok!", "error")
         return
     end
 
@@ -3945,7 +3958,7 @@ RegisterNetEvent('gs-survival:server:finishCrafting', function(data)
                     for _, rollback in ipairs(removedRequirements) do
                         exports.ox_inventory:AddItem(craftSource.stashId, rollback.item, rollback.amount)
                     end
-                    TriggerClientEvent('QBCore:Functions:Notify', src, "Depodaki malzemeler güncellendi, craft iptal edildi.", "error")
+                    ServerHelpers.NotifyPlayer(src, "Depodaki malzemeler güncellendi, craft iptal edildi.", "error")
                     return
                 end
 
@@ -3960,11 +3973,11 @@ RegisterNetEvent('gs-survival:server:finishCrafting', function(data)
                 for _, rollback in ipairs(removedRequirements) do
                     exports.ox_inventory:AddItem(craftSource.stashId, rollback.item, rollback.amount)
                 end
-                TriggerClientEvent('QBCore:Functions:Notify', src, "Üretilen eşya depoya eklenemediği için işlem geri alındı.", "error")
+                ServerHelpers.NotifyPlayer(src, "Üretilen eşya depoya eklenemediği için işlem geri alındı.", "error")
                 return
             end
 
-            TriggerClientEvent('QBCore:Functions:Notify', src, (validRecipe.label or validRecipe.item) .. " " .. craftSource.label .. " içinde üretildi!", "success")
+            ServerHelpers.NotifyPlayer(src, (validRecipe.label or validRecipe.item) .. " " .. craftSource.label .. " içinde üretildi!", "success")
             TriggerClientEvent('gs-survival:client:refreshCraftMenuCounts', src, craftSource.side)
             return
         end
@@ -3975,9 +3988,9 @@ RegisterNetEvent('gs-survival:server:finishCrafting', function(data)
         end
         Player.Functions.AddItem(validRecipe.item, craftedAmount)
         TriggerClientEvent('inventory:client:ItemBox', src, QBCore.Shared.Items[validRecipe.item], "add")
-        TriggerClientEvent('QBCore:Functions:Notify', src, (validRecipe.label or validRecipe.item) .. " üretildi!", "success")
+        ServerHelpers.NotifyPlayer(src, (validRecipe.label or validRecipe.item) .. " üretildi!", "success")
     else
-        TriggerClientEvent('QBCore:Functions:Notify', src, craftSource and "Seçili ARC deposunda yeterli malzeme yok!" or "Yeterli malzemen yok!", "error")
+        ServerHelpers.NotifyPlayer(src, craftSource and "Seçili ARC deposunda yeterli malzeme yok!" or "Yeterli malzemen yok!", "error")
     end
 end)
 
@@ -4014,30 +4027,30 @@ RegisterNetEvent('gs-survival:server:placeArcBarricade', function(data)
     local minSpacing = math.max(0.5, tonumber(config.MinSpacing) or 2.5)
 
     if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not IsArcActivePlayer(bucketId, src) then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Barricade kit sadece aktif ARC oyuncuları tarafından kullanılabilir.", "error")
+        ServerHelpers.NotifyPlayer(src, "Barricade kit sadece aktif ARC oyuncuları tarafından kullanılabilir.", "error")
         return
     end
 
     if not placementCoords or not model or not IsPlayerNearCoords(src, placementCoords, interactDistance) then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Barricade için geçerli bir yer seçmedin.", "error")
+        ServerHelpers.NotifyPlayer(src, "Barricade için geçerli bir yer seçmedin.", "error")
         return
     end
 
     local totalBarricades, playerBarricades = CountArcBarricades(bucketId, src)
     if totalBarricades >= maxRaidBarricades then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu ARC baskınında daha fazla barricade kurulamıyor.", "error")
+        ServerHelpers.NotifyPlayer(src, "Bu ARC baskınında daha fazla barricade kurulamıyor.", "error")
         return
     end
 
     if playerBarricades >= maxPlayerBarricades then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Kendi barricade limitine ulaştın.", "error")
+        ServerHelpers.NotifyPlayer(src, "Kendi barricade limitine ulaştın.", "error")
         return
     end
 
     for _, barricadeState in pairs(arcPlacedBarricades[bucketId] or {}) do
         local existingCoords = ToVector3(barricadeState.coords)
         if existingCoords and #(placementCoords - existingCoords) < minSpacing then
-            TriggerClientEvent('QBCore:Functions:Notify', src, "Barricade'ler birbirine çok yakın olamaz.", "error")
+            ServerHelpers.NotifyPlayer(src, "Barricade'ler birbirine çok yakın olamaz.", "error")
             return
         end
     end
@@ -4058,7 +4071,7 @@ RegisterNetEvent('gs-survival:server:placeArcBarricade', function(data)
     end
 
     if not removed then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Barricade kit envanterinde bulunamadı.", "error")
+        ServerHelpers.NotifyPlayer(src, "Barricade kit envanterinde bulunamadı.", "error")
         return
     end
 
@@ -4077,7 +4090,7 @@ RegisterNetEvent('gs-survival:server:placeArcBarricade', function(data)
     }
 
     BroadcastArcBarricade(bucketId, barricadeId)
-    TriggerClientEvent('QBCore:Functions:Notify', src, (config.Label or "ARC Barricade Kit") .. " kuruldu.", "success")
+    ServerHelpers.NotifyPlayer(src, (config.Label or "ARC Barricade Kit") .. " kuruldu.", "success")
 end)
 
 RegisterNetEvent('gs-survival:server:removeArcBarricade', function(barricadeId)
@@ -4092,27 +4105,27 @@ RegisterNetEvent('gs-survival:server:removeArcBarricade', function(barricadeId)
     local barricadeCoords = ToVector3(barricadeState and barricadeState.coords)
 
     if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' or not IsArcActivePlayer(bucketId, src) then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Barricade sökme işlemi şu anda kullanılamıyor.", "error")
+        ServerHelpers.NotifyPlayer(src, "Barricade sökme işlemi şu anda kullanılamıyor.", "error")
         return
     end
 
     if normalizedBarricadeId == '' or not barricadeState or not barricadeCoords then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu barricade artık mevcut değil.", "error")
+        ServerHelpers.NotifyPlayer(src, "Bu barricade artık mevcut değil.", "error")
         return
     end
 
     if tonumber(barricadeState.ownerId) ~= tonumber(src) then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Sadece kendi barricade kitini sökebilirsin.", "error")
+        ServerHelpers.NotifyPlayer(src, "Sadece kendi barricade kitini sökebilirsin.", "error")
         return
     end
 
     if not IsPlayerNearCoords(src, barricadeCoords, interactDistance) then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Barricade sökmek için daha yakında olmalısın.", "error")
+        ServerHelpers.NotifyPlayer(src, "Barricade sökmek için daha yakında olmalısın.", "error")
         return
     end
 
     if exports.ox_inventory:CanCarryItem(src, itemName, 1) == false then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Envanterinde yer yok.", "error")
+        ServerHelpers.NotifyPlayer(src, "Envanterinde yer yok.", "error")
         return
     end
 
@@ -4131,7 +4144,7 @@ RegisterNetEvent('gs-survival:server:removeArcBarricade', function(barricadeId)
 
     if not added then
         bucketBarricades[normalizedBarricadeId] = barricadeState
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Barricade kit envantere geri eklenemedi.", "error")
+        ServerHelpers.NotifyPlayer(src, "Barricade kit envantere geri eklenemedi.", "error")
         return
     end
 
@@ -4140,7 +4153,7 @@ RegisterNetEvent('gs-survival:server:removeArcBarricade', function(barricadeId)
     end
 
     BroadcastArcBarricadeRemoval(bucketId, normalizedBarricadeId)
-    TriggerClientEvent('QBCore:Functions:Notify', src, (config.Label or "ARC Barricade Kit") .. " söküldü.", "success")
+    ServerHelpers.NotifyPlayer(src, (config.Label or "ARC Barricade Kit") .. " söküldü.", "success")
 end)
 
 RegisterNetEvent('gs-survival:server:buyUpgrade', function(data)
@@ -4176,11 +4189,7 @@ RegisterNetEvent('gs-survival:server:buyUpgrade', function(data)
     -- [SAHİPLİK KONTROLÜ]: Zaten sahip mi?
     local currentUpgrade = Player.PlayerData.metadata[metaName]
     if currentUpgrade == value then
-        return TriggerClientEvent('ox_lib:notify', src, {
-            title = 'Survival Market',
-            description = 'Zaten bu geliştirmeye sahipsin!',
-            type = 'error'
-        })
+        return ServerHelpers.NotifyPlayer(src, 'Zaten bu geliştirmeye sahipsin!', 'error', 'Survival Market')
     end
 
     -- [ÖDEME VE KAYIT]
@@ -4199,17 +4208,9 @@ RegisterNetEvent('gs-survival:server:buyUpgrade', function(data)
 
         Player.Functions.Save()
 
-        TriggerClientEvent('ox_lib:notify', src, {
-            title = 'Survival Market',
-            description = upgradeData.label .. ' satın alındı!',
-            type = 'success'
-        })
+        ServerHelpers.NotifyPlayer(src, upgradeData.label .. ' satın alındı!', 'success', 'Survival Market')
     else
-        TriggerClientEvent('ox_lib:notify', src, {
-            title = 'Survival Market',
-            description = 'Yeterli paran yok! Gereken: $' .. price,
-            type = 'error'
-        })
+        ServerHelpers.NotifyPlayer(src, 'Yeterli paran yok! Gereken: $' .. price, 'error', 'Survival Market')
     end
 end)
 
@@ -4311,7 +4312,7 @@ local function RestoreArcInventory(targetId, victoryStatus, modeId)
             end
         else
             print(string.format("^1[ARC PVP]^7 Ana stash kaydı başarısız: %s", tostring(cid)))
-            TriggerClientEvent('QBCore:Functions:Notify', targetId, "Arc ana stash açılamadı, loot aktarımı yapılamadı.", "error")
+            ServerHelpers.NotifyPlayer(targetId, "Arc ana stash açılamadı, loot aktarımı yapılamadı.", "error")
         end
     end
 
@@ -4626,12 +4627,12 @@ FinalizeArcMatch = function(bucketId, winners, reason)
                 or reason == 'extraction'
                 and "Tahliye başarılı. Baskında taşıdığın ekipman ana depoya aktarıldı."
                 or "ARC baskını başarıyla tamamlandı. Taşıdığın ekipman ana depoya aktarıldı."
-            TriggerClientEvent('QBCore:Functions:Notify', playerId, successText, "success")
+            ServerHelpers.NotifyPlayer(playerId, successText, "success")
         else
             local failureText = reason == 'failed_to_extract'
                 and "Tahliye penceresi kapandı. Saha dışına çıkamadığın için hazırladığın yük kaybedildi."
                 or "ARC baskını başarısız oldu. Hazırladığın yük kaybedildi."
-            TriggerClientEvent('QBCore:Functions:Notify', playerId, failureText, "error")
+            ServerHelpers.NotifyPlayer(playerId, failureText, "error")
         end
     end
 
@@ -4774,7 +4775,7 @@ AddEventHandler('playerDropped', function(reason)
         if data.members and data.members[src] then
             data.members[src] = nil
             -- Lidere arkadaşının çıktığını haber ver
-            TriggerClientEvent('QBCore:Functions:Notify', leaderId, "Bir grup üyesi sunucudan ayrıldı.", "error")
+            ServerHelpers.NotifyPlayer(leaderId, "Bir grup üyesi sunucudan ayrıldı.", "error")
             -- Liderin ekranındaki (invitedPlayers) listesini güncelle
             TriggerClientEvent('gs-survival:client:removeFromInvited', leaderId, src)
             SyncLobbyMembers(leaderId)
@@ -4795,7 +4796,7 @@ AddEventHandler('playerDropped', function(reason)
             local disconnectInfo = BuildArcDisconnectPolicyInfo()
             for _, playerId in ipairs(groupMembers[bucketId]) do
                 if tonumber(playerId) ~= tonumber(src) then
-                    TriggerClientEvent('QBCore:Functions:Notify', playerId, ("%s bağlantı kaybetti. Aktif policy: %s."):format(droppedName, disconnectInfo.label), "primary")
+                    ServerHelpers.NotifyPlayer(playerId, ("%s bağlantı kaybetti. Aktif policy: %s."):format(droppedName, disconnectInfo.label), "primary")
                 end
             end
         end
@@ -5051,7 +5052,7 @@ RegisterNetEvent('gs-survival:server:moveArcLockerItem', function(fromSide, slot
     local mainStashId = RegisterArcMainStash(Player)
     local loadoutStashId = RegisterArcLoadoutStash(Player)
     if not mainStashId or not loadoutStashId or not slot then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "ARC stash bilgisi alınamadı.", "error")
+        ServerHelpers.NotifyPlayer(src, "ARC stash bilgisi alınamadı.", "error")
         TriggerClientEvent('gs-survival:client:openArcLockerManager', src, focusSide)
         return
     end
@@ -5067,7 +5068,7 @@ RegisterNetEvent('gs-survival:server:moveArcLockerItem', function(fromSide, slot
     local sameInventory = fromStashId == toStashId
 
     if not selectedItem or not selectedItem.name or tonumber(selectedItem.count or 0) <= 0 then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Taşınacak eşya bulunamadı.", "error")
+        ServerHelpers.NotifyPlayer(src, "Taşınacak eşya bulunamadı.", "error")
         TriggerClientEvent('gs-survival:client:openArcLockerManager', src, focusSide)
         return
     end
@@ -5089,13 +5090,13 @@ RegisterNetEvent('gs-survival:server:moveArcLockerItem', function(fromSide, slot
 
     if targetItem then
         if targetItem.name ~= selectedItem.name then
-            TriggerClientEvent('QBCore:Functions:Notify', src, "Stack için aynı tür eşyayı hedeflemelisin.", "error")
+            ServerHelpers.NotifyPlayer(src, "Stack için aynı tür eşyayı hedeflemelisin.", "error")
             TriggerClientEvent('gs-survival:client:openArcLockerManager', src, focusSide)
             return
         end
 
         if isWeapon then
-            TriggerClientEvent('QBCore:Functions:Notify', src, "Silahlar üst üste konamaz.", "error")
+            ServerHelpers.NotifyPlayer(src, "Silahlar üst üste konamaz.", "error")
             TriggerClientEvent('gs-survival:client:openArcLockerManager', src, focusSide)
             return
         end
@@ -5104,7 +5105,7 @@ RegisterNetEvent('gs-survival:server:moveArcLockerItem', function(fromSide, slot
     if sameInventory then
         local removed = exports.ox_inventory:RemoveItem(fromStashId, selectedItem.name, itemCount, selectedItem.metadata, slot)
         if not removed then
-            TriggerClientEvent('QBCore:Functions:Notify', src, "Eşya kaynağından alınamadı.", "error")
+            ServerHelpers.NotifyPlayer(src, "Eşya kaynağından alınamadı.", "error")
             TriggerClientEvent('gs-survival:client:openArcLockerManager', src, focusSide)
             return
         end
@@ -5112,26 +5113,26 @@ RegisterNetEvent('gs-survival:server:moveArcLockerItem', function(fromSide, slot
         local added = exports.ox_inventory:AddItem(toStashId, selectedItem.name, itemCount, transferMetadata, targetInventorySlot)
         if not added then
             exports.ox_inventory:AddItem(fromStashId, selectedItem.name, itemCount, selectedItem.metadata, slot)
-            TriggerClientEvent('QBCore:Functions:Notify', src, "Eşya yeni yuvaya taşınamadı, işlem geri alındı.", "error")
+            ServerHelpers.NotifyPlayer(src, "Eşya yeni yuvaya taşınamadı, işlem geri alındı.", "error")
             TriggerClientEvent('gs-survival:client:openArcLockerManager', src, focusSide)
             return
         end
 
         local actionText = targetItem and "stacklendi" or "taşındı"
-        TriggerClientEvent('QBCore:Functions:Notify', src, string.format("%s x%d, aynı depo içinde %s.", itemLabel, itemCount, actionText), "success")
+        ServerHelpers.NotifyPlayer(src, string.format("%s x%d, aynı depo içinde %s.", itemLabel, itemCount, actionText), "success")
         TriggerClientEvent('gs-survival:client:openArcLockerManager', src, focusSide)
         return
     end
 
     if not exports.ox_inventory:CanCarryItem(toStashId, selectedItem.name, itemCount, transferMetadata) then
-        TriggerClientEvent('QBCore:Functions:Notify', src, string.format("%s bu eşyayı taşıyamıyor.", toLabel), "error")
+        ServerHelpers.NotifyPlayer(src, string.format("%s bu eşyayı taşıyamıyor.", toLabel), "error")
         TriggerClientEvent('gs-survival:client:openArcLockerManager', src, focusSide)
         return
     end
 
     local added = exports.ox_inventory:AddItem(toStashId, selectedItem.name, itemCount, transferMetadata, targetInventorySlot)
     if not added then
-        TriggerClientEvent('QBCore:Functions:Notify', src, string.format("%s açılırken bir hata oluştu.", toLabel), "error")
+        ServerHelpers.NotifyPlayer(src, string.format("%s açılırken bir hata oluştu.", toLabel), "error")
         TriggerClientEvent('gs-survival:client:openArcLockerManager', src, focusSide)
         return
     end
@@ -5139,13 +5140,13 @@ RegisterNetEvent('gs-survival:server:moveArcLockerItem', function(fromSide, slot
     local removed = exports.ox_inventory:RemoveItem(fromStashId, selectedItem.name, itemCount, selectedItem.metadata, slot)
     if not removed then
         exports.ox_inventory:RemoveItem(toStashId, selectedItem.name, itemCount, transferMetadata, targetInventorySlot)
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Eşya taşınırken işlem geri alındı.", "error")
+        ServerHelpers.NotifyPlayer(src, "Eşya taşınırken işlem geri alındı.", "error")
         TriggerClientEvent('gs-survival:client:openArcLockerManager', src, focusSide)
         return
     end
 
     local actionText = targetItem and "içinde stacklendi" or "içine aktarıldı"
-    TriggerClientEvent('QBCore:Functions:Notify', src, string.format("%s x%d, %s içinden %s %s.", itemLabel, itemCount, fromLabel, toLabel, actionText), "success")
+    ServerHelpers.NotifyPlayer(src, string.format("%s x%d, %s içinden %s %s.", itemLabel, itemCount, fromLabel, toLabel, actionText), "success")
     TriggerClientEvent('gs-survival:client:openArcLockerManager', src, focusSide)
 end)
 
@@ -5154,34 +5155,34 @@ RegisterNetEvent('gs-survival:server:openArcLootContainer', function(containerId
     local bucketId = GetPlayerRoutingBucket(src)
 
     if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu sandık yalnızca ARC Baskını sırasında açılabilir.", "error")
+        ServerHelpers.NotifyPlayer(src, "Bu sandık yalnızca ARC Baskını sırasında açılabilir.", "error")
         return
     end
 
     if not arcRaidState[bucketId] then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "ARC loot verisi henüz hazır değil.", "error")
+        ServerHelpers.NotifyPlayer(src, "ARC loot verisi henüz hazır değil.", "error")
         return
     end
 
     local bucketContainerState = openedArcContainers[bucketId] and openedArcContainers[bucketId][containerId]
     if not containerId then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Geçersiz loot kutusu.", "error")
+        ServerHelpers.NotifyPlayer(src, "Geçersiz loot kutusu.", "error")
         return
     end
 
     local nodeState = GetArcLootNodeState(bucketId, containerId)
     if not nodeState then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Geçersiz loot kutusu.", "error")
+        ServerHelpers.NotifyPlayer(src, "Geçersiz loot kutusu.", "error")
         return
     end
 
     if not IsPlayerNearCoords(src, nodeState.coords, 4.0) then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu loot kutusunu açmak için yanında olmalısın.", "error")
+        ServerHelpers.NotifyPlayer(src, "Bu loot kutusunu açmak için yanında olmalısın.", "error")
         return
     end
 
     if bucketContainerState and bucketContainerState.consumed then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu loot kutusu zaten açıldı.", "error")
+        ServerHelpers.NotifyPlayer(src, "Bu loot kutusu zaten açıldı.", "error")
         return
     end
 
@@ -5217,18 +5218,18 @@ RegisterNetEvent('gs-survival:server:openArcDeathContainer', function(containerI
     local bucketId = GetPlayerRoutingBucket(src)
 
     if ServerHelpers.GetGameModeId(bucketModes[bucketId]) ~= 'arc_pvp' then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu düşüş kutusu yalnızca ARC Baskını sırasında açılabilir.", "error")
+        ServerHelpers.NotifyPlayer(src, "Bu düşüş kutusu yalnızca ARC Baskını sırasında açılabilir.", "error")
         return
     end
 
     local containerState = arcDeathContainers[bucketId] and arcDeathContainers[bucketId][containerId]
     if not containerId or not containerState or containerState.consumed or not containerState.stashId then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu ölüm kutusu artık kullanılamıyor.", "error")
+        ServerHelpers.NotifyPlayer(src, "Bu ölüm kutusu artık kullanılamıyor.", "error")
         return
     end
 
     if not IsPlayerNearCoords(src, containerState.coords, 4.0) then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Bu ölüm kutusunu açmak için yanında olmalısın.", "error")
+        ServerHelpers.NotifyPlayer(src, "Bu ölüm kutusunu açmak için yanında olmalısın.", "error")
         return
     end
 
@@ -5311,18 +5312,18 @@ RegisterNetEvent('gs-survival:server:returnArcToLobby', function()
     end
 
     if arcFinalizeLocks[bucketId] then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Oturum kapanışı sürüyor, lobiye dönüş isteği işlenemedi.", "error")
+        ServerHelpers.NotifyPlayer(src, "Oturum kapanışı sürüyor, lobiye dönüş isteği işlenemedi.", "error")
         return
     end
 
     if not (eliminatedArcPlayers[bucketId] and eliminatedArcPlayers[bucketId][src]) then
-        TriggerClientEvent('QBCore:Functions:Notify', src, "Lobiye sadece elendikten sonra dönebilirsin.", "error")
+        ServerHelpers.NotifyPlayer(src, "Lobiye sadece elendikten sonra dönebilirsin.", "error")
         return
     end
 
     RestorePlayerInventory(src, false, 'arc_pvp')
     TriggerClientEvent('gs-survival:client:stopEverything', src, false, 'arc_pvp')
-    TriggerClientEvent('QBCore:Functions:Notify', src, "İzleme sonlandırıldı, lobiye döndün.", "primary")
+    ServerHelpers.NotifyPlayer(src, "İzleme sonlandırıldı, lobiye döndün.", "primary")
 
     RemoveArcRaidPlayer(bucketId, src)
     eliminatedArcPlayers[bucketId][src] = nil
@@ -5349,7 +5350,7 @@ QBCore.Functions.CreateCallback('gs-survival:server:checkLootStatus', function(s
 
     if beingLooted[resolvedNpcNetId] and beingLooted[resolvedNpcNetId] ~= source then
         -- Eğer bu NPC zaten birisi tarafından aranıyorsa
-        TriggerClientEvent('QBCore:Functions:Notify', source, "Bu ceset zaten başkası tarafından aranıyor!", "error")
+        ServerHelpers.NotifyPlayer(source, "Bu ceset zaten başkası tarafından aranıyor!", "error")
         cb(false)
     else
         -- Kimse aramıyorsa, arayan kişi olarak kaydet
