@@ -2528,10 +2528,12 @@ local function StartArcExtractionCall(bucketId, callerSource, requestedZoneId)
         callerName = callerName
     })
     for _, playerId in ipairs(groupMembers[bucketId] or {}) do
-        TriggerClientEvent('gs-survival:client:playSignalFlare', playerId, {
-            bucketId = resolvedBucketId,
-            coords = Vector3ToTable(ToVector3(selectedZone.coords))
-        })
+        if GetPlayerRoutingBucket(playerId) == resolvedBucketId then
+            TriggerClientEvent('gs-survival:client:playSignalFlare', playerId, {
+                bucketId = resolvedBucketId,
+                coords = Vector3ToTable(ToVector3(selectedZone.coords))
+            })
+        end
     end
     SyncArcExtractionState(bucketId, {
         message = ("%s %s noktasından tahliye hattını açtı. Hava aracı rotaya alındı."):format(callerName, selectedZone.label or "tahliye noktası"),

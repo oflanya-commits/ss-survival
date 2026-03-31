@@ -301,10 +301,12 @@ RegisterNetEvent('gs-survival:server:handleArcDeath', function(reason)
     local resolvedBucketId = tonumber(bucketId) or bucketId
 
     for _, playerId in ipairs(groupMembers[bucketId] or {}) do
-        TriggerClientEvent('gs-survival:client:playSignalFlare', playerId, {
-            bucketId = resolvedBucketId,
-            coords = Vector3ToTable(deathCoords)
-        })
+        if GetPlayerRoutingBucket(playerId) == resolvedBucketId then
+            TriggerClientEvent('gs-survival:client:playSignalFlare', playerId, {
+                bucketId = resolvedBucketId,
+                coords = Vector3ToTable(deathCoords)
+            })
+        end
     end
 
     if deathItems and next(deathItems) then
