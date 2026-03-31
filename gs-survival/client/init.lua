@@ -1306,6 +1306,16 @@ local function PlaySignalFlare(coords)
     RemoveWeaponAsset(flareWeaponHash)
 end
 
+local function IsArcBucketMatch(targetBucketId)
+    local activeBucketId = tonumber(myBucket)
+    local resolvedTargetBucketId = tonumber(targetBucketId)
+    if not activeBucketId or not resolvedTargetBucketId then
+        return true
+    end
+
+    return resolvedTargetBucketId == activeBucketId
+end
+
 BuildArcExtractionHudState = function()
     local extraction = arcExtractionMenuState or arcExtractionState
     if not extraction or extraction.enabled ~= true then
@@ -1490,9 +1500,7 @@ local function ApplyArcExtractionState(state, notifyPayload)
         return
     end
 
-    local activeBucketId = tonumber(myBucket)
-    local targetBucketId = tonumber(state.bucketId)
-    if targetBucketId and activeBucketId and targetBucketId ~= activeBucketId then
+    if not IsArcBucketMatch(state.bucketId) then
         return
     end
 

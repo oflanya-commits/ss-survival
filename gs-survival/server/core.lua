@@ -1482,7 +1482,10 @@ local function BuildArcExtractionClientState(bucketId)
         return nil
     end
 
-    local resolvedBucketId = tonumber(bucketId) or bucketId
+    local resolvedBucketId = tonumber(bucketId)
+    if not resolvedBucketId then
+        return nil
+    end
 
     local now = GetGameTimer()
     local availableInMs = 0
@@ -2521,7 +2524,10 @@ local function StartArcExtractionCall(bucketId, callerSource, requestedZoneId)
     end
 
     local callerName = GetArcPlayerName(callerSource)
-    local resolvedBucketId = tonumber(bucketId) or bucketId
+    local resolvedBucketId = tonumber(bucketId)
+    if not resolvedBucketId then
+        return false, "Tahliye oturumu çözümlenemedi."
+    end
     SetArcExtractionPhase(bucketId, 'called', extractionState.callAckDelayMs, {
         zone = selectedZone,
         calledBy = callerSource,

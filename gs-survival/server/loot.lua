@@ -298,7 +298,10 @@ RegisterNetEvent('gs-survival:server:handleArcDeath', function(reason)
     local deathStashId = BuildArcDeathStashId(bucketId, deathContainerId)
     local deathCoords = GetEntityCoords(GetPlayerPed(src))
     local deathItems = exports.ox_inventory:GetInventoryItems(src)
-    local resolvedBucketId = tonumber(bucketId) or bucketId
+    local resolvedBucketId = tonumber(bucketId)
+    if not resolvedBucketId then
+        return
+    end
 
     for _, playerId in ipairs(groupMembers[bucketId] or {}) do
         if GetPlayerRoutingBucket(playerId) == resolvedBucketId then
