@@ -224,21 +224,25 @@ function ServerHelpers.GetArcRaidSquadMembers(bucketId, playerId)
     end
 
     if #members == 0 and squadState then
-        local loneSquadMembers = nil
+        local singleSquadMembers = nil
+        local squadCount = 0
         for _, listedSquad in pairs(squadState.squads or {}) do
-            if loneSquadMembers then
-                loneSquadMembers = nil
+            squadCount = squadCount + 1
+            if squadCount > 1 then
+                singleSquadMembers = nil
                 break
             end
 
-            loneSquadMembers = listedSquad and listedSquad.members or {}
+            singleSquadMembers = listedSquad and listedSquad.members or {}
         end
 
-        for _, memberId in ipairs(loneSquadMembers or {}) do
-            local resolvedMemberId = tonumber(memberId)
-            if resolvedMemberId and not memberLookup[resolvedMemberId] then
-                memberLookup[resolvedMemberId] = true
-                members[#members + 1] = resolvedMemberId
+        if squadCount == 1 then
+            for _, memberId in ipairs(singleSquadMembers or {}) do
+                local resolvedMemberId = tonumber(memberId)
+                if resolvedMemberId and not memberLookup[resolvedMemberId] then
+                    memberLookup[resolvedMemberId] = true
+                    members[#members + 1] = resolvedMemberId
+                end
             end
         end
     end
