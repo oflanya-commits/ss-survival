@@ -193,14 +193,13 @@ Citizen.CreateThread(function()
             local ped = PlayerPedId()
             local coords = GetEntityCoords(ped)
             local stageData = GetActiveArcStageData()
-            local boundaryDistance = activeBoundaryRadius or GetModeBoundaryRadius(currentModeId, stageData)
-            local boundaryErrorText, boundaryWarnText = GetModeBoundaryTexts(currentModeId)
-            local warningBufferPct = tonumber(Config.Combat and Config.Combat.BoundaryWarningBufferPct or 0.2) or 0.2
-            local minWarningBuffer = tonumber(Config.Combat and Config.Combat.MinBoundaryWarningBuffer or 20.0) or 20.0
-            local warningCooldownMs = tonumber(Config.Combat and Config.Combat.BoundaryWarningCooldownMs or 15000) or 15000
-
             local stageCenter = stageData and ToVector3(stageData.center)
-            if stageCenter then
+            if stageCenter and currentModeId ~= 'arc_pvp' then
+                local boundaryDistance = activeBoundaryRadius or GetModeBoundaryRadius(currentModeId, stageData)
+                local boundaryErrorText, boundaryWarnText = GetModeBoundaryTexts(currentModeId)
+                local warningBufferPct = tonumber(Config.Combat and Config.Combat.BoundaryWarningBufferPct or 0.2) or 0.2
+                local minWarningBuffer = tonumber(Config.Combat and Config.Combat.MinBoundaryWarningBuffer or 20.0) or 20.0
+                local warningCooldownMs = tonumber(Config.Combat and Config.Combat.BoundaryWarningCooldownMs or 15000) or 15000
                 local dist = #(coords - stageCenter)
                 local isInGracePeriod = GetGameTimer() < modeBoundaryGraceUntil
                 if teleportLeeway < 10 then
