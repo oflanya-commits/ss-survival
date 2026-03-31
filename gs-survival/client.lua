@@ -203,16 +203,9 @@ local function NotifyForMode(message, notifyType, duration, title)
     SendArcNotify(message, notifyType, duration, GetNotifyTitle(notifyType, title))
 end
 
-RegisterNetEvent('gs-survival:client:notify', function(payload, notifyType, title, duration)
-    local notifyData = payload
-
+RegisterNetEvent('gs-survival:client:notify', function(notifyData)
     if type(notifyData) ~= 'table' then
-        notifyData = {
-            message = payload,
-            type = notifyType,
-            title = title,
-            duration = duration
-        }
+        return
     end
 
     local message = notifyData.message or notifyData.description or notifyData.text
@@ -220,7 +213,7 @@ RegisterNetEvent('gs-survival:client:notify', function(payload, notifyType, titl
         return
     end
 
-    NotifyForMode(message, notifyData.type or notifyType or 'primary', notifyData.duration or duration, notifyData.title or title)
+    NotifyForMode(message, notifyData.type or 'primary', notifyData.duration, notifyData.title)
 end)
 
 local function ShowArcBarricadePlacementUi()

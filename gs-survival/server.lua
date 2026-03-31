@@ -59,11 +59,12 @@ function ServerHelpers.CountMembers(memberTable)
 end
 
 function ServerHelpers.NotifyPlayer(target, message, notifyType, title, duration)
-    if not target or not message or message == '' then
+    local playerId = tonumber(target)
+    if not playerId or playerId <= 0 or not GetPlayerName(playerId) or not message or message == '' then
         return
     end
 
-    TriggerClientEvent('gs-survival:client:notify', target, {
+    TriggerClientEvent('gs-survival:client:notify', playerId, {
         message = message,
         type = notifyType or 'primary',
         title = title,
