@@ -197,6 +197,7 @@ Citizen.CreateThread(function()
             local boundaryErrorText, boundaryWarnText = GetModeBoundaryTexts(currentModeId)
             local warningBufferPct = tonumber(Config.Combat and Config.Combat.BoundaryWarningBufferPct or 0.2) or 0.2
             local minWarningBuffer = tonumber(Config.Combat and Config.Combat.MinBoundaryWarningBuffer or 20.0) or 20.0
+            local warningCooldownMs = tonumber(Config.Combat and Config.Combat.BoundaryWarningCooldownMs or 15000) or 15000
 
             local stageCenter = stageData and ToVector3(stageData.center)
             if stageCenter then
@@ -221,7 +222,7 @@ Citizen.CreateThread(function()
                         TriggerEvent('gs-survival:client:stopEverything', false)
                     end
                 elseif dist > (boundaryDistance - math.max(minWarningBuffer, boundaryDistance * warningBufferPct)) then
-                    if GetGameTimer() - lastWarningTime > 3000 then
+                    if GetGameTimer() - lastWarningTime > warningCooldownMs then
                         NotifyForMode(boundaryWarnText, "error", 3000, "ARC Sınır")
                         lastWarningTime = GetGameTimer()
                     end

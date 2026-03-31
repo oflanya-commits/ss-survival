@@ -345,6 +345,7 @@ Config.Survival = {
 -- BoundaryDistance: Oyuncunun stage merkezinden ne kadar uzaklaşabileceği
 -- BoundaryWarningBufferPct: Sınır uyarısının toplam sınırın yüzde kaç kala başlayacağı
 -- MinBoundaryWarningBuffer: Yüzde hesabı düşük kalsa bile minimum uyarı tamponu
+-- BoundaryWarningCooldownMs: Sınır uyarısı tekrar gösterilmeden önce beklenecek süre
 -- SpawnProtectionMs: Oyuncu spawn olduktan sonra verilen geçici koruma süresi
 -- LootTime: NPC loot açma süresi
 -- DefaultWeapon/DefaultAmmo/DefaultAmmoAmount: Oyuncuya varsayılan verilen başlangıç loadout'u
@@ -354,6 +355,7 @@ Config.Combat = {
     BoundaryDistance = 90.0, -- Oyuncunun merkezden ne kadar uzaklaşabileceği
     BoundaryWarningBufferPct = 0.2,
     MinBoundaryWarningBuffer = 20.0,
+    BoundaryWarningCooldownMs = 15000,
     SpawnProtectionMs = 5000,
     LootTime = 10000, 
     DefaultWeapon = "WEAPON_PISTOL",
