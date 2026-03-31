@@ -417,7 +417,7 @@ local function BuildArcOverlayTeamMembers()
         if serverId and serverId ~= tonumber(localServerId) then
             local playerIndex = GetPlayerFromServerId(serverId)
             local playerName = playerIndex ~= -1 and GetPlayerName(playerIndex) or ("Oyuncu #" .. tostring(serverId))
-            local playerAlive = currentModeId == 'arc_pvp' and aliveLookup[serverId] == true or false
+            local playerAlive = currentModeId == 'arc_pvp' and aliveLookup[serverId] or false
             if playerIndex ~= -1 and NetworkIsPlayerActive(playerIndex) then
                 local targetPed = GetPlayerPed(playerIndex)
                 playerAlive = DoesEntityExist(targetPed) and not IsPedFatallyInjured(targetPed)
@@ -620,7 +620,10 @@ local function RefreshArcOverlayInfo(promptText, force)
         local playerId = tonumber(id)
         local playerIndex = playerId and GetPlayerFromServerId(playerId) or -1
         local targetPed = playerIndex ~= -1 and GetPlayerPed(playerIndex) or 0
-        local isAlive = playerId ~= nil
+        local isAlive = false
+        if playerId ~= nil then
+            isAlive = true
+        end
         if playerIndex ~= -1 and NetworkIsPlayerActive(playerIndex) then
             isAlive = DoesEntityExist(targetPed) and not IsPedFatallyInjured(targetPed)
         end
