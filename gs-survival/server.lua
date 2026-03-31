@@ -38,7 +38,7 @@ local CleanBucketEntities
 local BuildArcDeploymentPayload
 local GetArcRaidRemainingMs
 
-local function BuildLootItemSet()
+function BuildLootItemSet()
     lootItemSet = {}
     if Config and Config.LootTable then
         for _, loot in ipairs(Config.LootTable) do
@@ -49,7 +49,7 @@ end
 
 BuildLootItemSet()
 
-local function CountMembers(memberTable)
+function CountMembers(memberTable)
     local count = 0
     for _ in pairs(memberTable or {}) do
         count = count + 1
@@ -57,7 +57,7 @@ local function CountMembers(memberTable)
     return count
 end
 
-local function IsPlayerInList(playerList, playerId)
+function IsPlayerInList(playerList, playerId)
     for _, listedPlayerId in ipairs(playerList or {}) do
         if tonumber(listedPlayerId) == tonumber(playerId) then
             return true
@@ -67,7 +67,7 @@ local function IsPlayerInList(playerList, playerId)
     return false
 end
 
-local function IsBucketMember(bucketId, playerId)
+function IsBucketMember(bucketId, playerId)
     if not bucketId or tonumber(bucketId) == 0 then
         return false
     end
@@ -75,7 +75,7 @@ local function IsBucketMember(bucketId, playerId)
     return IsPlayerInList(groupMembers[bucketId] or {}, playerId)
 end
 
-local function IsPedEntityDead(entity)
+function IsPedEntityDead(entity)
     if not entity or entity == 0 or not DoesEntityExist(entity) then
         return true
     end
@@ -83,7 +83,7 @@ local function IsPedEntityDead(entity)
     return GetEntityHealth(entity) <= 0
 end
 
-local function CountAliveBucketNpcs(bucketId)
+function CountAliveBucketNpcs(bucketId)
     if not bucketId or bucketId == 0 then
         return 0
     end
@@ -98,7 +98,7 @@ local function CountAliveBucketNpcs(bucketId)
     return aliveCount
 end
 
-local function FindLobbyLeaderByMember(memberId)
+function FindLobbyLeaderByMember(memberId)
     for leaderId, data in pairs(activeLobbies) do
         if data.members and data.members[memberId] then
             return leaderId
@@ -108,17 +108,17 @@ local function FindLobbyLeaderByMember(memberId)
     return nil
 end
 
-local function GetGameMode(modeId)
+function GetGameMode(modeId)
     local gameModes = Config and Config.GameModes or {}
     return gameModes[modeId or 'classic'] or gameModes.classic
 end
 
-local function GetGameModeId(modeId)
+function GetGameModeId(modeId)
     local gameMode = GetGameMode(modeId)
     return gameMode and gameMode.id or 'classic'
 end
 
-local function GetModeConfig(modeId)
+function GetModeConfig(modeId)
     if GetGameModeId(modeId) == 'arc_pvp' then
         return Config.ArcPvP or {}
     end
@@ -126,11 +126,11 @@ local function GetModeConfig(modeId)
     return Config.Survival or {}
 end
 
-local function GetArcConfig()
+function GetArcConfig()
     return Config.ArcPvP or {}
 end
 
-local function GetArcRaidMaxPlayers()
+function GetArcRaidMaxPlayers()
     local configuredLimit = tonumber(GetArcConfig().MaxPlayersPerRaid)
     if not configuredLimit or configuredLimit <= 0 then
         return nil
@@ -139,12 +139,12 @@ local function GetArcRaidMaxPlayers()
     return math.floor(configuredLimit)
 end
 
-local function GetArcRaidPopulation(bucketId)
+function GetArcRaidPopulation(bucketId)
     local members = groupMembers[bucketId] or {}
     return #members
 end
 
-local function EnsureArcRaidSquadState(bucketId)
+function EnsureArcRaidSquadState(bucketId)
     if not bucketId then
         return nil
     end
@@ -158,7 +158,7 @@ local function EnsureArcRaidSquadState(bucketId)
     return arcRaidSquads[bucketId]
 end
 
-local function CreateArcRaidSquad(bucketId, playerIds)
+function CreateArcRaidSquad(bucketId, playerIds)
     local squadState = EnsureArcRaidSquadState(bucketId)
     if not squadState then
         return nil
@@ -183,7 +183,7 @@ local function CreateArcRaidSquad(bucketId, playerIds)
     return squadId
 end
 
-local function GetArcRaidSquadMembers(bucketId, playerId)
+function GetArcRaidSquadMembers(bucketId, playerId)
     local squadState = arcRaidSquads[bucketId]
     local resolvedPlayerId = tonumber(playerId)
     local members = {}
@@ -206,7 +206,7 @@ local function GetArcRaidSquadMembers(bucketId, playerId)
     return members
 end
 
-local function RemoveArcRaidSquadPlayer(bucketId, playerId)
+function RemoveArcRaidSquadPlayer(bucketId, playerId)
     local squadState = arcRaidSquads[bucketId]
     local resolvedPlayerId = tonumber(playerId)
     if not squadState or not resolvedPlayerId then
@@ -231,7 +231,7 @@ local function RemoveArcRaidSquadPlayer(bucketId, playerId)
     squadState.playerMap[resolvedPlayerId] = nil
 end
 
-local function AddArcRaidPlayerToSquad(bucketId, playerId, preferredMembers)
+function AddArcRaidPlayerToSquad(bucketId, playerId, preferredMembers)
     local squadState = EnsureArcRaidSquadState(bucketId)
     local resolvedPlayerId = tonumber(playerId)
     if not squadState or not resolvedPlayerId then
@@ -270,7 +270,7 @@ local function AddArcRaidPlayerToSquad(bucketId, playerId, preferredMembers)
     return preferredSquadId
 end
 
-local function EnsureArcRaidPlayerProfileState(bucketId)
+function EnsureArcRaidPlayerProfileState(bucketId)
     if not bucketId then
         return nil
     end
@@ -279,7 +279,7 @@ local function EnsureArcRaidPlayerProfileState(bucketId)
     return arcRaidPlayerProfiles[bucketId]
 end
 
-local function BuildArcPlayerDisplayName(Player, fallbackPlayerId)
+function BuildArcPlayerDisplayName(Player, fallbackPlayerId)
     local charinfo = Player and Player.PlayerData and Player.PlayerData.charinfo or nil
     local firstname = charinfo and tostring(charinfo.firstname or '') or ''
     local lastname = charinfo and tostring(charinfo.lastname or '') or ''
@@ -292,7 +292,7 @@ local function BuildArcPlayerDisplayName(Player, fallbackPlayerId)
     return ("ID %s"):format(tostring(fallbackPlayerId))
 end
 
-local function RememberArcRaidPlayerProfile(bucketId, playerId, Player)
+function RememberArcRaidPlayerProfile(bucketId, playerId, Player)
     local resolvedPlayerId = tonumber(playerId)
     local profileState = EnsureArcRaidPlayerProfileState(bucketId)
     if not resolvedPlayerId or not profileState then
@@ -307,12 +307,12 @@ local function RememberArcRaidPlayerProfile(bucketId, playerId, Player)
     return profileState[resolvedPlayerId]
 end
 
-local function GetArcRaidPlayerProfile(bucketId, playerId)
+function GetArcRaidPlayerProfile(bucketId, playerId)
     local resolvedPlayerId = tonumber(playerId)
     return resolvedPlayerId and arcRaidPlayerProfiles[bucketId] and arcRaidPlayerProfiles[bucketId][resolvedPlayerId] or nil
 end
 
-local function SetArcPlayerBucketIndex(playerId, bucketId)
+function SetArcPlayerBucketIndex(playerId, bucketId)
     local resolvedPlayerId = tonumber(playerId)
     if not resolvedPlayerId then
         return
@@ -326,7 +326,7 @@ local function SetArcPlayerBucketIndex(playerId, bucketId)
     arcPlayerBucketIndex[resolvedPlayerId] = nil
 end
 
-local function AdjustArcPendingReconnectCount(bucketId, delta)
+function AdjustArcPendingReconnectCount(bucketId, delta)
     local resolvedBucketId = tonumber(bucketId)
     local change = tonumber(delta) or 0
     if not resolvedBucketId or resolvedBucketId == 0 or change == 0 then
@@ -341,7 +341,7 @@ local function AdjustArcPendingReconnectCount(bucketId, delta)
     end
 end
 
-local function FindArcBucketByPlayer(playerId)
+function FindArcBucketByPlayer(playerId)
     local resolvedPlayerId = tonumber(playerId)
     if not resolvedPlayerId then
         return nil
