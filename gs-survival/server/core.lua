@@ -2582,7 +2582,12 @@ local function TryResolveArcExtractionDeparture(bucketId, departSource, isManual
         end
     end
 
-    local departingPlayers = GetArcPlayersInsideExtractionZone(bucketId)
+    local departingPlayers
+    if isManualDeparture or departurePending then
+        departingPlayers = GetArcAlivePlayers(bucketId)
+    else
+        departingPlayers = GetArcPlayersInsideExtractionZone(bucketId)
+    end
     local completed = 0
     for _, playerId in ipairs(departingPlayers) do
         if TryCompletePlayerExtraction(playerId, bucketId, { suppressStateNotify = true }) then
@@ -2597,9 +2602,9 @@ local function TryResolveArcExtractionDeparture(bucketId, departSource, isManual
     if completed > 0 and groupMembers[bucketId] and #groupMembers[bucketId] > 0 then
         local message
         if isManualDeparture then
-            message = ("%s kalkışı başlattı. Bölgedeki %s operatif tahliye edildi."):format(GetArcPlayerName(departSource), tostring(completed))
+            message = ("%s kalkışı başlattı. Takımdaki %s operatif tahliye edildi."):format(GetArcPlayerName(departSource), tostring(completed))
         elseif departurePending then
-            message = ("Kalkış geri sayımı tamamlandı. Bölgedeki %s operatif tahliye edildi."):format(tostring(completed))
+            message = ("Kalkış geri sayımı tamamlandı. Takımdaki %s operatif tahliye edildi."):format(tostring(completed))
         else
             message = ("Ready süresi doldu. Bölgedeki %s operatif otomatik olarak tahliye edildi."):format(tostring(completed))
         end
@@ -2915,4 +2920,3 @@ local function BuildNearbyLobbyPlayers(leaderId)
 
     return nearbyPlayers
 end
-

@@ -918,11 +918,6 @@ RegisterNetEvent('gs-survival:server:removeArcBarricade', function(barricadeId)
         return
     end
 
-    if tonumber(barricadeState.ownerId) ~= tonumber(src) then
-        ServerHelpers.NotifyPlayer(src, "Sadece kendi barricade kitini sökebilirsin.", "error")
-        return
-    end
-
     if not IsPlayerNearCoords(src, barricadeCoords, interactDistance) then
         ServerHelpers.NotifyPlayer(src, "Barricade sökmek için daha yakında olmalısın.", "error")
         return
