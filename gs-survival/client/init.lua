@@ -32,6 +32,7 @@ local notifiedDeath = false
 local isEnding = false
 local activeSurvivalPlayers = {}
 local activeArcRaidPlayers = {}
+local activeArcAlivePlayers = {}
 local arcContainers = {}
 local arcPlacedBarricades = {}
 local arcSessionVehicles = {}
@@ -397,6 +398,13 @@ local function BuildArcOverlayTeamMembers()
     local selfName = GetCharacterName(playerData)
     local selfAlive = not IsPedFatallyInjured(PlayerPedId())
     local trackedMembers = currentModeId == 'arc_pvp' and activeArcSquadPlayers or activeSurvivalPlayers
+    local aliveLookup = {}
+
+    if currentModeId == 'arc_pvp' then
+        for _, playerId in ipairs(activeArcAlivePlayers or {}) do
+            aliveLookup[tonumber(playerId)] = true
+        end
+    end
 
     members[#members + 1] = {
         name = selfName,
@@ -409,7 +417,7 @@ local function BuildArcOverlayTeamMembers()
         if serverId and serverId ~= tonumber(localServerId) then
             local playerIndex = GetPlayerFromServerId(serverId)
             local playerName = playerIndex ~= -1 and GetPlayerName(playerIndex) or ("Oyuncu #" .. tostring(serverId))
-            local playerAlive = false
+            local playerAlive = currentModeId == 'arc_pvp' and aliveLookup[serverId] or false
             if playerIndex ~= -1 and NetworkIsPlayerActive(playerIndex) then
                 local targetPed = GetPlayerPed(playerIndex)
                 playerAlive = DoesEntityExist(targetPed) and not IsPedFatallyInjured(targetPed)
@@ -604,18 +612,26 @@ local function RefreshArcOverlayInfo(promptText, force)
     local extractionHud = BuildArcExtractionHudState()
     local lines = {}
 
-    local trackedPlayers = activeArcRaidPlayers or activeSurvivalPlayers or {}
+    local trackedPlayers = activeArcAlivePlayers or {}
     local localServerId = tonumber(GetPlayerServerId(PlayerId()))
     local localTracked = false
 
     for _, id in ipairs(trackedPlayers) do
-        local playerIndex = GetPlayerFromServerId(id)
-        local targetPed = playerIndex ~= -1 and GetPlayerPed(playerIndex) or 0
-        if playerIndex ~= -1 and NetworkIsPlayerActive(playerIndex) and DoesEntityExist(targetPed) and not IsPedFatallyInjured(targetPed) then
-            aliveCount = aliveCount + 1
-        end
-        if not localTracked and tonumber(id) == localServerId then
-            localTracked = true
+        local playerId = tonumber(id)
+        if playerId ~= nil then
+            local playerIndex = GetPlayerFromServerId(playerId)
+            local targetPed = playerIndex ~= -1 and GetPlayerPed(playerIndex) or 0
+            local isAlive = true
+            if playerIndex ~= -1 and NetworkIsPlayerActive(playerIndex) then
+                isAlive = DoesEntityExist(targetPed) and not IsPedFatallyInjured(targetPed)
+            end
+
+            if isAlive then
+                aliveCount = aliveCount + 1
+            end
+            if not localTracked and playerId == localServerId then
+                localTracked = true
+            end
         end
     end
 

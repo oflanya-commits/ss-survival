@@ -193,7 +193,7 @@ local function StartModeOperation(src, invited, stageId, modeId)
 
             TriggerClientEvent('hospital:client:Revive', playerId)
             if selectedModeId == 'arc_pvp' then
-                TriggerClientEvent('gs-survival:client:initArcPvP', playerId, bId, ServerHelpers.GetArcRaidSquadMembers(bId, playerId), groupMembers[bId], resolvedStageId, deploymentState)
+                TriggerClientEvent('gs-survival:client:initArcPvP', playerId, bId, ServerHelpers.GetArcRaidSquadMembers(bId, playerId), groupMembers[bId], resolvedStageId, deploymentState, nil, GetArcAlivePlayers(bId))
             else
                 TriggerClientEvent('gs-survival:client:initSurvival', playerId, bId, 1, peps, resolvedStageId)
             end
@@ -1236,7 +1236,7 @@ local function RejoinArcDisconnectedPlayer(source, Player, disconnectState)
     TriggerClientEvent('gs-survival:client:initArcPvP', source, bucketId, ServerHelpers.GetArcRaidSquadMembers(bucketId, source), groupMembers[bucketId], GetArcRaidStageId(bucketId), deploymentState, {
         wasReconnect = true,
         coords = rejoinCoords
-    })
+    }, GetArcAlivePlayers(bucketId))
 
     disconnectState.resolved = true
     if disconnectState.allowRejoin == true then

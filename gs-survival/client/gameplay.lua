@@ -38,6 +38,7 @@ RegisterNetEvent('gs-survival:client:initSurvival', function(bucket, wave, party
     isEnding = false
     activeSurvivalPlayers = partyMembers or {}
     activeArcRaidPlayers = {}
+    activeArcAlivePlayers = {}
     activeArcSquadPlayers = {}
     invitedPlayers = {}
     lobbyLeaderId = nil
@@ -70,7 +71,7 @@ RegisterNetEvent('gs-survival:client:initSurvival', function(bucket, wave, party
     StartWaveCountdown()
 end)
 
-RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers, raidPlayers, stageId, deploymentData, rejoinData)
+RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers, raidPlayers, stageId, deploymentData, rejoinData, aliveRaidPlayers)
     currentModeId = 'arc_pvp'
     ClearArcBarricades()
     arcOverlaySessionVisible = false
@@ -96,6 +97,7 @@ RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers,
     activeSurvivalPlayers = squadMembers or {}
     activeArcSquadPlayers = squadMembers or {}
     activeArcRaidPlayers = raidPlayers or squadMembers or {}
+    activeArcAlivePlayers = aliveRaidPlayers or raidPlayers or squadMembers or {}
     invitedPlayers = {}
     lobbyLeaderId = nil
     pendingInviteLeaderId = nil
@@ -148,12 +150,13 @@ RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers,
     NotifyForMode("TAB ile envanterini aç, kasaları topla ve tahliye açıldığında extraction hattına yönel.", "success", 6000, "ARC Görev")
 end)
 
-RegisterNetEvent('gs-survival:client:updateArcRaidPlayers', function(squadPlayerIds, raidPlayerIds)
+RegisterNetEvent('gs-survival:client:updateArcRaidPlayers', function(squadPlayerIds, raidPlayerIds, alivePlayerIds)
     if currentModeId ~= 'arc_pvp' then return end
 
     activeSurvivalPlayers = squadPlayerIds or {}
     activeArcSquadPlayers = squadPlayerIds or {}
     activeArcRaidPlayers = raidPlayerIds or squadPlayerIds or {}
+    activeArcAlivePlayers = alivePlayerIds or raidPlayerIds or squadPlayerIds or {}
     RefreshArcFriendlyBlips()
     RefreshArcOverlayTeam()
     RefreshArcOverlayInfo(nil, true)
@@ -521,4 +524,3 @@ RegisterNetEvent('gs-survival:client:removeFromInvited', function(targetId)
         end
     end
 end)
-

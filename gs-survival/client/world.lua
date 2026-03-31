@@ -82,6 +82,7 @@ RegisterNetEvent('gs-survival:client:cleanupBeforeLeave', function()
     currentModeId = 'classic'
     activeSurvivalPlayers = {}
     activeArcRaidPlayers = {}
+    activeArcAlivePlayers = {}
     activeArcSquadPlayers = {}
     LocalPlayer.state:set('inLobby', false, true)
     exports['qb-core']:HideText()
