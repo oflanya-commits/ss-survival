@@ -507,6 +507,10 @@ local function ClearArcOverlay()
     SendNUIMessage({ type = 'clearArcHud' })
 end
 
+local function IsArcOverlayVisible()
+    return isSurvivalActive == true and arcOverlaySessionVisible == true
+end
+
 local function PushClassicSurvivalOverlay(stageData, aliveCount, maxWaves, lootTimerSeconds, forceRefresh)
     if currentModeId ~= 'classic' then
         return
@@ -562,9 +566,10 @@ local function RefreshArcOverlayTeam()
     end
 
     arcOverlayTeamCacheKey = teamCacheKey
+    local shouldShowOverlay = IsArcOverlayVisible()
     PushArcOverlayState({
-        enabled = isSurvivalActive == true and arcOverlaySessionVisible == true,
-        showInfo = isSurvivalActive == true and arcOverlaySessionVisible == true,
+        enabled = shouldShowOverlay,
+        showInfo = shouldShowOverlay,
         teamMembers = teamMembers
     })
 end
@@ -640,9 +645,10 @@ local function RefreshArcOverlayInfo(promptText, force)
         end
     end
 
+    local shouldShowOverlay = IsArcOverlayVisible()
     PushArcOverlayState({
-        enabled = isSurvivalActive == true and arcOverlaySessionVisible == true,
-        showInfo = isSurvivalActive == true and arcOverlaySessionVisible == true,
+        enabled = shouldShowOverlay,
+        showInfo = shouldShowOverlay,
         title = stageLabel,
         subtitle = "ARC saha telemetrisi",
         lines = lines,
@@ -1473,7 +1479,7 @@ local function EnsureArcExtractionScene()
 end
 
 local function ApplyArcExtractionState(state, notifyPayload)
-    if currentModeId ~= 'arc_pvp' or isSurvivalActive ~= true then
+    if currentModeId ~= 'arc_pvp' or not isSurvivalActive then
         ClearArcExtractionState()
         return
     end
