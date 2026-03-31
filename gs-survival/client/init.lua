@@ -612,27 +612,26 @@ local function RefreshArcOverlayInfo(promptText, force)
     local extractionHud = BuildArcExtractionHudState()
     local lines = {}
 
-    local trackedPlayers = activeArcAlivePlayers or activeArcRaidPlayers or activeSurvivalPlayers or {}
+    local trackedPlayers = activeArcAlivePlayers or {}
     local localServerId = tonumber(GetPlayerServerId(PlayerId()))
     local localTracked = false
 
     for _, id in ipairs(trackedPlayers) do
         local playerId = tonumber(id)
-        local playerIndex = playerId and GetPlayerFromServerId(playerId) or -1
-        local targetPed = playerIndex ~= -1 and GetPlayerPed(playerIndex) or 0
-        local isAlive = false
         if playerId ~= nil then
-            isAlive = true
-        end
-        if playerIndex ~= -1 and NetworkIsPlayerActive(playerIndex) then
-            isAlive = DoesEntityExist(targetPed) and not IsPedFatallyInjured(targetPed)
-        end
+            local playerIndex = GetPlayerFromServerId(playerId)
+            local targetPed = playerIndex ~= -1 and GetPlayerPed(playerIndex) or 0
+            local isAlive = true
+            if playerIndex ~= -1 and NetworkIsPlayerActive(playerIndex) then
+                isAlive = DoesEntityExist(targetPed) and not IsPedFatallyInjured(targetPed)
+            end
 
-        if isAlive then
-            aliveCount = aliveCount + 1
-        end
-        if not localTracked and playerId == localServerId then
-            localTracked = true
+            if isAlive then
+                aliveCount = aliveCount + 1
+            end
+            if not localTracked and playerId == localServerId then
+                localTracked = true
+            end
         end
     end
 
