@@ -597,8 +597,8 @@ function updateArcBarricadePlacementPosition(hasTeamPanel) {
     }
 
     var bottomOffset = ARC_BARRICADE_DEFAULT_BOTTOM_OFFSET;
-    var teamPanel = hasTeamPanel ? hudEls.arcTeamPanel : null;
-    if (teamPanel && !teamPanel.classList.contains('hidden')) {
+    var teamPanel = hudEls.arcTeamPanel;
+    if (hasTeamPanel && teamPanel && !teamPanel.classList.contains('hidden')) {
         bottomOffset = teamPanel.offsetHeight + ARC_TEAM_PANEL_BOTTOM_OFFSET + ARC_BARRICADE_TEAM_PANEL_GAP;
     }
 
