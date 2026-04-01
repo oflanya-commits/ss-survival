@@ -3,47 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GS Survival UI</title>
+    <title>GS Survival Tactical UI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="app" class="app hidden" aria-hidden="true">
-        <div class="app__backdrop"></div>
+        <div class="app__vignette"></div>
+        <div class="app__grain"></div>
 
         <div class="app__shell">
-            <aside class="app__sidebar ui-surface ui-surface--glass">
-                <div class="sidebar__brand">
-                    <div>
-                        <p class="ui-overline">GS Survival</p>
-                        <h1 class="sidebar__title">Operasyon Arayüzü</h1>
+            <aside class="app__intel-panel">
+                <div class="brand-block">
+                    <div class="brand-block__mark">
+                        <span>GS</span>
                     </div>
-                    <span class="ui-badge ui-badge--primary">Drop-in UI</span>
+                    <div class="brand-block__copy">
+                        <p class="ui-overline">Survival command</p>
+                        <h1 class="brand-block__title">Operational Hub</h1>
+                        <p class="brand-block__subtitle">Premium tactical control layer</p>
+                    </div>
                 </div>
 
-                <div id="summary-cards" class="sidebar__metrics"></div>
+                <div class="intel-frame">
+                    <div class="intel-frame__head">
+                        <span class="status-pill status-pill--accent">Live uplink</span>
+                        <span class="status-pill status-pill--muted">NUI retained</span>
+                    </div>
+                    <div id="summary-cards" class="intel-metrics"></div>
+                </div>
 
-                <section class="sidebar__brief ui-card ui-card--highlight">
-                    <div class="ui-card__header ui-card__header--compact">
+                <section class="brief-card">
+                    <div class="brief-card__head">
                         <div>
-                            <p class="ui-overline">Görev Özeti</p>
-                            <h2 id="brief-title" class="ui-card__title">Operasyon Hazır</h2>
+                            <p class="ui-overline">Mission brief</p>
+                            <h2 id="brief-title" class="brief-card__title">Operasyon Hazır</h2>
                         </div>
-                        <span id="brief-tag" class="ui-badge ui-badge--muted">SOLO</span>
+                        <span id="brief-tag" class="status-pill status-pill--accent">SOLO</span>
                     </div>
 
-                    <p id="brief-text" class="ui-card__text">Takım durumunu kontrol et ve operasyona hazırlan.</p>
-                    <div id="brief-badges" class="ui-chip-list"></div>
+                    <p id="brief-text" class="brief-card__text">Takım durumunu kontrol et ve operasyona hazırlan.</p>
+                    <div id="brief-badges" class="brief-card__chips"></div>
 
-                    <div id="brief-extraction" class="brief__extraction hidden">
-                        <div class="brief__extraction-row">
-                            <span class="ui-overline">Tahliye</span>
+                    <div id="brief-extraction" class="brief-card__extract hidden">
+                        <div class="brief-card__extract-head">
+                            <span class="ui-overline">Extraction</span>
                             <strong id="brief-extraction-phase">Hazır</strong>
                         </div>
-                        <p id="brief-extraction-objective" class="brief__extraction-text"></p>
-                        <div id="brief-extraction-countdown" class="brief__extraction-countdown">00:00</div>
+                        <p id="brief-extraction-objective" class="brief-card__extract-text"></p>
+                        <div id="brief-extraction-countdown" class="brief-card__countdown">00:00</div>
                     </div>
 
                     <div class="ui-progress ui-progress--large" aria-hidden="true">
@@ -56,25 +66,26 @@
                 </section>
             </aside>
 
-            <main class="app__main ui-surface">
-                <header class="app__header">
-                    <div>
-                        <p class="ui-overline">Kontrol Merkezi</p>
-                        <h2 id="screen-title" class="app__screen-title">Ana Menü</h2>
-                        <p id="screen-subtitle" class="app__screen-subtitle">Tüm operasyon akışlarını buradan yönet.</p>
+            <main class="app__workspace">
+                <header class="workspace-header">
+                    <div class="workspace-header__copy">
+                        <p class="ui-overline">Tactical operations interface</p>
+                        <h2 id="screen-title" class="workspace-header__title">Ana Menü</h2>
+                        <p id="screen-subtitle" class="workspace-header__subtitle">Tüm operasyon akışlarını buradan yönet.</p>
                     </div>
 
-                    <div class="app__header-actions">
-                        <div class="ui-breadcrumb">
-                            <span id="breadcrumb-text">Operasyon Menüsü / Ana Ekran</span>
+                    <div class="workspace-header__meta">
+                        <div class="command-breadcrumb">
+                            <span class="command-breadcrumb__label">Route</span>
+                            <strong id="breadcrumb-text">Operasyon Menüsü / Ana Ekran</strong>
                         </div>
                         <button id="close-btn" class="ui-button ui-button--ghost" type="button" data-ui-action="close-menu" aria-label="Menüyü kapat">
-                            ESC ile Kapat
+                            ESC / KAPAT
                         </button>
                     </div>
                 </header>
 
-                <section id="content" class="app__content" aria-live="polite"></section>
+                <section id="content" class="workspace-content" aria-live="polite"></section>
             </main>
         </div>
 
@@ -88,7 +99,7 @@
         </div>
 
         <div id="arc-progress-card" class="overlay-progress hidden" role="status" aria-live="polite">
-            <p class="ui-overline">İşlem</p>
+            <p class="ui-overline">Process</p>
             <h3 id="arc-progress-title" class="overlay-progress__title">Operasyon Sürüyor</h3>
             <p id="arc-progress-label" class="overlay-progress__label">Lütfen bekle...</p>
             <div class="ui-progress ui-progress--large">
@@ -101,7 +112,7 @@
         </div>
 
         <div id="arc-barricade-placement-card" class="overlay-placement hidden" role="status" aria-live="polite">
-            <p class="ui-overline">Yerleştirme</p>
+            <p class="ui-overline">Placement</p>
             <h3 id="arc-barricade-placement-title" class="overlay-placement__title">ARC Barricade Kit</h3>
             <div id="arc-barricade-placement-controls" class="overlay-placement__controls"></div>
         </div>
@@ -109,11 +120,11 @@
         <section id="arc-info-panel" class="overlay-panel hidden">
             <div class="overlay-panel__header">
                 <div>
-                    <p class="ui-overline">ARC Bilgi</p>
+                    <p class="ui-overline">ARC telemetry</p>
                     <h3 id="arc-info-title" class="overlay-panel__title">ARC Operasyonu</h3>
                     <p id="arc-info-subtitle" class="overlay-panel__subtitle">Saha telemetrisi</p>
                 </div>
-                <span class="ui-badge ui-badge--success">CANLI</span>
+                <span class="status-pill status-pill--success">CANLI</span>
             </div>
             <div id="arc-info-lines" class="overlay-panel__lines"></div>
             <div id="arc-info-prompt" class="overlay-panel__prompt hidden"></div>
@@ -122,10 +133,10 @@
         <section id="arc-team-panel" class="overlay-team hidden">
             <div class="overlay-team__header">
                 <div>
-                    <p class="ui-overline">ARC Takımı</p>
+                    <p class="ui-overline">ARC squad</p>
                     <h3 class="overlay-team__title">Bağlantı Durumu</h3>
                 </div>
-                <span id="arc-team-count" class="ui-badge ui-badge--muted">0 ÜYE</span>
+                <span id="arc-team-count" class="status-pill status-pill--muted">0 ÜYE</span>
             </div>
             <div id="arc-team-members" class="overlay-team__members"></div>
         </section>
