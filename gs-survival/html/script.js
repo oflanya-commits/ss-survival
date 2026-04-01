@@ -42,7 +42,8 @@ const STRINGS = {
         invite: 'Davet edilebilecek oyuncu bulunamadı.',
         lobbies: 'Şu anda görüntülenecek aktif lobi yok.',
         members: 'Takımda görüntülenecek oyuncu kalmadı.',
-        locker: 'Bu kategoride eşya bulunamadı.'
+        locker: 'Bu kategoride eşya bulunamadı.',
+        pending: 'Veri bekleniyor'
     },
     craftCategories: {
         all: 'Tümü',
@@ -65,6 +66,9 @@ const STRINGS = {
         self: { badge: 'SEN', text: 'Sen' },
         online: { badge: 'ONLINE', text: 'Takım Arkadaşı' },
         down: { badge: 'KESİK', text: 'Bağlantı Kesildi' }
+    },
+    stage: {
+        sectorLabel: 'Sektör'
     }
 };
 
@@ -1154,7 +1158,7 @@ function renderEmptyState(icon, text) {
     return '' +
         '<div class="empty-state">' +
             '<div class="empty-state__icon"><span class="empty-state__glyph">' + esc(icon) + '</span></div>' +
-            '<span class="empty-state__caption">Veri Bekleniyor</span>' +
+            '<span class="empty-state__caption">' + esc(STRINGS.empty.pending) + '</span>' +
             '<div class="empty-state__text">' + esc(text) + '</div>' +
         '</div>';
 }
@@ -1316,7 +1320,7 @@ function renderStageCard(stage, index, isArc) {
         '<' + tag + ' class="stage-card' + (locked ? ' is-locked' : '') + '"' + attrs + ' style="background:linear-gradient(135deg,' + palette[0] + ',' + palette[1] + ')">' +
             '<div class="stage-card__body">' +
                 '<div class="stage-card__header">' +
-                    '<span class="stage-card__index">Sektör ' + esc(index + 1) + '</span>' +
+                    '<span class="stage-card__index">' + esc(STRINGS.stage.sectorLabel) + ' ' + esc(index + 1) + '</span>' +
                     '<span class="ui-badge ' + (locked ? 'ui-badge--warning' : 'ui-badge--muted') + '">' + esc(locked ? STRINGS.badge.locked : 'Hazır') + '</span>' +
                     '<span class="ui-badge ui-badge--muted">' + esc(isArc ? 'ARC' : ('x' + multiplier)) + '</span>' +
                 '</div>' +
