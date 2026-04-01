@@ -324,9 +324,6 @@ document.addEventListener('drop', handleDrop);
 document.addEventListener('dragend', clearDropTargets);
 document.addEventListener('contextmenu', handleContextMenu);
 
-renderCurrentView();
-renderOverlays();
-
 function getDefaultArcHudState() {
     return {
         enabled: false,
@@ -587,6 +584,9 @@ const viewRenderers = {
     'create-lobby': renderCreateLobbyView,
     arcLockers: renderArcLockersView
 };
+
+renderCurrentView();
+renderOverlays();
 
 function buildDefaultSidebar() {
     return {
