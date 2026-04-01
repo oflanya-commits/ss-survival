@@ -151,7 +151,7 @@ local function StartModeOperation(src, invited, stageId, modeId)
             local cid = ServerHelpers.GetPlayerCitizenId(targetPlayer)
             if not cid then
                 print(("[gs-survival] Mode start skipped player %s because citizenid was unavailable."):format(tostring(playerId)))
-                ServerHelpers.NotifyPlayer(playerId, "Karakter verin hazır olmadığı için operasyon başlatılamadı.", "error")
+                ServerHelpers.NotifyPlayer(playerId, "Karakter veriniz hazır olmadığı için operasyon başlatılamadı.", "error")
             else
                 local stashId = GetBackupStashId(selectedModeId, cid)
 
@@ -1235,7 +1235,7 @@ local function RejoinArcDisconnectedPlayer(source, Player, disconnectState)
 
     local cid = ServerHelpers.GetPlayerCitizenId(Player)
     if not cid then
-        return false, "Karakter verin hazır değil."
+        return false, "Karakter veriniz hazır değil."
     end
 
     local bucketId = tonumber(disconnectState.bucketId)
