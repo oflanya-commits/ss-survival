@@ -99,7 +99,7 @@ const LOCKER_RULES = {
 
 const state = {
     currentView: 'menu',
-    menuState: {},
+    menuState: normalizeMenuState({}),
     upgrades: [],
     recipes: [],
     craftSource: {},
