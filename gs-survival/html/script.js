@@ -324,9 +324,6 @@ document.addEventListener('drop', handleDrop);
 document.addEventListener('dragend', clearDropTargets);
 document.addEventListener('contextmenu', handleContextMenu);
 
-renderCurrentView();
-renderOverlays();
-
 function getDefaultArcHudState() {
     return {
         enabled: false,
@@ -588,6 +585,9 @@ const viewRenderers = {
     arcLockers: renderArcLockersView
 };
 
+renderCurrentView();
+renderOverlays();
+
 function buildDefaultSidebar() {
     return {
         cards: [
@@ -651,6 +651,10 @@ function renderSidebar(config) {
 
 function renderMenuView() {
     const menu = state.menuState;
+    const playerName = safeString(menu.playerName, 'Operatör');
+    const currentModeLabel = safeString(menu.currentModeLabel, 'Hazırlık Modu');
+    const userLevel = safeNumber(menu.userLevel, 1);
+    const lobbyStatus = safeString(menu.lobbyStatus, 'Solo');
     const loadoutInfo = getLoadoutInfo(menu);
     const extraction = getExtractionInfo(menu);
     const teamCards = buildMenuTeamCards(menu);
@@ -665,8 +669,8 @@ function renderMenuView() {
                     '</div>' +
                     '<div class="card-grid">' +
                         renderActionCard('Klasik Operasyon', 'Stage seç, takımını hazırla ve dalga modunu başlat.', [
-                            'Seviye ' + menu.userLevel,
-                            menu.currentModeLabel
+                            'Seviye ' + userLevel,
+                            currentModeLabel
                         ], button('Stage Seç', 'open-stages', { modeId: 'classic' }, 'primary')) +
                         renderActionCard('Market', 'Saha güçlendirmelerini kredi ile satın al.', [
                             menu.upgradeLabel || '-',
@@ -683,8 +687,8 @@ function renderMenuView() {
                         '<div><p class="ui-overline">Özet</p><h3 class="ui-card__title">Operatör Durumu</h3><p class="ui-card__text">Lobi, seviye ve tahliye bilgisinin kısa özeti.</p></div>' +
                     '</div>' +
                     '<div class="status-grid">' +
-                        renderStat('Operatör', menu.playerName, clamp(36 + menu.playerName.length * 4, 20, 100)) +
-                        renderStat('Lobi', menu.lobbyStatus, menu.hasLobby ? 84 : 32) +
+                        renderStat('Operatör', playerName, clamp(36 + playerName.length * 4, 20, 100)) +
+                        renderStat('Lobi', lobbyStatus, menu.hasLobby ? 84 : 32) +
                         renderStat('ARC Çanta', loadoutInfo.badge, loadoutInfo.percent) +
                         renderStat('Tahliye', extraction.phase || 'Pasif', extraction.percent) +
                     '</div>' +
@@ -699,12 +703,12 @@ function renderMenuView() {
                             menu.allowPersonalInventory ? 'TAB Açık' : 'TAB Kapalı'
                         ], button('ARC Baskınını Başlat', 'start-arc', {}, 'primary')) +
                         renderActionCard('Baskın Çantası', 'Girişte üstüne verilecek ekipmanı yönet.', [
-                            'Stack: ' + menu.arcLoadoutStacks,
-                            'Eşya: ' + menu.arcLoadoutItems
+                            'Stack: ' + safeNumber(menu.arcLoadoutStacks, 0),
+                            'Eşya: ' + safeNumber(menu.arcLoadoutItems, 0)
                         ], button('Çantayı Aç', 'open-loadout-stash', {}, 'ghost')) +
                         renderActionCard('ARC Atölyesi', 'Kalıcı depodaki malzemeleri baskın ekipmanına dönüştür.', [
-                            'Stack: ' + menu.arcMainStacks,
-                            'Eşya: ' + menu.arcMainItems
+                            'Stack: ' + safeNumber(menu.arcMainStacks, 0),
+                            'Eşya: ' + safeNumber(menu.arcMainItems, 0)
                         ], button('ARC Craft Aç', 'open-arc-craft', { source: 'arc_main' }, 'ghost')) +
                         renderActionCard('Kalıcı Depo', 'Kalıcı loot akışını ve baskın hazırlığını düzenle.', [
                             'Main Depo',
@@ -727,18 +731,18 @@ function renderMenuView() {
         breadcrumb: STRINGS.app.breadcrumb,
         sidebar: {
             cards: [
-                { label: 'Seviye', value: 'Lv.' + menu.userLevel, percent: clamp(28 + menu.userLevel * 6, 18, 100) },
+                { label: 'Seviye', value: 'Lv.' + userLevel, percent: clamp(28 + userLevel * 6, 18, 100) },
                 { label: 'Takım', value: menu.hasLobby ? 'Bağlı' : 'Solo', percent: menu.hasLobby ? 84 : 30 },
                 { label: 'ARC', value: loadoutInfo.shortLabel, percent: loadoutInfo.percent },
                 { label: 'Tahliye', value: extraction.phase || 'Pasif', percent: extraction.percent }
             ],
             title: menu.currentModeId === 'arc_pvp' ? 'ARC Baskın Hazırlığı' : 'Operasyon Hazır',
             text: menu.currentModeId === 'arc_pvp'
-                ? menu.currentModeLabel + ' seçili. ' + loadoutInfo.detail
-                : menu.currentModeLabel + ' seçili. Takımını düzenle ve operasyona hazırlan.',
+                ? currentModeLabel + ' seçili. ' + loadoutInfo.detail
+                : currentModeLabel + ' seçili. Takımını düzenle ve operasyona hazırlan.',
             tag: menu.isLeader ? STRINGS.badge.leader : (menu.isMember ? STRINGS.badge.team : STRINGS.badge.solo),
             badges: [
-                { label: menu.lobbyStatus },
+                { label: lobbyStatus },
                 { label: loadoutInfo.badge },
                 { label: menu.disconnectPolicyLabel || 'Bağlantı Politikası' }
             ],
@@ -1130,7 +1134,7 @@ function renderStat(label, value, percent) {
             '<span class="status-grid__label">' + esc(label) + '</span>' +
             '<strong class="status-grid__value">' + esc(value) + '</strong>' +
             renderMeter(percent) +
-            '<span class="metric-card__percent">Durum ' + esc(clamp(safeNumber(percent, 0), 0, 100)) + '%</span>' +
+            '<span class="metric-card__percent">Oran ' + esc(clamp(safeNumber(percent, 0), 0, 100)) + '%</span>' +
         '</div>';
 }
 
