@@ -324,9 +324,6 @@ document.addEventListener('drop', handleDrop);
 document.addEventListener('dragend', clearDropTargets);
 document.addEventListener('contextmenu', handleContextMenu);
 
-renderCurrentView();
-renderOverlays();
-
 function getDefaultArcHudState() {
     return {
         enabled: false,
@@ -2158,3 +2155,6 @@ function clearArcHudState() {
     ui.notifyStack.innerHTML = '';
     renderOverlays();
 }
+
+renderCurrentView();
+renderOverlays();
