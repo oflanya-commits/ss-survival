@@ -18,11 +18,13 @@
                 <div class="sidebar__brand">
                     <div>
                         <p class="ui-overline">GS Survival</p>
-                        <h1 class="sidebar__title">Operasyon Arayüzü</h1>
+                        <h1 class="sidebar__title">Tactical Lobby</h1>
+                        <p class="sidebar__subtitle">Deployment control and squad routing</p>
                     </div>
-                    <span class="ui-badge ui-badge--primary">Drop-in UI</span>
+                    <span class="ui-badge ui-badge--primary">LIVE</span>
                 </div>
 
+                <nav id="sidebar-nav" class="sidebar__nav" aria-label="Lobby navigation"></nav>
                 <div id="summary-cards" class="sidebar__metrics"></div>
 
                 <section class="sidebar__brief ui-card ui-card--highlight">
@@ -62,9 +64,11 @@
                         <p class="ui-overline">Kontrol Merkezi</p>
                         <h2 id="screen-title" class="app__screen-title">Ana Menü</h2>
                         <p id="screen-subtitle" class="app__screen-subtitle">Tüm operasyon akışlarını buradan yönet.</p>
+                        <div id="header-status" class="app__header-status"></div>
                     </div>
 
                     <div class="app__header-actions">
+                        <div id="header-utilities" class="app__header-utilities"></div>
                         <div class="ui-breadcrumb">
                             <span id="breadcrumb-text">Operasyon Menüsü / Ana Ekran</span>
                         </div>

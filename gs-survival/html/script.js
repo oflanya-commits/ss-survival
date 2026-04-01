@@ -131,6 +131,7 @@ const ui = {
     breadcrumb: document.getElementById('breadcrumb-text'),
     screenTitle: document.getElementById('screen-title'),
     screenSubtitle: document.getElementById('screen-subtitle'),
+    sidebarNav: document.getElementById('sidebar-nav'),
     summaryCards: document.getElementById('summary-cards'),
     briefTitle: document.getElementById('brief-title'),
     briefText: document.getElementById('brief-text'),
@@ -142,6 +143,8 @@ const ui = {
     briefExtractionCountdown: document.getElementById('brief-extraction-countdown'),
     briefProgressFill: document.getElementById('brief-progress-fill'),
     briefPrimaryAction: document.getElementById('brief-primary-action'),
+    headerStatus: document.getElementById('header-status'),
+    headerUtilities: document.getElementById('header-utilities'),
     overlayRoot: document.getElementById('arc-overlay-root'),
     banner: document.getElementById('arc-result-banner'),
     bannerLabel: document.getElementById('arc-result-banner-label'),
@@ -568,6 +571,9 @@ function renderCurrentView() {
     ui.screenTitle.textContent = view.title || STRINGS.app.title;
     ui.screenSubtitle.textContent = view.subtitle || STRINGS.app.subtitle;
     ui.breadcrumb.textContent = view.breadcrumb || STRINGS.app.breadcrumb;
+    renderChrome(Object.assign({}, buildChromeConfig(), view.chrome || {}, {
+        nav: (view.sidebar && view.sidebar.nav) || (view.chrome && view.chrome.nav) || buildNavItems()
+    }));
     renderSidebar(view.sidebar || buildDefaultSidebar());
     ui.content.innerHTML = view.html;
     bindImageFallbacks(ui.content);
@@ -589,22 +595,131 @@ const viewRenderers = {
 };
 
 function buildDefaultSidebar() {
+    const menu = state.menuState || {};
+    const loadout = getLoadoutInfo(menu);
     return {
+        nav: buildNavItems(),
         cards: [
-            { label: 'Karakter', value: 'Hazır', percent: 84 },
-            { label: 'Takım', value: 'Solo', percent: 34 },
-            { label: 'Bağlantı', value: 'Stabil', percent: 72 },
-            { label: 'Hazırlık', value: 'Bekleniyor', percent: 28 }
+            { label: 'Operator', value: safeString(menu.playerName, 'Standby'), percent: clamp(30 + safeString(menu.playerName).length * 3, 20, 100) },
+            { label: 'Squad', value: safeString(menu.lobbyStatus, 'Solo'), percent: menu.hasLobby ? 78 : 28 },
+            { label: 'Queue', value: menu.isReady ? 'Ready' : 'Idle', percent: menu.isReady ? 88 : 26 },
+            { label: 'Loadout', value: loadout.shortLabel || 'Idle', percent: clamp(safeNumber(loadout.percent, 34), 0, 100) }
         ],
-        title: 'Operasyon Hazır',
-        text: 'Takım durumunu kontrol et ve operasyona hazırlan.',
-        tag: STRINGS.badge.solo,
+        title: 'Deployment Standby',
+        text: 'Frame the operator, review the squad, and launch the next run.',
+        tag: 'STANDBY',
         badges: [],
         progress: 24,
         action: 'noop',
-        actionLabel: 'Bekleniyor',
+        actionLabel: 'Offline',
         actionDisabled: true
     };
+}
+
+function buildNavItems() {
+    const menu = state.menuState || {};
+    const hasLobby = menu.hasLobby === true;
+    const canInvite = menu.isLeader === true;
+    return [
+        {
+            label: 'Lobby',
+            caption: 'Home',
+            action: 'go-back',
+            active: state.currentView === 'menu'
+        },
+        {
+            label: 'Deploy',
+            caption: 'Matchmaking',
+            action: 'open-stages',
+            payload: { modeId: menu.currentModeId || 'classic' },
+            active: state.currentView === 'stages'
+        },
+        {
+            label: 'Squad',
+            caption: 'Members',
+            action: 'open-members',
+            disabled: !hasLobby,
+            active: state.currentView === 'members'
+        },
+        {
+            label: canInvite ? 'Invite' : 'Social',
+            caption: canInvite ? 'Nearby' : 'Lobbies',
+            action: canInvite ? 'open-invite' : 'open-active-lobbies',
+            active: state.currentView === 'invite' || state.currentView === 'active-lobbies'
+        },
+        {
+            label: 'Loadout',
+            caption: 'Prep',
+            action: 'open-loadout-stash',
+            active: state.currentView === 'arcLockers'
+        },
+        {
+            label: 'Market',
+            caption: 'Supply',
+            action: 'open-market',
+            active: state.currentView === 'market'
+        }
+    ];
+}
+
+function buildChromeConfig() {
+    const menu = state.menuState || {};
+    const loadout = getLoadoutInfo(menu);
+    const viewName = getViewLabel(state.currentView);
+    return {
+        status: [
+            { label: 'Operator', value: safeString(menu.playerName, 'Unknown') },
+            { label: 'Mode', value: safeString(menu.currentModeLabel, 'Classic Survival') },
+            { label: 'View', value: viewName }
+        ],
+        utilities: [
+            { label: 'LVL', value: formatRankLevel(menu.userLevel) },
+            { label: 'SQUAD', value: safeString(menu.lobbyStatus, 'Solo') },
+            { label: 'LOADOUT', value: loadout.shortLabel || 'Idle' },
+            { label: 'UPGRADE', value: safeString(menu.upgradeLabel, '-') }
+        ]
+    };
+}
+
+function formatRankLevel(level) {
+    const normalized = Math.max(0, Math.floor(safeNumber(level, 1)));
+    return String(normalized).padStart(2, '0');
+}
+
+function getViewLabel(currentView) {
+    const labels = {
+        menu: 'Main Lobby',
+        market: 'Market',
+        craft: 'Workshop',
+        stages: 'Deployment',
+        invite: 'Invites',
+        'active-lobbies': 'Social',
+        members: 'Squad',
+        'invite-received': 'Invite',
+        'arc-reconnect': 'Reconnect',
+        'create-lobby': 'Create Lobby',
+        arcLockers: 'Loadout'
+    };
+    return labels[currentView] || 'Lobby';
+}
+
+function renderChrome(config) {
+    const chrome = config || buildChromeConfig();
+    ui.sidebarNav.innerHTML = safeArray((chrome && chrome.nav) || buildNavItems()).map(function (item) {
+        const className = 'sidebar-nav__item' + (item.active ? ' is-active' : '') + (item.disabled ? ' is-disabled' : '');
+        return '<button class="' + className + '" type="button" data-ui-action="' + escAttr(item.action || 'noop') + '" data-ui-payload="' + jsonAttr(item.payload || {}) + '"' + (item.disabled ? ' disabled' : '') + '>' +
+            '<span class="sidebar-nav__caption">' + esc(item.caption || '') + '</span>' +
+            '<strong class="sidebar-nav__label">' + esc(item.label || '') + '</strong>' +
+        '</button>';
+    }).join('');
+
+    ui.headerStatus.innerHTML = safeArray(chrome.status).map(function (item) {
+        return '<div class="header-pill"><span class="header-pill__label">' + esc(item.label || '') + '</span><strong class="header-pill__value">' + esc(item.value || '') + '</strong></div>';
+    }).join('');
+
+    ui.headerUtilities.innerHTML = safeArray(chrome.utilities).map(function (item) {
+        return '<div class="utility-pill"><span class="utility-pill__label">' + esc(item.label || '') + '</span><strong class="utility-pill__value">' + esc(item.value || '') + '</strong></div>';
+    }).join('');
 }
 
 function renderSidebar(config) {
@@ -650,100 +765,154 @@ function renderMenuView() {
     const menu = state.menuState;
     const loadoutInfo = getLoadoutInfo(menu);
     const extraction = getExtractionInfo(menu);
-    const teamCards = buildMenuTeamCards(menu);
+    const stageAction = menu.isLeader || !menu.hasLobby
+        ? button('Start Matchmaking', 'open-stages', { modeId: menu.currentModeId || 'classic' }, 'primary')
+        : button(menu.isReady ? 'Ready Locked In' : 'Toggle Ready', 'toggle-ready', {}, menu.isReady ? 'ghost' : 'primary');
+    const squadAction = menu.isLeader
+        ? button('Invite Players', 'open-invite', {}, 'ghost')
+        : (menu.hasLobby ? button('View Squad', 'open-members', {}, 'ghost') : button('Create Lobby', 'show-create-lobby', {}, 'ghost'));
+    const supportAction = menu.hasLobby
+        ? button('Lobby Directory', 'open-active-lobbies', {}, 'ghost')
+        : button('Browse Lobbies', 'open-active-lobbies', {}, 'ghost');
+    const queueState = menu.isLeader ? 'Leader Control' : (menu.isMember ? (menu.isReady ? 'Ready to Deploy' : 'Awaiting Ready') : 'Solo Routing');
+    const squadLine = menu.hasLobby ? safeString(menu.lobbyStatus, 'Squad Active') : 'No active squad link';
+    const extractionLine = extraction.phase ? extraction.phase + ' · ' + extraction.countdown : 'Extraction network idle';
+    const heroChips = [
+        menu.currentModeLabel || 'Classic Survival',
+        menu.hasLobby ? 'Squad Linked' : 'Solo Queue',
+        loadoutInfo.badge || 'Loadout Pending'
+    ];
 
     const html = '' +
-        '<div class="view-stack">' +
-            renderViewHeader('Operasyon Kontrol Merkezi', 'Menü, lobi, market, stage ve ARC hazırlık akışları yeni component diliyle yeniden düzenlendi.') +
-            '<div class="view-grid">' +
-                '<section class="panel-section span-7">' +
-                    '<div class="panel-section__header">' +
-                        '<div><p class="ui-overline">Hazırlık</p><h3 class="ui-card__title">Operasyon Akışları</h3><p class="ui-card__text">Hayatta kalma ve ARC akışlarını aynı merkezden yönet.</p></div>' +
+        '<div class="lobby-screen">' +
+            '<section class="hero-stage">' +
+                '<div class="hero-stage__backdrop"></div>' +
+                '<div class="hero-stage__intel hero-stage__intel--left">' +
+                    '<span class="ui-overline">Operator</span>' +
+                    '<strong>' + esc(menu.playerName || 'Unknown Operator') + '</strong>' +
+                    '<p>' + esc(squadLine) + '</p>' +
+                '</div>' +
+                '<div class="hero-stage__intel hero-stage__intel--right">' +
+                    '<span class="ui-overline">Deployment</span>' +
+                    '<strong>Level ' + esc(safeNumber(menu.userLevel, 1)) + '</strong>' +
+                    '<p>' + esc(menu.currentModeLabel || 'Classic Survival') + '</p>' +
+                '</div>' +
+                '<div class="hero-stage__content">' +
+                    '<div class="hero-stage__eyebrow">Premium Survival Lobby</div>' +
+                    '<h2 class="hero-stage__title">' + esc(menu.playerName || 'Unknown Operator') + '</h2>' +
+                    '<p class="hero-stage__subtitle">A cinematic tactical hub built around the live operator slot, squad readiness, and fast deployment actions.</p>' +
+                    '<div class="hero-stage__chips">' + heroChips.map(function (chip) {
+                        return '<span class="ui-chip">' + esc(chip) + '</span>';
+                    }).join('') + '</div>' +
+                '</div>' +
+                '<div class="operator-showcase" aria-hidden="true">' +
+                    '<div class="operator-showcase__halo"></div>' +
+                    '<div class="operator-showcase__model">' +
+                        '<span class="operator-showcase__head"></span>' +
+                        '<span class="operator-showcase__torso"></span>' +
+                        '<span class="operator-showcase__arm operator-showcase__arm--left"></span>' +
+                        '<span class="operator-showcase__arm operator-showcase__arm--right"></span>' +
+                        '<span class="operator-showcase__leg operator-showcase__leg--left"></span>' +
+                        '<span class="operator-showcase__leg operator-showcase__leg--right"></span>' +
+                        '<span class="operator-showcase__rifle"></span>' +
                     '</div>' +
-                    '<div class="card-grid">' +
-                        renderActionCard('Klasik Operasyon', 'Stage seç, takımını hazırla ve dalga modunu başlat.', [
-                            'Seviye ' + menu.userLevel,
-                            menu.currentModeLabel
-                        ], button('Stage Seç', 'open-stages', { modeId: 'classic' }, 'primary')) +
-                        renderActionCard('Market', 'Saha güçlendirmelerini kredi ile satın al.', [
-                            menu.upgradeLabel || '-',
-                            'Hazırlık'
-                        ], button('Marketi Aç', 'open-market', {}, 'ghost')) +
-                        renderActionCard('Atölye', 'Topladığın malzemelerle ekipman üret.', [
-                            state.craftSource.sourceLabel || 'Standart Atölye',
-                            'Üretim'
-                        ], button('Atölyeyi Aç', 'open-craft', {}, 'ghost')) +
+                    '<div class="operator-showcase__platform"></div>' +
+                '</div>' +
+                '<div class="hero-stage__footer">' +
+                    '<div class="hero-stage__footer-card">' + renderMetaRow('Queue State', queueState) + renderMetaRow('Extraction', extractionLine) + '</div>' +
+                    '<div class="hero-stage__footer-card">' + renderMetaRow('Loadout', loadoutInfo.badge) + renderMetaRow('Policy', menu.disconnectPolicyLabel || 'Standard Ruleset') + '</div>' +
+                '</div>' +
+            '</section>' +
+            '<aside class="mission-rail">' +
+                '<article class="mission-card">' +
+                    '<div class="mission-card__header"><div><p class="ui-overline">Mission</p><h3 class="mission-card__title">Operation Brief</h3></div><span class="ui-badge ui-badge--primary">' + esc(menu.currentModeId || 'classic') + '</span></div>' +
+                    '<p class="ui-card__text">Current deployment lane, extraction timing, and tactical posture for the next run.</p>' +
+                    '<div class="mission-card__rows">' +
+                        renderMetaRow('Mode', menu.currentModeLabel || 'Classic Survival') +
+                        renderMetaRow('Lobby', menu.lobbyStatus || 'Solo') +
+                        renderMetaRow('Extraction', extraction.phase || 'Offline') +
+                        renderMetaRow('Countdown', extraction.countdown || 'READY') +
                     '</div>' +
-                '</section>' +
-                '<section class="panel-section span-5">' +
-                    '<div class="panel-section__header">' +
-                        '<div><p class="ui-overline">Özet</p><h3 class="ui-card__title">Operatör Durumu</h3><p class="ui-card__text">Lobi, seviye ve tahliye bilgisinin kısa özeti.</p></div>' +
+                '</article>' +
+                '<article class="mission-card">' +
+                    '<div class="mission-card__header"><div><p class="ui-overline">Squad</p><h3 class="mission-card__title">Fireteam Network</h3></div><span class="ui-badge ' + (menu.hasLobby ? 'ui-badge--success' : 'ui-badge--warning') + '">' + esc(menu.hasLobby ? 'LINKED' : 'SOLO') + '</span></div>' +
+                    '<p class="ui-card__text">Manage invites, lobby members, and readiness without covering the operator stage.</p>' +
+                    '<div class="mission-card__rows">' +
+                        renderMetaRow('Status', squadLine) +
+                        renderMetaRow('Leader', menu.isLeader ? 'You' : 'Remote') +
+                        renderMetaRow('Ready', menu.isReady ? 'Confirmed' : 'Pending') +
+                        renderMetaRow('Routing', menu.hasLobby ? 'Squad Queue' : 'Open Matchmaking') +
                     '</div>' +
-                    '<div class="status-grid">' +
-                        renderStat('Operatör', menu.playerName, clamp(36 + menu.playerName.length * 4, 20, 100)) +
-                        renderStat('Lobi', menu.lobbyStatus, menu.hasLobby ? 84 : 32) +
-                        renderStat('ARC Çanta', loadoutInfo.badge, loadoutInfo.percent) +
-                        renderStat('Tahliye', extraction.phase || 'Pasif', extraction.percent) +
+                    '<div class="mission-card__actions">' + squadAction + supportAction + '</div>' +
+                '</article>' +
+                '<article class="mission-card">' +
+                    '<div class="mission-card__header"><div><p class="ui-overline">Progress</p><h3 class="mission-card__title">Prep & Event Feed</h3></div><span class="ui-badge ui-badge--muted">AAA UI</span></div>' +
+                    '<p class="ui-card__text">Loadout prep, stash access, and current upgrade path stay visible in the tactical rail.</p>' +
+                    '<div class="mission-card__rows">' +
+                        renderMetaRow('Upgrade', menu.upgradeLabel || '-') +
+                        renderMetaRow('Main Stash', safeNumber(menu.arcMainStacks, 0) + ' stacks / ' + safeNumber(menu.arcMainItems, 0) + ' items') +
+                        renderMetaRow('Loadout Bag', safeNumber(menu.arcLoadoutStacks, 0) + ' stacks / ' + safeNumber(menu.arcLoadoutItems, 0) + ' items') +
+                        renderMetaRow('Inventory', menu.allowPersonalInventory ? 'Enabled' : 'Restricted') +
                     '</div>' +
-                '</section>' +
-                '<section class="panel-section span-12">' +
-                    '<div class="panel-section__header">' +
-                        '<div><p class="ui-overline">ARC</p><h3 class="ui-card__title">Baskın Hazırlığı</h3><p class="ui-card__text">Loadout, depo ve craft akışlarını kayıpsız sözleşmeyle yönet.</p></div>' +
+                '</article>' +
+            '</aside>' +
+            '<section class="command-dock">' +
+                '<div class="command-dock__nav">' +
+                    renderLobbyDockButton('Loadout', 'open-loadout-stash', {}, 'Bag & raid gear') +
+                    renderLobbyDockButton('Operators', menu.hasLobby ? 'open-members' : 'show-create-lobby', {}, 'Squad roster') +
+                    renderLobbyDockButton('Inventory', 'open-main-stash', {}, 'Persistent stash') +
+                    renderLobbyDockButton('Customization', 'open-craft', {}, 'Workshop access') +
+                    renderLobbyDockButton('Missions', 'open-stages', { modeId: menu.currentModeId || 'classic' }, 'Stage select') +
+                '</div>' +
+                '<div class="command-dock__actions">' +
+                    '<div class="command-dock__action-copy"><span class="ui-overline">Bottom Right Actions</span><h3 class="mission-card__title">Matchmaking Control</h3><p class="ui-card__text">Keep the primary queue CTA anchored at the lower right for quick deployment.</p></div>' +
+                    '<div class="command-dock__buttons">' +
+                        stageAction +
+                        button('Quick ARC Queue', 'start-arc', {}, 'ghost') +
+                        button(menu.isLeader ? 'Open Invite Panel' : 'Browse Lobbies', menu.isLeader ? 'open-invite' : 'open-active-lobbies', {}, 'ghost') +
                     '</div>' +
-                    '<div class="card-grid">' +
-                        renderActionCard('ARC Baskını', 'Takımın ve loadout çantan hazırsa baskını başlat.', [
-                            loadoutInfo.badge,
-                            menu.allowPersonalInventory ? 'TAB Açık' : 'TAB Kapalı'
-                        ], button('ARC Baskınını Başlat', 'start-arc', {}, 'primary')) +
-                        renderActionCard('Baskın Çantası', 'Girişte üstüne verilecek ekipmanı yönet.', [
-                            'Stack: ' + menu.arcLoadoutStacks,
-                            'Eşya: ' + menu.arcLoadoutItems
-                        ], button('Çantayı Aç', 'open-loadout-stash', {}, 'ghost')) +
-                        renderActionCard('ARC Atölyesi', 'Kalıcı depodaki malzemeleri baskın ekipmanına dönüştür.', [
-                            'Stack: ' + menu.arcMainStacks,
-                            'Eşya: ' + menu.arcMainItems
-                        ], button('ARC Craft Aç', 'open-arc-craft', { source: 'arc_main' }, 'ghost')) +
-                        renderActionCard('Kalıcı Depo', 'Kalıcı loot akışını ve baskın hazırlığını düzenle.', [
-                            'Main Depo',
-                            'Sabit'
-                        ], button('Depoyu Aç', 'open-main-stash', {}, 'ghost')) +
-                    '</div>' +
-                '</section>' +
-                '<section class="panel-section span-12">' +
-                    '<div class="panel-section__header">' +
-                        '<div><p class="ui-overline">Takım</p><h3 class="ui-card__title">Lobi Yönetimi</h3><p class="ui-card__text">Kur, davet et, listele, ayrıl veya dağıt.</p></div>' +
-                    '</div>' +
-                    '<div class="card-grid">' + teamCards + '</div>' +
-                '</section>' +
+                '</div>' +
             '</div>' +
         '</div>';
 
     return {
         title: 'Ana Menü',
-        subtitle: 'Tüm hazırlık akışları tutarlı kart hiyerarşisiyle yenilendi.',
+        subtitle: 'Premium tactical lobby shell with the operator centered and framed by multiplayer controls.',
         breadcrumb: STRINGS.app.breadcrumb,
         sidebar: {
+            nav: buildNavItems(),
             cards: [
-                { label: 'Seviye', value: 'Lv.' + menu.userLevel, percent: clamp(28 + menu.userLevel * 6, 18, 100) },
-                { label: 'Takım', value: menu.hasLobby ? 'Bağlı' : 'Solo', percent: menu.hasLobby ? 84 : 30 },
-                { label: 'ARC', value: loadoutInfo.shortLabel, percent: loadoutInfo.percent },
-                { label: 'Tahliye', value: extraction.phase || 'Pasif', percent: extraction.percent }
+                { label: 'Operator', value: menu.playerName || '-', percent: clamp(36 + safeString(menu.playerName).length * 3, 24, 100) },
+                { label: 'Squad', value: menu.hasLobby ? 'Linked' : 'Solo', percent: menu.hasLobby ? 84 : 30 },
+                { label: 'Deployment', value: 'LVL ' + menu.userLevel, percent: clamp(28 + menu.userLevel * 6, 18, 100) },
+                { label: 'Loadout', value: loadoutInfo.shortLabel, percent: loadoutInfo.percent }
             ],
-            title: menu.currentModeId === 'arc_pvp' ? 'ARC Baskın Hazırlığı' : 'Operasyon Hazır',
-            text: menu.currentModeId === 'arc_pvp'
-                ? menu.currentModeLabel + ' seçili. ' + loadoutInfo.detail
-                : menu.currentModeLabel + ' seçili. Takımını düzenle ve operasyona hazırlan.',
-            tag: menu.isLeader ? STRINGS.badge.leader : (menu.isMember ? STRINGS.badge.team : STRINGS.badge.solo),
+            title: menu.currentModeId === 'arc_pvp' ? 'Raid Queue Active' : 'Tactical Lobby',
+            text: menu.currentModeLabel + ' selected. Keep the squad framed around the operator and launch when the team is ready.',
+            tag: menu.isLeader ? 'LEADER' : (menu.isMember ? 'SQUAD' : 'SOLO'),
             badges: [
                 { label: menu.lobbyStatus },
                 { label: loadoutInfo.badge },
-                { label: menu.disconnectPolicyLabel || 'Bağlantı Politikası' }
+                { label: extraction.phase || 'Standby' }
             ],
-            progress: menu.hasLobby ? 70 : 42,
-            action: menu.isMember ? 'toggle-ready' : 'noop',
-            actionLabel: menu.isMember ? (menu.isReady ? 'Hazır Değil Yap' : 'Hazır Ol') : (menu.isLeader ? 'Lider Kontrolü' : 'Solo Mod'),
-            actionDisabled: !menu.isMember,
+            progress: menu.hasLobby ? 76 : 44,
+            action: menu.isLeader ? 'open-invite' : (menu.isMember ? 'toggle-ready' : 'show-create-lobby'),
+            actionLabel: menu.isLeader ? 'Open Invite Relay' : (menu.isMember ? (menu.isReady ? 'Cancel Ready' : 'Ready Up') : 'Create Lobby'),
+            actionDisabled: false,
             extraction: extraction.phase ? extraction : null
+        },
+        chrome: {
+            status: [
+                { label: 'Operator', value: menu.playerName || 'Unknown' },
+                { label: 'Squad', value: menu.lobbyStatus || 'Solo' },
+                { label: 'Queue', value: queueState }
+            ],
+            utilities: [
+                { label: 'LVL', value: formatRankLevel(menu.userLevel) },
+                { label: 'MODE', value: safeString(menu.currentModeId, 'classic').toUpperCase() },
+                { label: 'ARC', value: loadoutInfo.shortLabel || 'Idle' },
+                { label: 'ALERT', value: extraction.phase ? '01' : '00' }
+            ]
         },
         html: html
     };
@@ -1155,6 +1324,14 @@ function button(label, action, payload, variant, disabled) {
     else className += ' ui-button--ghost';
 
     return '<button class="' + className + '" type="button" data-ui-action="' + escAttr(action) + '" data-ui-payload="' + jsonAttr(payload) + '"' + (disabled ? ' disabled' : '') + '>' + esc(label) + '</button>';
+}
+
+function renderLobbyDockButton(label, action, payload, caption) {
+    return '' +
+        '<button class="dock-button" type="button" data-ui-action="' + escAttr(action) + '" data-ui-payload="' + jsonAttr(payload || {}) + '">' +
+            '<span class="dock-button__label">' + esc(label) + '</span>' +
+            '<span class="dock-button__caption">' + esc(caption || '') + '</span>' +
+        '</button>';
 }
 
 function getLoadoutInfo(menu) {
