@@ -42,7 +42,8 @@ const STRINGS = {
         invite: 'Davet edilebilecek oyuncu bulunamadı.',
         lobbies: 'Şu anda görüntülenecek aktif lobi yok.',
         members: 'Takımda görüntülenecek oyuncu kalmadı.',
-        locker: 'Bu kategoride eşya bulunamadı.'
+        locker: 'Bu kategoride eşya bulunamadı.',
+        pending: 'Veri bekleniyor'
     },
     craftCategories: {
         all: 'Tümü',
@@ -65,6 +66,9 @@ const STRINGS = {
         self: { badge: 'SEN', text: 'Sen' },
         online: { badge: 'ONLINE', text: 'Takım Arkadaşı' },
         down: { badge: 'KESİK', text: 'Bağlantı Kesildi' }
+    },
+    stage: {
+        sectorLabel: 'Sektör'
     }
 };
 
@@ -323,9 +327,6 @@ document.addEventListener('dragleave', handleDragLeave);
 document.addEventListener('drop', handleDrop);
 document.addEventListener('dragend', clearDropTargets);
 document.addEventListener('contextmenu', handleContextMenu);
-
-renderCurrentView();
-renderOverlays();
 
 function getDefaultArcHudState() {
     return {
@@ -588,6 +589,9 @@ const viewRenderers = {
     arcLockers: renderArcLockersView
 };
 
+renderCurrentView();
+renderOverlays();
+
 function buildDefaultSidebar() {
     return {
         cards: [
@@ -617,7 +621,10 @@ function renderSidebar(config) {
                     '<span class="metric-card__label">' + esc(card.label || '-') + '</span>' +
                     '<span class="metric-card__value">' + esc(card.value || '-') + '</span>' +
                 '</div>' +
-                '<div class="ui-progress"><span class="ui-progress__fill" style="width:' + width + '%"></span></div>' +
+                '<div class="metric-card__bottom">' +
+                    '<div class="ui-progress"><span class="ui-progress__fill" style="width:' + width + '%"></span></div>' +
+                    '<span class="metric-card__percent">' + esc(width) + '%</span>' +
+                '</div>' +
             '</article>';
     }).join('');
 
@@ -648,6 +655,10 @@ function renderSidebar(config) {
 
 function renderMenuView() {
     const menu = state.menuState;
+    const playerName = safeString(menu.playerName, 'Operatör');
+    const currentModeLabel = safeString(menu.currentModeLabel, 'Hazırlık Modu');
+    const userLevel = safeNumber(menu.userLevel, 1);
+    const lobbyStatus = safeString(menu.lobbyStatus, 'Solo');
     const loadoutInfo = getLoadoutInfo(menu);
     const extraction = getExtractionInfo(menu);
     const teamCards = buildMenuTeamCards(menu);
@@ -662,8 +673,8 @@ function renderMenuView() {
                     '</div>' +
                     '<div class="card-grid">' +
                         renderActionCard('Klasik Operasyon', 'Stage seç, takımını hazırla ve dalga modunu başlat.', [
-                            'Seviye ' + menu.userLevel,
-                            menu.currentModeLabel
+                            'Seviye ' + userLevel,
+                            currentModeLabel
                         ], button('Stage Seç', 'open-stages', { modeId: 'classic' }, 'primary')) +
                         renderActionCard('Market', 'Saha güçlendirmelerini kredi ile satın al.', [
                             menu.upgradeLabel || '-',
@@ -680,8 +691,8 @@ function renderMenuView() {
                         '<div><p class="ui-overline">Özet</p><h3 class="ui-card__title">Operatör Durumu</h3><p class="ui-card__text">Lobi, seviye ve tahliye bilgisinin kısa özeti.</p></div>' +
                     '</div>' +
                     '<div class="status-grid">' +
-                        renderStat('Operatör', menu.playerName, clamp(36 + menu.playerName.length * 4, 20, 100)) +
-                        renderStat('Lobi', menu.lobbyStatus, menu.hasLobby ? 84 : 32) +
+                        renderStat('Operatör', playerName, clamp(36 + playerName.length * 4, 20, 100)) +
+                        renderStat('Lobi', lobbyStatus, menu.hasLobby ? 84 : 32) +
                         renderStat('ARC Çanta', loadoutInfo.badge, loadoutInfo.percent) +
                         renderStat('Tahliye', extraction.phase || 'Pasif', extraction.percent) +
                     '</div>' +
@@ -696,12 +707,12 @@ function renderMenuView() {
                             menu.allowPersonalInventory ? 'TAB Açık' : 'TAB Kapalı'
                         ], button('ARC Baskınını Başlat', 'start-arc', {}, 'primary')) +
                         renderActionCard('Baskın Çantası', 'Girişte üstüne verilecek ekipmanı yönet.', [
-                            'Stack: ' + menu.arcLoadoutStacks,
-                            'Eşya: ' + menu.arcLoadoutItems
+                            'Stack: ' + safeNumber(menu.arcLoadoutStacks, 0),
+                            'Eşya: ' + safeNumber(menu.arcLoadoutItems, 0)
                         ], button('Çantayı Aç', 'open-loadout-stash', {}, 'ghost')) +
                         renderActionCard('ARC Atölyesi', 'Kalıcı depodaki malzemeleri baskın ekipmanına dönüştür.', [
-                            'Stack: ' + menu.arcMainStacks,
-                            'Eşya: ' + menu.arcMainItems
+                            'Stack: ' + safeNumber(menu.arcMainStacks, 0),
+                            'Eşya: ' + safeNumber(menu.arcMainItems, 0)
                         ], button('ARC Craft Aç', 'open-arc-craft', { source: 'arc_main' }, 'ghost')) +
                         renderActionCard('Kalıcı Depo', 'Kalıcı loot akışını ve baskın hazırlığını düzenle.', [
                             'Main Depo',
@@ -724,18 +735,18 @@ function renderMenuView() {
         breadcrumb: STRINGS.app.breadcrumb,
         sidebar: {
             cards: [
-                { label: 'Seviye', value: 'Lv.' + menu.userLevel, percent: clamp(28 + menu.userLevel * 6, 18, 100) },
+                { label: 'Seviye', value: 'Lv.' + userLevel, percent: clamp(28 + userLevel * 6, 18, 100) },
                 { label: 'Takım', value: menu.hasLobby ? 'Bağlı' : 'Solo', percent: menu.hasLobby ? 84 : 30 },
                 { label: 'ARC', value: loadoutInfo.shortLabel, percent: loadoutInfo.percent },
                 { label: 'Tahliye', value: extraction.phase || 'Pasif', percent: extraction.percent }
             ],
             title: menu.currentModeId === 'arc_pvp' ? 'ARC Baskın Hazırlığı' : 'Operasyon Hazır',
             text: menu.currentModeId === 'arc_pvp'
-                ? menu.currentModeLabel + ' seçili. ' + loadoutInfo.detail
-                : menu.currentModeLabel + ' seçili. Takımını düzenle ve operasyona hazırlan.',
+                ? currentModeLabel + ' seçili. ' + loadoutInfo.detail
+                : currentModeLabel + ' seçili. Takımını düzenle ve operasyona hazırlan.',
             tag: menu.isLeader ? STRINGS.badge.leader : (menu.isMember ? STRINGS.badge.team : STRINGS.badge.solo),
             badges: [
-                { label: menu.lobbyStatus },
+                { label: lobbyStatus },
                 { label: loadoutInfo.badge },
                 { label: menu.disconnectPolicyLabel || 'Bağlantı Politikası' }
             ],
@@ -1102,7 +1113,7 @@ function buildStandardSidebar(title, text, tag, progress, cards) {
 function renderViewHeader(title, text, actionHtml) {
     return '' +
         '<section class="view-header">' +
-            '<div><p class="ui-overline">Ekran</p><h2 class="view-header__title">' + esc(title) + '</h2><p class="view-header__text">' + esc(text) + '</p></div>' +
+            '<div class="view-header__copy"><span class="view-header__tag">Aktif Ekran</span><h2 class="view-header__title">' + esc(title) + '</h2><p class="view-header__text">' + esc(text) + '</p></div>' +
             (actionHtml ? '<div class="panel-section__actions">' + actionHtml + '</div>' : '') +
         '</section>';
 }
@@ -1110,12 +1121,14 @@ function renderViewHeader(title, text, actionHtml) {
 function renderActionCard(title, text, badges, actionHtml) {
     return '' +
         '<article class="card-list">' +
-            '<div class="card-list__header"><div><p class="ui-overline">Aksiyon</p><h3 class="card-list__title">' + esc(title) + '</h3></div></div>' +
+            '<div class="card-list__header"><div><p class="ui-overline">Operasyon</p><h3 class="card-list__title">' + esc(title) + '</h3></div></div>' +
             '<p class="card-list__description">' + esc(text) + '</p>' +
-            '<div class="card-list__chips">' + safeArray(badges).map(function (badge) {
-                return '<span class="ui-chip">' + esc(badge) + '</span>';
-            }).join('') + '</div>' +
-            '<div class="card-list__actions">' + actionHtml + '</div>' +
+            '<div class="card-list__footer">' +
+                '<div class="card-list__chips">' + safeArray(badges).map(function (badge) {
+                    return '<span class="ui-chip">' + esc(badge) + '</span>';
+                }).join('') + '</div>' +
+                '<div class="card-list__actions">' + actionHtml + '</div>' +
+            '</div>' +
         '</article>';
 }
 
@@ -1125,6 +1138,7 @@ function renderStat(label, value, percent) {
             '<span class="status-grid__label">' + esc(label) + '</span>' +
             '<strong class="status-grid__value">' + esc(value) + '</strong>' +
             renderMeter(percent) +
+            '<span class="metric-card__percent">Oran ' + esc(clamp(safeNumber(percent, 0), 0, 100)) + '%</span>' +
         '</div>';
 }
 
@@ -1143,7 +1157,8 @@ function renderMetaRow(label, value, raw) {
 function renderEmptyState(icon, text) {
     return '' +
         '<div class="empty-state">' +
-            '<div class="empty-state__icon">' + esc(icon) + '</div>' +
+            '<div class="empty-state__icon"><span class="empty-state__glyph">' + esc(icon) + '</span></div>' +
+            '<span class="empty-state__caption">' + esc(STRINGS.empty.pending) + '</span>' +
             '<div class="empty-state__text">' + esc(text) + '</div>' +
         '</div>';
 }
@@ -1305,6 +1320,7 @@ function renderStageCard(stage, index, isArc) {
         '<' + tag + ' class="stage-card' + (locked ? ' is-locked' : '') + '"' + attrs + ' style="background:linear-gradient(135deg,' + palette[0] + ',' + palette[1] + ')">' +
             '<div class="stage-card__body">' +
                 '<div class="stage-card__header">' +
+                    '<span class="stage-card__index">' + esc(STRINGS.stage.sectorLabel) + ' ' + esc(index + 1) + '</span>' +
                     '<span class="ui-badge ' + (locked ? 'ui-badge--warning' : 'ui-badge--muted') + '">' + esc(locked ? STRINGS.badge.locked : 'Hazır') + '</span>' +
                     '<span class="ui-badge ui-badge--muted">' + esc(isArc ? 'ARC' : ('x' + multiplier)) + '</span>' +
                 '</div>' +
