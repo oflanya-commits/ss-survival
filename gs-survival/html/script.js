@@ -324,9 +324,6 @@ document.addEventListener('drop', handleDrop);
 document.addEventListener('dragend', clearDropTargets);
 document.addEventListener('contextmenu', handleContextMenu);
 
-renderCurrentView();
-renderOverlays();
-
 function getDefaultArcHudState() {
     return {
         enabled: false,
@@ -588,6 +585,9 @@ const viewRenderers = {
     arcLockers: renderArcLockersView
 };
 
+renderCurrentView();
+renderOverlays();
+
 function buildDefaultSidebar() {
     return {
         cards: [
@@ -611,21 +611,22 @@ function renderSidebar(config) {
     const sidebar = config || buildDefaultSidebar();
     ui.summaryCards.innerHTML = safeArray(sidebar.cards).map(function (card) {
         const width = clamp(safeNumber(card.percent, 0), 0, 100);
-        return '' +
-            '<article class="metric-card">' +
-                '<div class="metric-card__top">' +
-                    '<span class="metric-card__label">' + esc(card.label || '-') + '</span>' +
-                    '<span class="metric-card__value">' + esc(card.value || '-') + '</span>' +
-                '</div>' +
-                '<div class="ui-progress"><span class="ui-progress__fill" style="width:' + width + '%"></span></div>' +
-            '</article>';
+        return `
+            <article class="metric-card">
+                <div class="metric-card__top">
+                    <span class="metric-card__label">${esc(card.label || '-')}</span>
+                    <span class="metric-card__value">${esc(card.value || '-')}</span>
+                </div>
+                <div class="ui-progress"><span class="ui-progress__fill" style="width:${width}%"></span></div>
+            </article>
+        `;
     }).join('');
 
     ui.briefTitle.textContent = safeString(sidebar.title, 'Operasyon Hazır');
     ui.briefText.textContent = safeString(sidebar.text, '');
     ui.briefTag.textContent = safeString(sidebar.tag, STRINGS.badge.solo);
     ui.briefBadges.innerHTML = safeArray(sidebar.badges).map(function (badge) {
-        return '<span class="ui-chip">' + esc(badge && badge.label ? badge.label : badge) + '</span>';
+        return `<span class="ui-chip">${esc(badge && badge.label ? badge.label : badge)}</span>`;
     }).join('');
     ui.briefProgressFill.style.width = clamp(safeNumber(sidebar.progress, 0), 0, 100) + '%';
 
@@ -647,80 +648,52 @@ function renderSidebar(config) {
 }
 
 function renderMenuView() {
-    const menu = state.menuState;
+    const menu = normalizeMenuState(state.menuState);
     const loadoutInfo = getLoadoutInfo(menu);
     const extraction = getExtractionInfo(menu);
     const teamCards = buildMenuTeamCards(menu);
 
-    const html = '' +
-        '<div class="view-stack">' +
-            renderViewHeader('Operasyon Kontrol Merkezi', 'Menü, lobi, market, stage ve ARC hazırlık akışları yeni component diliyle yeniden düzenlendi.') +
-            '<div class="view-grid">' +
-                '<section class="panel-section span-7">' +
-                    '<div class="panel-section__header">' +
-                        '<div><p class="ui-overline">Hazırlık</p><h3 class="ui-card__title">Operasyon Akışları</h3><p class="ui-card__text">Hayatta kalma ve ARC akışlarını aynı merkezden yönet.</p></div>' +
-                    '</div>' +
-                    '<div class="card-grid">' +
-                        renderActionCard('Klasik Operasyon', 'Stage seç, takımını hazırla ve dalga modunu başlat.', [
-                            'Seviye ' + menu.userLevel,
-                            menu.currentModeLabel
-                        ], button('Stage Seç', 'open-stages', { modeId: 'classic' }, 'primary')) +
-                        renderActionCard('Market', 'Saha güçlendirmelerini kredi ile satın al.', [
-                            menu.upgradeLabel || '-',
-                            'Hazırlık'
-                        ], button('Marketi Aç', 'open-market', {}, 'ghost')) +
-                        renderActionCard('Atölye', 'Topladığın malzemelerle ekipman üret.', [
-                            state.craftSource.sourceLabel || 'Standart Atölye',
-                            'Üretim'
-                        ], button('Atölyeyi Aç', 'open-craft', {}, 'ghost')) +
-                    '</div>' +
-                '</section>' +
-                '<section class="panel-section span-5">' +
-                    '<div class="panel-section__header">' +
-                        '<div><p class="ui-overline">Özet</p><h3 class="ui-card__title">Operatör Durumu</h3><p class="ui-card__text">Lobi, seviye ve tahliye bilgisinin kısa özeti.</p></div>' +
-                    '</div>' +
-                    '<div class="status-grid">' +
-                        renderStat('Operatör', menu.playerName, clamp(36 + menu.playerName.length * 4, 20, 100)) +
-                        renderStat('Lobi', menu.lobbyStatus, menu.hasLobby ? 84 : 32) +
-                        renderStat('ARC Çanta', loadoutInfo.badge, loadoutInfo.percent) +
-                        renderStat('Tahliye', extraction.phase || 'Pasif', extraction.percent) +
-                    '</div>' +
-                '</section>' +
-                '<section class="panel-section span-12">' +
-                    '<div class="panel-section__header">' +
-                        '<div><p class="ui-overline">ARC</p><h3 class="ui-card__title">Baskın Hazırlığı</h3><p class="ui-card__text">Loadout, depo ve craft akışlarını kayıpsız sözleşmeyle yönet.</p></div>' +
-                    '</div>' +
-                    '<div class="card-grid">' +
-                        renderActionCard('ARC Baskını', 'Takımın ve loadout çantan hazırsa baskını başlat.', [
-                            loadoutInfo.badge,
-                            menu.allowPersonalInventory ? 'TAB Açık' : 'TAB Kapalı'
-                        ], button('ARC Baskınını Başlat', 'start-arc', {}, 'primary')) +
-                        renderActionCard('Baskın Çantası', 'Girişte üstüne verilecek ekipmanı yönet.', [
-                            'Stack: ' + menu.arcLoadoutStacks,
-                            'Eşya: ' + menu.arcLoadoutItems
-                        ], button('Çantayı Aç', 'open-loadout-stash', {}, 'ghost')) +
-                        renderActionCard('ARC Atölyesi', 'Kalıcı depodaki malzemeleri baskın ekipmanına dönüştür.', [
-                            'Stack: ' + menu.arcMainStacks,
-                            'Eşya: ' + menu.arcMainItems
-                        ], button('ARC Craft Aç', 'open-arc-craft', { source: 'arc_main' }, 'ghost')) +
-                        renderActionCard('Kalıcı Depo', 'Kalıcı loot akışını ve baskın hazırlığını düzenle.', [
-                            'Main Depo',
-                            'Sabit'
-                        ], button('Depoyu Aç', 'open-main-stash', {}, 'ghost')) +
-                    '</div>' +
-                '</section>' +
-                '<section class="panel-section span-12">' +
-                    '<div class="panel-section__header">' +
-                        '<div><p class="ui-overline">Takım</p><h3 class="ui-card__title">Lobi Yönetimi</h3><p class="ui-card__text">Kur, davet et, listele, ayrıl veya dağıt.</p></div>' +
-                    '</div>' +
-                    '<div class="card-grid">' + teamCards + '</div>' +
-                '</section>' +
-            '</div>' +
-        '</div>';
+    const html = `
+        <div class="view-stack">
+            ${renderViewHeader('Mission Command', 'Klasik hayatta kalma, market, craft, ekip yönetimi ve ARC akışları tek bir taktik kontrol katmanında toplandı.')}
+            <div class="view-grid">
+                <section class="command-panel span-8">
+                    ${renderPanelHeader('Core operations', 'Görev Düğümleri', 'Operasyon hazırlığını ana akışlar üzerinden yönet.')}
+                    <div class="card-grid">
+                        ${renderActionCard('Klasik Operasyon', 'Stage seç, takımını hizala ve dalga akışını başlat.', ['Seviye ' + menu.userLevel, menu.currentModeLabel], button('Stage Seç', 'open-stages', { modeId: 'classic' }, 'primary'))}
+                        ${renderActionCard('Saha Marketi', 'Krediyi doğrudan taktik avantajlara dönüştür.', [menu.upgradeLabel || '-', 'Yükseltme'], button('Marketi Aç', 'open-market', {}, 'ghost'))}
+                        ${renderActionCard('Atölye', 'Malzemeleri hızlı üretim zincirine aktar.', [state.craftSource.sourceLabel || 'Standart Atölye', 'Craft'], button('Atölyeyi Aç', 'open-craft', {}, 'ghost'))}
+                    </div>
+                </section>
+                <section class="command-panel span-4">
+                    ${renderPanelHeader('Operator telemetry', 'Operatör Durumu', 'Seviye, lobi, loadout ve extraction görünümü.')}
+                    <div class="status-grid">
+                        ${renderStat('Operatör', menu.playerName, clamp(36 + menu.playerName.length * 4, 20, 100))}
+                        ${renderStat('Lobi', menu.lobbyStatus, menu.hasLobby ? 84 : 32)}
+                        ${renderStat('ARC Çanta', loadoutInfo.badge, loadoutInfo.percent)}
+                        ${renderStat('Extraction', extraction.phase || 'Pasif', extraction.percent)}
+                    </div>
+                </section>
+                <section class="command-panel span-12">
+                    ${renderPanelHeader('ARC raid prep', 'Baskın Paketleri', 'Loadout, kalıcı depo ve ARC craft akışlarını kayıpsız yönet.')}
+                    <div class="card-grid">
+                        ${renderActionCard('ARC Baskını', 'Takımın ve loadout çantan hazırsa baskını başlat.', [loadoutInfo.badge, menu.allowPersonalInventory ? 'TAB Açık' : 'TAB Kapalı'], button('ARC Baskınını Başlat', 'start-arc', {}, 'primary'))}
+                        ${renderActionCard('Baskın Çantası', 'Girişte üstüne verilecek ekipmanı kur.', ['Stack: ' + menu.arcLoadoutStacks, 'Eşya: ' + menu.arcLoadoutItems], button('Çantayı Aç', 'open-loadout-stash', {}, 'ghost'))}
+                        ${renderActionCard('ARC Atölyesi', 'Kalıcı depodaki hammaddeleri operasyon kitine dönüştür.', ['Stack: ' + menu.arcMainStacks, 'Eşya: ' + menu.arcMainItems], button('ARC Craft Aç', 'open-arc-craft', { source: 'arc_main' }, 'ghost'))}
+                        ${renderActionCard('Kalıcı Depo', 'Kayıpsız loot akışını baskın hazırlığıyla senkronize et.', ['Main Depo', 'Sabit'], button('Depoyu Aç', 'open-main-stash', {}, 'ghost'))}
+                    </div>
+                </section>
+                <section class="command-panel span-12">
+                    ${renderPanelHeader('Squad command', 'Lobi Yönetimi', 'Kur, davet et, izle, ayrıl veya dağıt.')}
+                    <div class="card-grid">${teamCards}</div>
+                </section>
+            </div>
+        </div>
+    `;
 
     return {
         title: 'Ana Menü',
-        subtitle: 'Tüm hazırlık akışları tutarlı kart hiyerarşisiyle yenilendi.',
+        subtitle: 'Yeni taktik komuta katmanı tüm operasyon akışlarını tek merkezde toplar.',
         breadcrumb: STRINGS.app.breadcrumb,
         sidebar: {
             cards: [
@@ -732,7 +705,7 @@ function renderMenuView() {
             title: menu.currentModeId === 'arc_pvp' ? 'ARC Baskın Hazırlığı' : 'Operasyon Hazır',
             text: menu.currentModeId === 'arc_pvp'
                 ? menu.currentModeLabel + ' seçili. ' + loadoutInfo.detail
-                : menu.currentModeLabel + ' seçili. Takımını düzenle ve operasyona hazırlan.',
+                : menu.currentModeLabel + ' seçili. Takımını hizala ve operasyona hazırlan.',
             tag: menu.isLeader ? STRINGS.badge.leader : (menu.isMember ? STRINGS.badge.team : STRINGS.badge.solo),
             badges: [
                 { label: menu.lobbyStatus },
@@ -752,25 +725,29 @@ function renderMenuView() {
 function renderMarketView() {
     const cards = state.upgrades.length ? state.upgrades.map(function (upgrade, index) {
         const value = clamp(44 + index * 11, 18, 96);
-        return '' +
-            '<article class="item-card">' +
-                '<div class="item-card__header">' +
-                    '<div><p class="ui-overline">Market</p><h3 class="item-card__title">' + esc(upgrade.label || 'Yükseltme') + '</h3></div>' +
-                    '<span class="ui-badge ui-badge--primary">$' + esc(formatCurrency(upgrade.price)) + '</span>' +
-                '</div>' +
-                '<p class="ui-card__text">Satın alındığında takımına doğrudan saha avantajı sağlar.</p>' +
-                renderMeter(value) +
-                '<div class="card-list__chips">' +
-                    '<span class="ui-chip">Tür: ' + esc(upgrade.type || '-') + '</span>' +
-                    '<span class="ui-chip">Değer: ' + esc(upgrade.value || '-') + '</span>' +
-                '</div>' +
-                '<div class="card-list__actions">' + button('Satın Al', 'buy-upgrade', { index: index }, 'primary') + '</div>' +
-            '</article>';
+        return `
+            <article class="item-card">
+                <div class="item-card__header">
+                    <div>
+                        <p class="ui-overline">Acquisition</p>
+                        <h3 class="item-card__title">${esc(upgrade.label || 'Yükseltme')}</h3>
+                    </div>
+                    <span class="ui-badge ui-badge--primary">$${esc(formatCurrency(upgrade.price))}</span>
+                </div>
+                <p class="ui-card__text">Satın alındığında takımına doğrudan saha avantajı sağlar.</p>
+                ${renderMeter(value)}
+                <div class="card-list__chips">
+                    <span class="ui-chip">Tür: ${esc(upgrade.type || '-')}</span>
+                    <span class="ui-chip">Değer: ${esc(upgrade.value || '-')}</span>
+                </div>
+                <div class="card-list__actions">${button('Satın Al', 'buy-upgrade', { index: index }, 'primary')}</div>
+            </article>
+        `;
     }).join('') : renderEmptyState('🛒', STRINGS.empty.market);
 
     return {
         title: 'Market',
-        subtitle: 'Fiyat ve satın alma onay akışı modern kart görünümüyle yenilendi.',
+        subtitle: 'Yeni alış arayüzü fiyat, etki ve onay akışını premium kart düzeninde sunar.',
         breadcrumb: 'Operasyon Menüsü / Market',
         sidebar: buildStandardSidebar('Saha Marketi', 'Güçlendirmeleri satın al ve bir sonraki çatışma için avantaj kazan.', 'PAZAR', 68, [
             { label: 'Ürün', value: describeCount(state.upgrades.length, 'ürün', 'ürün'), percent: clamp(state.upgrades.length * 16, 18, 100) },
@@ -778,10 +755,12 @@ function renderMarketView() {
             { label: 'Hazırlık', value: 'Aktif', percent: 84 },
             { label: 'Mod', value: state.menuState.currentModeLabel || '-', percent: 72 }
         ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader('Saha Marketi', 'Kartlar üzerinden fiyat, etki ve satın alma adımlarını takip et.', button('Ana Menüye Dön', 'go-back', {}, 'ghost')) +
-            '<div class="card-grid">' + cards + '</div>' +
-        '</div>'
+        html: `
+            <div class="view-stack">
+                ${renderViewHeader('Saha Marketi', 'Operasyon öncesi güçlendirmeleri tek bakışta değerlendir.', button('Ana Menüye Dön', 'go-back', {}, 'ghost'))}
+                <div class="card-grid">${cards}</div>
+            </div>
+        `
     };
 }
 
@@ -794,26 +773,30 @@ function renderCraftView() {
         const index = state.recipes.indexOf(recipe);
         const maxCraftable = Math.max(0, safeNumber(recipe.maxCraftable, recipe.ready ? 1 : 0));
         const ready = recipe.ready === true || maxCraftable > 0;
-        return '' +
-            '<article class="item-card">' +
-                '<div class="item-card__header">' +
-                    '<div><p class="ui-overline">' + esc(getCraftCategoryLabel(recipe.category)) + '</p><h3 class="item-card__title">' + esc(recipe.label || recipe.header || 'Tarif') + '</h3></div>' +
-                    '<span class="ui-badge ' + (ready ? 'ui-badge--success' : 'ui-badge--warning') + '">' + esc(ready ? 'Hazır' : 'Eksik') + '</span>' +
-                '</div>' +
-                '<p class="ui-card__text">' + esc(recipe.txt || 'Saha kullanımı için hazırlanabilen ekipman paketi.') + '</p>' +
-                '<div class="card-list__chips">' +
-                    '<span class="ui-chip">Çıktı: x' + esc(recipe.amount) + '</span>' +
-                    '<span class="ui-chip">Maks: x' + esc(maxCraftable) + '</span>' +
-                    '<span class="ui-chip">' + esc(isArcCraft ? 'Kaynak: Depo' : 'Kaynak: Envanter') + '</span>' +
-                '</div>' +
-                '<div class="item-card__requirements">' + renderRequirements(recipe.requirements, isArcCraft) + '</div>' +
-                '<div class="card-list__actions">' + button(ready ? 'Üret' : 'Yetersiz', 'craft-open', { index: index }, ready ? 'primary' : 'ghost', !ready) + '</div>' +
-            '</article>';
+        return `
+            <article class="item-card">
+                <div class="item-card__header">
+                    <div>
+                        <p class="ui-overline">${esc(getCraftCategoryLabel(recipe.category))}</p>
+                        <h3 class="item-card__title">${esc(recipe.label || recipe.header || 'Tarif')}</h3>
+                    </div>
+                    <span class="ui-badge ${ready ? 'ui-badge--success' : 'ui-badge--warning'}">${esc(ready ? 'Hazır' : 'Eksik')}</span>
+                </div>
+                <p class="ui-card__text">${esc(recipe.txt || 'Saha kullanımı için hazırlanabilen ekipman paketi.')}</p>
+                <div class="card-list__chips">
+                    <span class="ui-chip">Çıktı: x${esc(recipe.amount)}</span>
+                    <span class="ui-chip">Maks: x${esc(maxCraftable)}</span>
+                    <span class="ui-chip">${esc(isArcCraft ? 'Kaynak: Depo' : 'Kaynak: Envanter')}</span>
+                </div>
+                <div class="item-card__requirements">${renderRequirements(recipe.requirements, isArcCraft)}</div>
+                <div class="card-list__actions">${button(ready ? 'Üret' : 'Yetersiz', 'craft-open', { index: index }, ready ? 'primary' : 'ghost', !ready)}</div>
+            </article>
+        `;
     }).join('') : renderEmptyState('🧰', STRINGS.empty.craft);
 
     return {
         title: 'Atölye',
-        subtitle: 'Kategori, arama ve adet seçimi akışı sadeleştirildi.',
+        subtitle: 'Arama, filtreleme ve üretim miktarı seçimleri yeni taktik kart düzenine taşındı.',
         breadcrumb: 'Operasyon Menüsü / Atölye',
         sidebar: buildStandardSidebar(sourceLabel, state.craftSource.helperText || 'Malzemelerini kullanarak ekipman üret.', isArcCraft ? 'ARC' : 'CRAFT', isArcCraft ? 74 : 60, [
             { label: 'Tarif', value: describeCount(state.recipes.length, 'tarif', 'tarif'), percent: clamp(state.recipes.length * 8, 20, 100) },
@@ -821,16 +804,18 @@ function renderCraftView() {
             { label: 'Filtre', value: getCraftCategoryLabel(state.craftCategory), percent: 64 },
             { label: 'Arama', value: state.craftSearch ? 'Aktif' : 'Kapalı', percent: state.craftSearch ? 86 : 22 }
         ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader(sourceLabel, 'Arama, kategori ve gereksinim görünümü tek akışta toplandı.', button('Ana Menüye Dön', 'go-back', {}, 'ghost')) +
-            '<section class="panel-section">' +
-                '<div class="toolbar">' +
-                    '<div class="toolbar__left"><input class="ui-input" type="text" value="' + escAttr(state.craftSearch) + '" placeholder="Tarif ara..." data-craft-search="1"></div>' +
-                    '<div class="toolbar__right toolbar__chips">' + renderCraftFilterChips() + '</div>' +
-                '</div>' +
-            '</section>' +
-            '<div class="card-grid">' + cards + '</div>' +
-        '</div>'
+        html: `
+            <div class="view-stack">
+                ${renderViewHeader(sourceLabel, 'Üretim zinciri, gereksinim görünümü ve miktar seçimi aynı operatif akışta.', button('Ana Menüye Dön', 'go-back', {}, 'ghost'))}
+                <section class="command-panel">
+                    <div class="toolbar">
+                        <div class="toolbar__left"><input class="ui-input" type="text" value="${escAttr(state.craftSearch)}" placeholder="Tarif ara..." data-craft-search="1"></div>
+                        <div class="toolbar__right toolbar__chips">${renderCraftFilterChips()}</div>
+                    </div>
+                </section>
+                <div class="card-grid">${cards}</div>
+            </div>
+        `
     };
 }
 
@@ -842,7 +827,7 @@ function renderStagesView() {
 
     return {
         title: isArc ? 'ARC Baskını' : 'Stage Seçimi',
-        subtitle: 'Zorluk ve kilit bilgisi daha net kartlarda gösterilir.',
+        subtitle: 'Risk, kilit ve başlatma durumu tamamen yeni stage kartlarıyla gösterilir.',
         breadcrumb: isArc ? 'ARC Menüsü / Baskın Başlat' : 'Operasyon Menüsü / Stage Seçimi',
         sidebar: buildStandardSidebar(state.stageModeLabel, isArc ? 'ARC baskını sabit ayarlarla başlar.' : 'Takımına uygun stage seç ve operasyona başla.', isArc ? 'ARC' : 'STAGE', 82, [
             { label: 'Stage', value: describeCount(state.stages.length, 'seçenek', 'seçenek'), percent: clamp(state.stages.length * 18, 20, 100) },
@@ -850,29 +835,35 @@ function renderStagesView() {
             { label: 'Takım', value: state.menuState.lobbyStatus || 'Solo', percent: state.menuState.hasLobby ? 76 : 30 },
             { label: 'Mod', value: state.stageModeLabel, percent: isArc ? 100 : 74 }
         ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader(state.stageModeLabel, 'Kartlar önerilen seviye, risk ve başlatma aksiyonunu ayrıştırır.', button('Ana Menüye Dön', 'go-back', {}, 'ghost')) +
-            '<div class="stage-grid">' + cards + '</div>' +
-        '</div>'
+        html: `
+            <div class="view-stack">
+                ${renderViewHeader(state.stageModeLabel, 'Görev haritaları ve risk seviyesi seçimini tek bakışta yap.', button('Ana Menüye Dön', 'go-back', {}, 'ghost'))}
+                <div class="stage-grid">${cards}</div>
+            </div>
+        `
     };
 }
 
 function renderInviteView() {
     const cards = state.players.length ? state.players.map(function (player, index) {
-        return '' +
-            '<article class="member-card">' +
-                '<div class="member-card__header">' +
-                    '<div><p class="ui-overline">Yakındaki Oyuncu</p><h3 class="member-card__title">' + esc(player.name || 'Bilinmeyen Oyuncu') + '</h3></div>' +
-                    '<span class="ui-badge ui-badge--muted">ID ' + esc(player.id || '-') + '</span>' +
-                '</div>' +
-                '<p class="ui-card__text">Yakındaysa daveti kabul ettiğinde doğrudan takımına katılabilir.</p>' +
-                '<div class="card-list__actions">' + button('Davet Gönder', 'invite-player', { index: index }, 'primary') + '</div>' +
-            '</article>';
+        return `
+            <article class="member-card">
+                <div class="member-card__header">
+                    <div>
+                        <p class="ui-overline">Yakındaki Oyuncu</p>
+                        <h3 class="member-card__title">${esc(player.name || 'Bilinmeyen Oyuncu')}</h3>
+                    </div>
+                    <span class="ui-badge ui-badge--muted">ID ${esc(player.id || '-')}</span>
+                </div>
+                <p class="ui-card__text">Yakındaysa daveti kabul ettiğinde doğrudan takımına katılabilir.</p>
+                <div class="card-list__actions">${button('Davet Gönder', 'invite-player', { index: index }, 'primary')}</div>
+            </article>
+        `;
     }).join('') : renderEmptyState('🤝', STRINGS.empty.invite);
 
     return {
         title: 'Davet',
-        subtitle: 'Yakındaki oyuncular sade liste kartlarıyla yenilendi.',
+        subtitle: 'Yakındaki oyuncular yeni operatör kartlarıyla listelenir.',
         breadcrumb: 'Operasyon Menüsü / Davet',
         sidebar: buildStandardSidebar('Yakındaki Oyuncular', 'Yakındaki oyuncuları seçerek takım daveti gönder.', 'DAVET', 62, [
             { label: 'Oyuncu', value: describeCount(state.players.length, 'kişi', 'kişi'), percent: clamp(state.players.length * 18, 20, 100) },
@@ -880,10 +871,12 @@ function renderInviteView() {
             { label: 'Lobi', value: state.menuState.lobbyStatus || 'Solo', percent: state.menuState.hasLobby ? 80 : 24 },
             { label: 'Tarama', value: 'Canlı', percent: 88 }
         ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader('Yakındaki Oyuncular', 'Takım daveti gönderebileceğin oyuncular burada listelenir.', button('Ana Menüye Dön', 'go-back', {}, 'ghost')) +
-            '<div class="card-grid">' + cards + '</div>' +
-        '</div>'
+        html: `
+            <div class="view-stack">
+                ${renderViewHeader('Yakındaki Oyuncular', 'Takım daveti gönderebileceğin oyuncular burada listelenir.', button('Ana Menüye Dön', 'go-back', {}, 'ghost'))}
+                <div class="card-grid">${cards}</div>
+            </div>
+        `
     };
 }
 
@@ -891,29 +884,31 @@ function renderActiveLobbiesView() {
     const cards = state.lobbies.length ? state.lobbies.map(function (lobby, index) {
         const maxPlayers = Math.max(1, safeNumber(lobby.maxPlayers, LIMITS.lobbySize));
         const fill = clamp((safeNumber(lobby.playerCount, 1) / maxPlayers) * 100, 0, 100);
-        return '' +
-            '<article class="lobby-card">' +
-                '<div class="lobby-card__header">' +
-                    '<div><p class="ui-overline">Aktif Lobi</p><h3 class="lobby-card__title">' + esc(lobby.leaderName || 'Bilinmeyen Lider') + '</h3></div>' +
-                    '<span class="ui-badge ' + getLobbyBadgeClass(lobby) + '">' + esc(getLobbyBadgeText(lobby)) + '</span>' +
-                '</div>' +
-                '<p class="ui-card__text">Lider ID: ' + esc(lobby.leaderId || '-') + ' · Hazır oyuncu: ' + esc(lobby.readyCount || 0) + '</p>' +
-                '<div class="ui-progress"><span class="ui-progress__fill" style="width:' + fill + '%"></span></div>' +
-                '<div class="lobby-card__meta">' +
-                    renderMetaRow('Görünürlük', lobby.isPublic ? 'Herkese Açık' : 'Özel') +
-                    renderMetaRow('Oyuncu', safeNumber(lobby.playerCount, 1) + '/' + maxPlayers) +
-                    renderMetaRow('Üye', safeNumber(lobby.memberCount, 0)) +
-                    renderMetaRow('Hazır', safeNumber(lobby.readyCount, 0)) +
-                '</div>' +
-                '<div class="card-list__actions">' +
-                    (lobby.canJoin ? button('Lobiye Katıl', 'join-lobby-open', { index: index }, 'primary') : button('Katılım Kapalı', 'noop', {}, 'ghost', true)) +
-                '</div>' +
-            '</article>';
+        return `
+            <article class="lobby-card">
+                <div class="lobby-card__header">
+                    <div>
+                        <p class="ui-overline">Aktif Lobi</p>
+                        <h3 class="lobby-card__title">${esc(lobby.leaderName || 'Bilinmeyen Lider')}</h3>
+                    </div>
+                    <span class="ui-badge ${getLobbyBadgeClass(lobby)}">${esc(getLobbyBadgeText(lobby))}</span>
+                </div>
+                <p class="ui-card__text">Lider ID: ${esc(lobby.leaderId || '-')} · Hazır oyuncu: ${esc(lobby.readyCount || 0)}</p>
+                <div class="ui-progress"><span class="ui-progress__fill" style="width:${fill}%"></span></div>
+                <div class="lobby-card__meta">
+                    ${renderMetaRow('Görünürlük', lobby.isPublic ? 'Herkese Açık' : 'Özel')}
+                    ${renderMetaRow('Oyuncu', safeNumber(lobby.playerCount, 1) + '/' + maxPlayers)}
+                    ${renderMetaRow('Üye', safeNumber(lobby.memberCount, 0))}
+                    ${renderMetaRow('Hazır', safeNumber(lobby.readyCount, 0))}
+                </div>
+                <div class="card-list__actions">${lobby.canJoin ? button('Lobiye Katıl', 'join-lobby-open', { index: index }, 'primary') : button('Katılım Kapalı', 'noop', {}, 'ghost', true)}</div>
+            </article>
+        `;
     }).join('') : renderEmptyState('🏠', STRINGS.empty.lobbies);
 
     return {
         title: 'Aktif Lobiler',
-        subtitle: 'Public lobi görünürlüğü ve katılım durumu netleştirildi.',
+        subtitle: 'Lobiler doluluk, görünürlük ve katılım durumuyla yeni taktik kartlarda ayrıştırılır.',
         breadcrumb: 'Operasyon Menüsü / Aktif Lobiler',
         sidebar: buildStandardSidebar('Açık Lobi İzleme', 'Sunucudaki aktif lobileri, liderlerini ve doluluk durumlarını takip et.', 'LOBİLER', 70, [
             { label: 'Lobi', value: describeCount(state.lobbies.length, 'lobi', 'lobi'), percent: clamp(state.lobbies.length * 18, 20, 100) },
@@ -921,10 +916,12 @@ function renderActiveLobbiesView() {
             { label: 'Yakınlık', value: 'Kontrol', percent: 84 },
             { label: 'Hazır', value: 'Canlı', percent: 82 }
         ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader('Aktif Lobiler', 'Katılabilir, bağlı ve kendi lobi durumları görsel olarak ayrılır.', button('Ana Menüye Dön', 'go-back', {}, 'ghost')) +
-            '<div class="card-grid">' + cards + '</div>' +
-        '</div>'
+        html: `
+            <div class="view-stack">
+                ${renderViewHeader('Aktif Lobiler', 'Katılabilir, bağlı ve sana ait lobi durumları net olarak ayrılır.', button('Ana Menüye Dön', 'go-back', {}, 'ghost'))}
+                <div class="card-grid">${cards}</div>
+            </div>
+        `
     };
 }
 
@@ -933,23 +930,27 @@ function renderMembersView() {
         const isLeader = Number(member.id) === Number(state.memberLeaderId) || member.isLeader === true;
         const statusText = isLeader ? 'Lider' : (member.isReady ? 'Hazır' : 'Bekleniyor');
         const statusClass = isLeader ? 'is-leader' : (member.isReady ? 'is-ready' : 'is-waiting');
-        return '' +
-            '<article class="member-card">' +
-                '<div class="member-card__header">' +
-                    '<div><p class="ui-overline">Takım Üyesi</p><h3 class="member-card__title">' + esc(member.name || 'Bilinmeyen Operatör') + '</h3></div>' +
-                    '<span class="ui-badge ' + (isLeader ? 'ui-badge--primary' : (member.isReady ? 'ui-badge--success' : 'ui-badge--warning')) + '">' + esc(statusText) + '</span>' +
-                '</div>' +
-                '<div class="member-card__meta">' +
-                    renderMetaRow('ID', member.id || '-') +
-                    renderMetaRow('Rol', isLeader ? 'Lider' : 'Üye') +
-                    renderMetaRow('Durum', '<span class="member-card__status ' + statusClass + '">' + esc(statusText) + '</span>', true) +
-                '</div>' +
-            '</article>';
+        return `
+            <article class="member-card">
+                <div class="member-card__header">
+                    <div>
+                        <p class="ui-overline">Takım Üyesi</p>
+                        <h3 class="member-card__title">${esc(member.name || 'Bilinmeyen Operatör')}</h3>
+                    </div>
+                    <span class="ui-badge ${isLeader ? 'ui-badge--primary' : (member.isReady ? 'ui-badge--success' : 'ui-badge--warning')}">${esc(statusText)}</span>
+                </div>
+                <div class="member-card__meta">
+                    ${renderMetaRow('ID', member.id || '-')}
+                    ${renderMetaRow('Rol', isLeader ? 'Lider' : 'Üye')}
+                    ${renderMetaRow('Durum', `<span class="member-card__status ${statusClass}">${esc(statusText)}</span>`, true)}
+                </div>
+            </article>
+        `;
     }).join('') : renderEmptyState('👥', STRINGS.empty.members);
 
     return {
         title: 'Takım',
-        subtitle: 'Lider ve hazır bilgisi daha net kartlarla gösteriliyor.',
+        subtitle: 'Lider ve hazır bilgisi yeni takım paneliyle daha net okunur.',
         breadcrumb: 'Operasyon Menüsü / Takım',
         sidebar: buildStandardSidebar('Takım Durumu', 'Takımdaki oyuncuları ve lider bilgisini buradan kontrol et.', 'TAKIM', 74, [
             { label: 'Oyuncu', value: describeCount(state.members.length, 'kişi', 'kişi'), percent: clamp(state.members.length * 20, 18, 100) },
@@ -957,17 +958,19 @@ function renderMembersView() {
             { label: 'Lider', value: state.memberLeaderId || '-', percent: 92 },
             { label: 'Lobi', value: state.menuState.lobbyStatus || 'Solo', percent: state.menuState.hasLobby ? 82 : 30 }
         ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader('Takım Oyuncuları', 'Takım üyeleri hazır durumlarıyla birlikte listelenir.', button('Ana Menüye Dön', 'go-back', {}, 'ghost')) +
-            '<div class="card-grid">' + cards + '</div>' +
-        '</div>'
+        html: `
+            <div class="view-stack">
+                ${renderViewHeader('Takım Oyuncuları', 'Takım üyeleri yeni operatör panelleri içinde listelenir.', button('Ana Menüye Dön', 'go-back', {}, 'ghost'))}
+                <div class="card-grid">${cards}</div>
+            </div>
+        `
     };
 }
 
 function renderReceiveInviteView() {
     return {
         title: 'Gelen Davet',
-        subtitle: 'Kabul / red akışı standart modal diliyle yeniden tasarlandı.',
+        subtitle: 'Davet kararı yeni yüksek kontrast operatör panelinde sunulur.',
         breadcrumb: 'Operasyon Menüsü / Gelen Davet',
         sidebar: buildStandardSidebar('Takım Daveti Alındı', 'Başka bir lider seni takımına çağırıyor. Daveti kabul edebilir veya reddedebilirsin.', 'UYARI', 88, [
             { label: 'Lider ID', value: state.inviteLeaderId || '-', percent: 82 },
@@ -975,20 +978,25 @@ function renderReceiveInviteView() {
             { label: 'Lobi', value: state.menuState.lobbyStatus || 'Solo', percent: 36 },
             { label: 'Durum', value: 'Canlı Davet', percent: 96 }
         ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader('Takım Daveti', 'Davet geldiğinde ekrandan doğrudan karar verebilirsin.') +
-            '<article class="modal">' +
-                '<div class="modal__header">' +
-                    '<div><p class="ui-overline">Davet</p><h3 class="modal__title">Takıma Katılmak İstiyor musun?</h3></div>' +
-                    '<span class="ui-badge ui-badge--primary">ID ' + esc(state.inviteLeaderId || '-') + '</span>' +
-                '</div>' +
-                '<div class="modal__content"><p class="modal__text">Bir takım lideri seni ekibine çağırıyor. Kabul ettiğinde o lobiye katılırsın.</p></div>' +
-                '<div class="modal__actions">' +
-                    button('Daveti Kabul Et', 'accept-invite', {}, 'primary') +
-                    button('Daveti Reddet', 'deny-invite', {}, 'danger') +
-                '</div>' +
-            '</article>' +
-        '</div>'
+        html: `
+            <div class="view-stack">
+                ${renderViewHeader('Takım Daveti', 'Kararını ekrandan direkt ver ve akışı kesmeden devam et.')}
+                <article class="modal">
+                    <div class="modal__header">
+                        <div>
+                            <p class="ui-overline">Incoming invite</p>
+                            <h3 class="modal__title">Takıma Katılmak İstiyor musun?</h3>
+                        </div>
+                        <span class="ui-badge ui-badge--primary">ID ${esc(state.inviteLeaderId || '-')}</span>
+                    </div>
+                    <div class="modal__content"><p class="modal__text">Bir takım lideri seni ekibine çağırıyor. Kabul ettiğinde o lobiye katılırsın.</p></div>
+                    <div class="modal__actions">
+                        ${button('Daveti Kabul Et', 'accept-invite', {}, 'primary')}
+                        ${button('Daveti Reddet', 'deny-invite', {}, 'danger')}
+                    </div>
+                </article>
+            </div>
+        `
     };
 }
 
@@ -997,7 +1005,7 @@ function renderReconnectView() {
     const extraction = prompt.extraction || {};
     return {
         title: 'Geri Katılım',
-        subtitle: 'ARC reconnect kararı daha okunabilir kartlarla sunulur.',
+        subtitle: 'Reconnect kararı yeni taktik modal düzeniyle gösterilir.',
         breadcrumb: 'ARC Bağlantı / Geri Katılım',
         sidebar: buildStandardSidebar('ARC Geri Katılım Onayı', 'Bağlantın koptu. Uygunsa aynı baskına geri dönebilirsin.', 'UYARI', 90, [
             { label: 'Mod', value: safeString(prompt.modeId, 'ARC'), percent: 92 },
@@ -1005,30 +1013,35 @@ function renderReconnectView() {
             { label: 'Karar', value: 'Bekleniyor', percent: 50 },
             { label: 'Politika', value: safeString(prompt.disconnectPolicyLabel, 'Varsayılan'), percent: 80 }
         ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader('Baskına Geri Katıl', 'Uygunsa aynı ARC baskınına kaldığın yerden dönersin.') +
-            '<article class="modal">' +
-                '<div class="modal__header">' +
-                    '<div><p class="ui-overline">Reconnect</p><h3 class="modal__title">' + esc(prompt.title || 'Oyuna geri katılmak ister misin?') + '</h3></div>' +
-                    '<span class="ui-badge ui-badge--warning">Karar Gerekli</span>' +
-                '</div>' +
-                '<div class="modal__content">' +
-                    '<p class="modal__text">' + esc(prompt.message || 'Bağlantın koptu. Aynı baskına geri katılmak ister misin?') + '</p>' +
-                    (extraction.phaseLabel ? '<div class="dialog-stats"><div class="dialog-stats__item"><span class="status-grid__label">Son Tahliye Fazı</span><strong class="status-grid__value">' + esc(extraction.phaseLabel) + '</strong></div></div>' : '') +
-                '</div>' +
-                '<div class="modal__actions">' +
-                    button('Evet, Katıl', 'reconnect-decision', { accepted: true }, 'primary') +
-                    button('Hayır, Güvenli Dön', 'reconnect-decision', { accepted: false }, 'danger') +
-                '</div>' +
-            '</article>' +
-        '</div>'
+        html: `
+            <div class="view-stack">
+                ${renderViewHeader('Baskına Geri Katıl', 'Uygunsa aynı ARC baskınına kaldığın yerden dönersin.')}
+                <article class="modal">
+                    <div class="modal__header">
+                        <div>
+                            <p class="ui-overline">Reconnect</p>
+                            <h3 class="modal__title">${esc(prompt.title || 'Oyuna geri katılmak ister misin?')}</h3>
+                        </div>
+                        <span class="ui-badge ui-badge--warning">Karar Gerekli</span>
+                    </div>
+                    <div class="modal__content">
+                        <p class="modal__text">${esc(prompt.message || 'Bağlantın koptu. Aynı baskına geri katılmak ister misin?')}</p>
+                        ${extraction.phaseLabel ? `<div class="dialog-stats"><div class="dialog-stats__item"><span class="status-grid__label">Son Tahliye Fazı</span><strong class="status-grid__value">${esc(extraction.phaseLabel)}</strong></div></div>` : ''}
+                    </div>
+                    <div class="modal__actions">
+                        ${button('Evet, Katıl', 'reconnect-decision', { accepted: true }, 'primary')}
+                        ${button('Hayır, Güvenli Dön', 'reconnect-decision', { accepted: false }, 'danger')}
+                    </div>
+                </article>
+            </div>
+        `
     };
 }
 
 function renderCreateLobbyView() {
     return {
         title: 'Lobi Kur',
-        subtitle: 'Public / private seçimi sade kartlarla yenilendi.',
+        subtitle: 'Yeni lobi kurulum akışı public ve private seçeneklerini net ayırır.',
         breadcrumb: 'Operasyon Menüsü / Lobi Kur',
         sidebar: buildStandardSidebar('Lobi Görünürlüğü', 'Lobi türünü seç. Kurulum tamamlandığında ana ekrana dönersin.', 'TAKIM', 58, [
             { label: 'Oyuncu Sınırı', value: LIMITS.lobbySize + ' kişi', percent: 100 },
@@ -1036,19 +1049,15 @@ function renderCreateLobbyView() {
             { label: 'Davetiye', value: 'Hazır', percent: 88 },
             { label: 'Akış', value: 'Hızlı', percent: 84 }
         ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader('Lobi Görünürlüğünü Seç', 'Herkese açık lobi listede görünür; özel lobi yalnızca davet kabul eden oyuncular içindir.', button('Ana Menüye Dön', 'go-back', {}, 'ghost')) +
-            '<div class="card-grid">' +
-                renderActionCard('Herkese Açık Lobi', 'Aktif lobi listesinde görünür ve boş slot varsa doğrudan katılım alabilir.', [
-                    'Liste Üzerinden Katılım',
-                    'Hızlı Dolum'
-                ], button('Public Lobi Kur', 'create-lobby', { isPublic: true }, 'primary')) +
-                renderActionCard('Özel Lobi', 'Yalnızca senin gönderdiğin daveti kabul eden oyuncular katılır.', [
-                    'Davet Tabanlı',
-                    'Kapalı Ekip'
-                ], button('Private Lobi Kur', 'create-lobby', { isPublic: false }, 'ghost')) +
-            '</div>' +
-        '</div>'
+        html: `
+            <div class="view-stack">
+                ${renderViewHeader('Lobi Görünürlüğünü Seç', 'Herkese açık lobi listede görünür; özel lobi yalnızca davet kabul eden oyuncular içindir.', button('Ana Menüye Dön', 'go-back', {}, 'ghost'))}
+                <div class="card-grid">
+                    ${renderActionCard('Herkese Açık Lobi', 'Aktif lobi listesinde görünür ve boş slot varsa doğrudan katılım alabilir.', ['Liste Üzerinden Katılım', 'Hızlı Dolum'], button('Public Lobi Kur', 'create-lobby', { isPublic: true }, 'primary'))}
+                    ${renderActionCard('Özel Lobi', 'Yalnızca senin gönderdiğin daveti kabul eden oyuncular katılır.', ['Davet Tabanlı', 'Kapalı Ekip'], button('Private Lobi Kur', 'create-lobby', { isPublic: false }, 'ghost'))}
+                </div>
+            </div>
+        `
     };
 }
 
@@ -1059,7 +1068,7 @@ function renderArcLockersView() {
 
     return {
         title: 'ARC Depo Yönetimi',
-        subtitle: 'Kalıcı depo ve baskın çantası aynı component sistemiyle yenilendi.',
+        subtitle: 'Kalıcı depo ve baskın çantası yeni operasyon bankası arayüzünde birleşir.',
         breadcrumb: 'Operasyon Menüsü / ARC Depo Yönetimi',
         sidebar: buildStandardSidebar(focusSide === 'loadout' ? lockers.loadout.label : lockers.main.label, lockers.transferSupport.helperText || 'Taşıma, stackleme ve split akışı korunur.', focusSide === 'loadout' ? 'LOADOUT' : 'STASH', 82, [
             { label: 'Odak', value: focusSide === 'loadout' ? 'Baskın Çantası' : 'Kalıcı Depo', percent: 100 },
@@ -1067,21 +1076,29 @@ function renderArcLockersView() {
             { label: 'Loadout', value: describeCount(lockers.loadout.items.length, 'slot', 'slot'), percent: getLockerUsage(lockers.loadout) },
             { label: 'Filtre', value: getLockerCategoryLabel(state.lockerCategory), percent: 66 }
         ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader('ARC Depo Yönetimi', 'Drag & drop, yığın ayırma ve odak değişimi mevcut callback sözleşmesini korur.', button('Ana Menüye Dön', 'go-back', {}, 'ghost')) +
-            '<section class="locker-toolbar">' +
-                '<div><p class="ui-overline">Odak</p><h3 class="ui-card__title">' + esc(focusSide === 'loadout' ? lockers.loadout.label : lockers.main.label) + '</h3><p class="ui-card__text">' + esc(lockers.transferSupport.helperText || 'Sol tık taşıma, sağ tık split ve sürükle-bırak desteklenir.') + '</p></div>' +
-                '<div class="locker-actions">' +
-                    button('Yenile', 'refresh-lockers', { focusSide: focusSide }, 'ghost') +
-                    button(otherSide === 'loadout' ? 'Baskın Çantasına Geç' : 'Kalıcı Depoya Geç', 'swap-locker-focus', { focusSide: otherSide }, 'ghost') +
-                '</div>' +
-            '</section>' +
-            '<div class="locker-filters">' + renderLockerFilterChips() + '</div>' +
-            '<div class="locker-grid">' +
-                renderLockerPanel(lockers.main, focusSide) +
-                renderLockerPanel(lockers.loadout, focusSide) +
-            '</div>' +
-        '</div>'
+        html: `
+            <div class="view-stack">
+                ${renderViewHeader('ARC Depo Yönetimi', 'Drag & drop, stack split ve odak değişimi mevcut callback sözleşmesini korur.', button('Ana Menüye Dön', 'go-back', {}, 'ghost'))}
+                <section class="command-panel">
+                    <div class="locker-toolbar">
+                        <div>
+                            <p class="ui-overline">Odak</p>
+                            <h3 class="ui-card__title">${esc(focusSide === 'loadout' ? lockers.loadout.label : lockers.main.label)}</h3>
+                            <p class="ui-card__text">${esc(lockers.transferSupport.helperText || 'Sol tık taşıma, sağ tık split ve sürükle-bırak desteklenir.')}</p>
+                        </div>
+                        <div class="locker-actions">
+                            ${button('Yenile', 'refresh-lockers', { focusSide: focusSide }, 'ghost')}
+                            ${button(otherSide === 'loadout' ? 'Baskın Çantasına Geç' : 'Kalıcı Depoya Geç', 'swap-locker-focus', { focusSide: otherSide }, 'ghost')}
+                        </div>
+                    </div>
+                </section>
+                <div class="locker-filters">${renderLockerFilterChips()}</div>
+                <div class="locker-grid">
+                    ${renderLockerPanel(lockers.main, focusSide)}
+                    ${renderLockerPanel(lockers.loadout, focusSide)}
+                </div>
+            </div>
+        `
     };
 }
 
@@ -1099,53 +1116,80 @@ function buildStandardSidebar(title, text, tag, progress, cards) {
     };
 }
 
+function renderPanelHeader(eyebrow, title, text, actions) {
+    return `
+        <div class="command-panel__head">
+            <div>
+                <p class="ui-overline">${esc(eyebrow)}</p>
+                <h3 class="ui-card__title">${esc(title)}</h3>
+                <p class="ui-card__text">${esc(text)}</p>
+            </div>
+            ${actions ? `<div class="panel-section__actions">${actions}</div>` : ''}
+        </div>
+    `;
+}
+
 function renderViewHeader(title, text, actionHtml) {
-    return '' +
-        '<section class="view-header">' +
-            '<div><p class="ui-overline">Ekran</p><h2 class="view-header__title">' + esc(title) + '</h2><p class="view-header__text">' + esc(text) + '</p></div>' +
-            (actionHtml ? '<div class="panel-section__actions">' + actionHtml + '</div>' : '') +
-        '</section>';
+    return `
+        <section class="command-header">
+            <div>
+                <p class="ui-overline">Control surface</p>
+                <h2 class="command-header__title">${esc(title)}</h2>
+                <p class="command-header__text">${esc(text)}</p>
+            </div>
+            ${actionHtml ? `<div class="panel-section__actions">${actionHtml}</div>` : ''}
+        </section>
+    `;
 }
 
 function renderActionCard(title, text, badges, actionHtml) {
-    return '' +
-        '<article class="card-list">' +
-            '<div class="card-list__header"><div><p class="ui-overline">Aksiyon</p><h3 class="card-list__title">' + esc(title) + '</h3></div></div>' +
-            '<p class="card-list__description">' + esc(text) + '</p>' +
-            '<div class="card-list__chips">' + safeArray(badges).map(function (badge) {
-                return '<span class="ui-chip">' + esc(badge) + '</span>';
-            }).join('') + '</div>' +
-            '<div class="card-list__actions">' + actionHtml + '</div>' +
-        '</article>';
+    return `
+        <article class="action-node">
+            <div class="action-node__header">
+                <div>
+                    <p class="ui-overline">Action node</p>
+                    <h3 class="action-node__title">${esc(title)}</h3>
+                </div>
+            </div>
+            <p class="action-node__text">${esc(text)}</p>
+            <div class="card-list__chips">${safeArray(badges).map(function (badge) {
+                return `<span class="ui-chip">${esc(badge)}</span>`;
+            }).join('')}</div>
+            <div class="action-node__actions">${actionHtml}</div>
+        </article>
+    `;
 }
 
 function renderStat(label, value, percent) {
-    return '' +
-        '<div class="status-grid__item">' +
-            '<span class="status-grid__label">' + esc(label) + '</span>' +
-            '<strong class="status-grid__value">' + esc(value) + '</strong>' +
-            renderMeter(percent) +
-        '</div>';
+    return `
+        <div class="telemetry-card">
+            <span class="status-grid__label">${esc(label)}</span>
+            <strong class="status-grid__value">${esc(value)}</strong>
+            ${renderMeter(percent)}
+        </div>
+    `;
 }
 
 function renderMeter(percent) {
-    return '<div class="ui-progress"><span class="ui-progress__fill" style="width:' + clamp(safeNumber(percent, 0), 0, 100) + '%"></span></div>';
+    return `<div class="ui-progress"><span class="ui-progress__fill" style="width:${clamp(safeNumber(percent, 0), 0, 100)}%"></span></div>`;
 }
 
 function renderMetaRow(label, value, raw) {
-    return '' +
-        '<div class="meta-list__item">' +
-            '<span class="list-meta__label">' + esc(label) + '</span>' +
-            '<strong class="list-meta__value">' + (raw ? value : esc(value)) + '</strong>' +
-        '</div>';
+    return `
+        <div class="meta-list__item">
+            <span class="list-meta__label">${esc(label)}</span>
+            <strong class="list-meta__value">${raw ? value : esc(value)}</strong>
+        </div>
+    `;
 }
 
 function renderEmptyState(icon, text) {
-    return '' +
-        '<div class="empty-state">' +
-            '<div class="empty-state__icon">' + esc(icon) + '</div>' +
-            '<div class="empty-state__text">' + esc(text) + '</div>' +
-        '</div>';
+    return `
+        <div class="empty-state">
+            <div class="empty-state__icon">${esc(icon)}</div>
+            <div class="empty-state__text">${esc(text)}</div>
+        </div>
+    `;
 }
 
 function button(label, action, payload, variant, disabled) {
@@ -1154,7 +1198,7 @@ function button(label, action, payload, variant, disabled) {
     else if (variant === 'danger') className += ' ui-button--danger';
     else className += ' ui-button--ghost';
 
-    return '<button class="' + className + '" type="button" data-ui-action="' + escAttr(action) + '" data-ui-payload="' + jsonAttr(payload) + '"' + (disabled ? ' disabled' : '') + '>' + esc(label) + '</button>';
+    return `<button class="${className}" type="button" data-ui-action="${escAttr(action)}" data-ui-payload="${jsonAttr(payload)}"${disabled ? ' disabled' : ''}>${esc(label)}</button>`;
 }
 
 function getLoadoutInfo(menu) {
@@ -1279,11 +1323,12 @@ function renderRequirements(requirements, isArcCraft) {
         const owned = safeNumber(requirement && requirement.ownedAmount, 0);
         const amount = safeNumber(requirement && requirement.amount, 0);
         const isMet = requirement && requirement.isMet === true;
-        return '' +
-            '<div class="item-card__requirement ' + (isMet ? 'is-met' : 'is-missing') + '">' +
-                '<strong>x' + esc(amount) + ' ' + esc((requirement && (requirement.itemLabel || requirement.item)) || 'Parça') + '</strong>' +
-                '<span class="item-card__meta-label">' + esc((isArcCraft ? 'Depoda: ' : 'Sende: ') + owned + '/' + amount) + '</span>' +
-            '</div>';
+        return `
+            <div class="item-card__requirement ${isMet ? 'is-met' : 'is-missing'}">
+                <strong>x${esc(amount)} ${esc((requirement && (requirement.itemLabel || requirement.item)) || 'Parça')}</strong>
+                <span class="item-card__meta-label">${esc((isArcCraft ? 'Depoda: ' : 'Sende: ') + owned + '/' + amount)}</span>
+            </div>
+        `;
     }).join('');
 }
 
@@ -1291,34 +1336,29 @@ function renderStageCard(stage, index, isArc) {
     const locked = stage && stage.locked === true;
     const multiplier = safeNumber(stage && stage.multiplier, 1);
     const recommended = Math.max(1, safeNumber(stage && stage.id, index + 1));
-    const palette = [
-        ['#162844', '#315f9f'],
-        ['#14281f', '#2f7a54'],
-        ['#2a1e16', '#94542f'],
-        ['#25182b', '#8652d1']
-    ][index % 4];
     const difficulty = isArc ? 'Sabit Konfigürasyon' : (multiplier >= 1.5 ? 'Yüksek Risk' : multiplier >= 1.2 ? 'Orta Risk' : 'Düşük Risk');
 
     const tag = locked ? 'article' : 'button';
-    const attrs = locked ? '' : ' type="button" data-ui-action="select-stage" data-ui-payload="' + jsonAttr({ index: index }) + '"';
-    return '' +
-        '<' + tag + ' class="stage-card' + (locked ? ' is-locked' : '') + '"' + attrs + ' style="background:linear-gradient(135deg,' + palette[0] + ',' + palette[1] + ')">' +
-            '<div class="stage-card__body">' +
-                '<div class="stage-card__header">' +
-                    '<span class="ui-badge ' + (locked ? 'ui-badge--warning' : 'ui-badge--muted') + '">' + esc(locked ? STRINGS.badge.locked : 'Hazır') + '</span>' +
-                    '<span class="ui-badge ui-badge--muted">' + esc(isArc ? 'ARC' : ('x' + multiplier)) + '</span>' +
-                '</div>' +
-                '<div>' +
-                    '<h3 class="stage-card__title">' + esc((stage && stage.label) || ('Stage ' + (index + 1))) + '</h3>' +
-                    '<p class="ui-card__text">' + esc(locked ? ('Bu stage için önerilen seviye: ' + recommended) : (isArc ? 'ARC baskını sabit kurallarla başlar.' : 'Takımın hazırsa operasyona başlayabilirsin.')) + '</p>' +
-                '</div>' +
-                '<div class="stage-card__meta">' +
-                    '<span class="ui-chip">' + esc(difficulty) + '</span>' +
-                    '<span class="ui-chip">Önerilen Seviye: ' + esc(recommended) + '</span>' +
-                '</div>' +
-                '<div class="stage-card__action">' + esc(locked ? 'Kilit Açılmadı' : (isArc ? 'Baskını Başlat' : 'Operasyonu Başlat')) + '</div>' +
-            '</div>' +
-        '</' + tag + '>';
+    const attrs = locked ? '' : ` type="button" data-ui-action="select-stage" data-ui-payload="${jsonAttr({ index: index })}"`;
+    return `
+        <${tag} class="stage-card${locked ? ' is-locked' : ''}"${attrs}>
+            <div class="stage-card__body">
+                <div class="stage-card__header">
+                    <span class="ui-badge ${locked ? 'ui-badge--warning' : 'ui-badge--muted'}">${esc(locked ? STRINGS.badge.locked : 'Hazır')}</span>
+                    <span class="ui-badge ui-badge--muted">${esc(isArc ? 'ARC' : ('x' + multiplier))}</span>
+                </div>
+                <div>
+                    <h3 class="stage-card__title">${esc((stage && stage.label) || ('Stage ' + (index + 1)))}</h3>
+                    <p class="ui-card__text">${esc(locked ? ('Bu stage için önerilen seviye: ' + recommended) : (isArc ? 'ARC baskını sabit kurallarla başlar.' : 'Takımın hazırsa operasyona başlayabilirsin.'))}</p>
+                </div>
+                <div class="stage-card__meta">
+                    <span class="ui-chip">${esc(difficulty)}</span>
+                    <span class="ui-chip">Önerilen Seviye: ${esc(recommended)}</span>
+                </div>
+                <div class="stage-card__action">${esc(locked ? 'Kilit Açılmadı' : (isArc ? 'Baskını Başlat' : 'Operasyonu Başlat'))}</div>
+            </div>
+        </${tag}>
+    `;
 }
 
 function getLobbyBadgeClass(lobby) {
@@ -1370,51 +1410,53 @@ function renderLockerPanel(section, focusSide) {
 
     const placeholders = Math.max(0, Math.min(6, Math.max(safeNumber(section && section.slots, 0), items.length) - items.length));
 
-    return '' +
-        '<section class="locker-panel' + (section.side === focusSide ? ' is-focused' : '') + '">' +
-            '<div class="locker-panel__header">' +
-                '<div><p class="ui-overline">' + esc(section.side === 'loadout' ? 'Loadout' : 'Stash') + '</p><h3 class="locker-panel__title">' + esc(section.title || section.label) + '</h3><p class="ui-card__text">' + esc(section.helperText || '') + '</p></div>' +
-                '<span class="ui-badge ' + (section.side === focusSide ? 'ui-badge--primary' : 'ui-badge--muted') + '">' + esc(section.side === focusSide ? STRINGS.badge.active : 'PASİF') + '</span>' +
-            '</div>' +
-            '<div class="locker-panel__summary">' +
-                '<span class="ui-chip">' + esc(describeCount(safeArray(section.items).length, 'slot', 'slot')) + '</span>' +
-                '<span class="ui-chip">Toplam Yuva: ' + esc(section.slots || safeArray(section.items).length) + '</span>' +
-                '<span class="ui-chip">Filtre: ' + esc(getLockerCategoryLabel(state.lockerCategory)) + '</span>' +
-            '</div>' +
-            '<div class="locker-panel__grid" data-locker-drop-side="' + escAttr(section.side) + '">' +
-                (items.length ? items.map(function (item) {
-                    return renderLockerItem(section, item, focusSide);
-                }).join('') : renderLockerPlaceholder(STRINGS.empty.locker)) +
-                Array.from({ length: placeholders }).map(function () {
-                    return renderLockerPlaceholder('Boş Slot');
-                }).join('') +
-            '</div>' +
-        '</section>';
+    return `
+        <section class="locker-panel${section.side === focusSide ? ' is-focused' : ''}">
+            <div class="locker-panel__header">
+                <div>
+                    <p class="ui-overline">${esc(section.side === 'loadout' ? 'Loadout' : 'Stash')}</p>
+                    <h3 class="locker-panel__title">${esc(section.title || section.label)}</h3>
+                    <p class="ui-card__text">${esc(section.helperText || '')}</p>
+                </div>
+                <span class="ui-badge ${section.side === focusSide ? 'ui-badge--primary' : 'ui-badge--muted'}">${esc(section.side === focusSide ? STRINGS.badge.active : 'Pasif')}</span>
+            </div>
+            <div class="locker-panel__summary">
+                <span class="ui-chip">${esc(describeCount(safeArray(section.items).length, 'slot', 'slot'))}</span>
+                <span class="ui-chip">Toplam Yuva: ${esc(section.slots || safeArray(section.items).length)}</span>
+                <span class="ui-chip">Filtre: ${esc(getLockerCategoryLabel(state.lockerCategory))}</span>
+            </div>
+            <div class="locker-panel__grid" data-locker-drop-side="${escAttr(section.side)}">
+                ${items.length ? items.map(function (item) { return renderLockerItem(section, item, focusSide); }).join('') : renderLockerPlaceholder(STRINGS.empty.locker)}
+                ${Array.from({ length: placeholders }).map(function () { return renderLockerPlaceholder('Boş Slot'); }).join('')}
+            </div>
+        </section>
+    `;
 }
 
 function renderLockerItem(section, item, focusSide) {
     const category = getLockerCategory(item);
     const toSide = section.side === 'loadout' ? 'main' : 'loadout';
-    return '' +
-        '<button class="locker-item" type="button" draggable="true" data-locker-side="' + escAttr(section.side) + '" data-locker-slot="' + escAttr(item.slot) + '">' +
-            '<div class="locker-item__thumb">' +
-                '<img src="' + escAttr(resolveItemImage(item)) + '" alt="' + escAttr(item.label) + '" data-fallback-src="' + escAttr(buildItemPlaceholder(item.label)) + '">' +
-                '<span class="locker-item__count">x' + esc(item.count) + '</span>' +
-            '</div>' +
-            '<div class="locker-item__header">' +
-                '<span class="locker-item__name">' + esc(item.label) + '</span>' +
-                '<span class="ui-badge ui-badge--muted">#' + esc(item.slot) + '</span>' +
-            '</div>' +
-            '<div class="locker-item__meta">' + esc(getLockerCategoryLabel(category)) + ' · ' + esc(item.stackable ? 'Stacklenebilir' : 'Tekil') + '</div>' +
-            '<div class="locker-item__actions">' +
-                button('Taşı', 'locker-move', { fromSide: section.side, slot: item.slot, focusSide: focusSide, toSide: toSide }, 'ghost') +
-                button('Ayır', 'locker-split-open', { fromSide: section.side, slot: item.slot }, 'ghost', !item.stackable || item.count <= 1) +
-            '</div>' +
-        '</button>';
+    return `
+        <button class="locker-item" type="button" draggable="true" data-locker-side="${escAttr(section.side)}" data-locker-slot="${escAttr(item.slot)}">
+            <div class="locker-item__thumb">
+                <img src="${escAttr(resolveItemImage(item))}" alt="${escAttr(item.label)}" data-fallback-src="${escAttr(buildItemPlaceholder(item.label))}">
+                <span class="locker-item__count">x${esc(item.count)}</span>
+            </div>
+            <div class="locker-item__header">
+                <span class="locker-item__name">${esc(item.label)}</span>
+                <span class="ui-badge ui-badge--muted">#${esc(item.slot)}</span>
+            </div>
+            <div class="locker-item__meta">${esc(getLockerCategoryLabel(category))} · ${esc(item.stackable ? 'Stacklenebilir' : 'Tekil')}</div>
+            <div class="locker-item__actions">
+                ${button('Taşı', 'locker-move', { fromSide: section.side, slot: item.slot, focusSide: focusSide, toSide: toSide }, 'ghost')}
+                ${button('Ayır', 'locker-split-open', { fromSide: section.side, slot: item.slot }, 'ghost', !item.stackable || item.count <= 1)}
+            </div>
+        </button>
+    `;
 }
 
 function renderLockerPlaceholder(text) {
-    return '<div class="locker-placeholder">' + esc(text) + '</div>';
+    return `<div class="locker-placeholder">${esc(text)}</div>`;
 }
 
 function resolveItemImage(item) {
@@ -1814,68 +1856,80 @@ function renderModal() {
 
 function renderConfirmDialog() {
     const dialog = state.confirmDialog || {};
-    return '' +
-        '<article class="modal" role="dialog" aria-modal="true">' +
-            '<div class="modal__header">' +
-                '<div><p class="ui-overline">Onay</p><h3 class="modal__title">' + esc(dialog.title || 'Emin misin?') + '</h3></div>' +
-                '<span class="ui-badge ' + (dialog.tone === 'danger' ? 'ui-badge--danger' : 'ui-badge--primary') + '">Onay</span>' +
-            '</div>' +
-            '<div class="modal__content"><p class="modal__text">' + esc(dialog.text || '') + '</p></div>' +
-            '<div class="modal__actions">' +
-                button('Vazgeç', 'confirm-cancel', {}, 'ghost') +
-                button(dialog.confirmLabel || 'Onayla', dialog.confirmAction || 'noop', dialog.payload || {}, dialog.tone === 'danger' ? 'danger' : 'primary') +
-            '</div>' +
-        '</article>';
+    return `
+        <article class="modal" role="dialog" aria-modal="true">
+            <div class="modal__header">
+                <div>
+                    <p class="ui-overline">Authorization</p>
+                    <h3 class="modal__title">${esc(dialog.title || 'Emin misin?')}</h3>
+                </div>
+                <span class="ui-badge ${dialog.tone === 'danger' ? 'ui-badge--danger' : 'ui-badge--primary'}">Onay</span>
+            </div>
+            <div class="modal__content"><p class="modal__text">${esc(dialog.text || '')}</p></div>
+            <div class="modal__actions">
+                ${button('Vazgeç', 'confirm-cancel', {}, 'ghost')}
+                ${button(dialog.confirmLabel || 'Onayla', dialog.confirmAction || 'noop', dialog.payload || {}, dialog.tone === 'danger' ? 'danger' : 'primary')}
+            </div>
+        </article>
+    `;
 }
 
 function renderCraftDialog() {
     const dialog = state.craftDialog;
-    return '' +
-        '<article class="modal" role="dialog" aria-modal="true">' +
-            '<div class="modal__header">' +
-                '<div><p class="ui-overline">Üretim</p><h3 class="modal__title">' + esc(dialog.label) + '</h3></div>' +
-                '<span class="ui-badge ui-badge--primary">x' + esc(dialog.outputAmount) + ' çıktı</span>' +
-            '</div>' +
-            '<div class="modal__content">' +
-                '<p class="modal__text">Bu tariften şu an en fazla ' + esc(dialog.maxAmount) + ' kez üretebilirsin.</p>' +
-                '<div class="dialog-stats">' +
-                    '<div class="dialog-stats__item"><span class="status-grid__label">Maksimum</span><strong class="status-grid__value">x' + esc(dialog.maxAmount) + '</strong></div>' +
-                    '<div class="dialog-stats__item"><span class="status-grid__label">Toplam Çıktı</span><strong id="craft-total-output" class="status-grid__value">x' + esc(dialog.amount * dialog.outputAmount) + '</strong></div>' +
-                '</div>' +
-                '<input id="craft-quantity-range" class="ui-range" type="range" min="1" max="' + escAttr(dialog.maxAmount) + '" value="' + escAttr(dialog.amount) + '">' +
-                '<input id="craft-quantity-input" class="ui-number" type="number" min="1" max="' + escAttr(dialog.maxAmount) + '" value="' + escAttr(dialog.amount) + '">' +
-                '<div id="craft-quantity-count" class="ui-card__text">Üretim adedi: x' + esc(dialog.amount) + '</div>' +
-            '</div>' +
-            '<div class="modal__actions">' +
-                button('İptal', 'craft-cancel', {}, 'ghost') +
-                button('Üretimi Başlat', 'craft-confirm', {}, 'primary') +
-            '</div>' +
-        '</article>';
+    return `
+        <article class="modal" role="dialog" aria-modal="true">
+            <div class="modal__header">
+                <div>
+                    <p class="ui-overline">Manufacture</p>
+                    <h3 class="modal__title">${esc(dialog.label)}</h3>
+                </div>
+                <span class="ui-badge ui-badge--primary">x${esc(dialog.outputAmount)} çıktı</span>
+            </div>
+            <div class="modal__content">
+                <p class="modal__text">Bu tariften şu an en fazla ${esc(dialog.maxAmount)} kez üretebilirsin.</p>
+                <div class="dialog-stats">
+                    <div class="dialog-stats__item"><span class="status-grid__label">Maksimum</span><strong class="status-grid__value">x${esc(dialog.maxAmount)}</strong></div>
+                    <div class="dialog-stats__item"><span class="status-grid__label">Toplam Çıktı</span><strong id="craft-total-output" class="status-grid__value">x${esc(dialog.amount * dialog.outputAmount)}</strong></div>
+                </div>
+                <input id="craft-quantity-range" class="ui-range" type="range" min="1" max="${escAttr(dialog.maxAmount)}" value="${escAttr(dialog.amount)}">
+                <input id="craft-quantity-input" class="ui-number" type="number" min="1" max="${escAttr(dialog.maxAmount)}" value="${escAttr(dialog.amount)}">
+                <div id="craft-quantity-count" class="ui-card__text">Üretim adedi: x${esc(dialog.amount)}</div>
+            </div>
+            <div class="modal__actions">
+                ${button('İptal', 'craft-cancel', {}, 'ghost')}
+                ${button('Üretimi Başlat', 'craft-confirm', {}, 'primary')}
+            </div>
+        </article>
+    `;
 }
 
 function renderLockerSplitDialog() {
     const dialog = state.arcLockers.splitDialog;
-    return '' +
-        '<article class="modal" role="dialog" aria-modal="true">' +
-            '<div class="modal__header">' +
-                '<div><p class="ui-overline">Yığın Ayır</p><h3 class="modal__title">' + esc(dialog.itemName) + '</h3></div>' +
-                '<span class="ui-badge ui-badge--warning">Split</span>' +
-            '</div>' +
-            '<div class="modal__content">' +
-                '<p class="modal__text">Bu yığından kaç adet ' + esc(dialog.targetSide === 'loadout' ? 'Baskın Çantası' : 'Kalıcı Depo') + ' tarafına taşınsın?</p>' +
-                '<div class="dialog-stats">' +
-                    '<div class="dialog-stats__item"><span class="status-grid__label">Toplam</span><strong class="status-grid__value">x' + esc(dialog.totalCount) + '</strong></div>' +
-                    '<div class="dialog-stats__item"><span class="status-grid__label">Taşınacak</span><strong id="locker-split-target-count" class="status-grid__value">x' + esc(dialog.amount) + '</strong></div>' +
-                    '<div class="dialog-stats__item"><span class="status-grid__label">Kaynakta Kalacak</span><strong id="locker-split-source-count" class="status-grid__value">x' + esc(Math.max(dialog.totalCount - dialog.amount, 0)) + '</strong></div>' +
-                '</div>' +
-                '<input id="locker-split-range" class="ui-range" type="range" min="1" max="' + escAttr(dialog.maxAmount) + '" value="' + escAttr(dialog.amount) + '">' +
-                '<input id="locker-split-input" class="ui-number" type="number" min="1" max="' + escAttr(dialog.maxAmount) + '" value="' + escAttr(dialog.amount) + '">' +
-            '</div>' +
-            '<div class="modal__actions">' +
-                button('İptal', 'locker-split-cancel', {}, 'ghost') +
-                button('Ayır ve Taşı', 'locker-split-confirm', {}, 'primary') +
-            '</div>' +
-        '</article>';
+    return `
+        <article class="modal" role="dialog" aria-modal="true">
+            <div class="modal__header">
+                <div>
+                    <p class="ui-overline">Split transfer</p>
+                    <h3 class="modal__title">${esc(dialog.itemName)}</h3>
+                </div>
+                <span class="ui-badge ui-badge--warning">Split</span>
+            </div>
+            <div class="modal__content">
+                <p class="modal__text">Bu yığından kaç adet ${esc(dialog.targetSide === 'loadout' ? 'Baskın Çantası' : 'Kalıcı Depo')} tarafına taşınsın?</p>
+                <div class="dialog-stats">
+                    <div class="dialog-stats__item"><span class="status-grid__label">Toplam</span><strong class="status-grid__value">x${esc(dialog.totalCount)}</strong></div>
+                    <div class="dialog-stats__item"><span class="status-grid__label">Taşınacak</span><strong id="locker-split-target-count" class="status-grid__value">x${esc(dialog.amount)}</strong></div>
+                    <div class="dialog-stats__item"><span class="status-grid__label">Kaynakta Kalacak</span><strong id="locker-split-source-count" class="status-grid__value">x${esc(Math.max(dialog.totalCount - dialog.amount, 0))}</strong></div>
+                </div>
+                <input id="locker-split-range" class="ui-range" type="range" min="1" max="${escAttr(dialog.maxAmount)}" value="${escAttr(dialog.amount)}">
+                <input id="locker-split-input" class="ui-number" type="number" min="1" max="${escAttr(dialog.maxAmount)}" value="${escAttr(dialog.amount)}">
+            </div>
+            <div class="modal__actions">
+                ${button('İptal', 'locker-split-cancel', {}, 'ghost')}
+                ${button('Ayır ve Taşı', 'locker-split-confirm', {}, 'primary')}
+            </div>
+        </article>
+    `;
 }
 
 function handleDragStart(event) {
