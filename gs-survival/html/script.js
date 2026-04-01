@@ -2,9 +2,9 @@
 
 const STRINGS = {
     app: {
-        title: 'Extraction Command',
+        title: 'Extraction Komuta',
         subtitle: 'Taktik akışları, takım koordinasyonunu ve ARC hazırlığını tek merkezde yönet.',
-        breadcrumb: 'Command Deck / Ana Ekran'
+        breadcrumb: 'Komuta Güvertesi / Ana Ekran'
     },
     badge: {
         solo: 'SOLO',
@@ -1100,11 +1100,11 @@ function renderViewHeader(title, text, actionHtml) {
     return '' +
         '<section class="view-header">' +
             '<div>' +
-                '<p class="ui-overline">Mission Brief</p>' +
+                '<p class="ui-overline">Görev Brifi</p>' +
                 '<h2 class="view-header__title">' + esc(title) + '</h2>' +
                 '<p class="view-header__text">' + esc(text) + '</p>' +
             '</div>' +
-            (actionHtml ? '<div class="panel-section__actions">' + actionHtml + '</div>' : '<div class="panel-section__actions"><span class="ui-badge ui-badge--muted">TACTICAL UI</span></div>') +
+            (actionHtml ? '<div class="panel-section__actions">' + actionHtml + '</div>' : '<div class="panel-section__actions"><span class="ui-badge ui-badge--muted">TAKTİK PANEL</span></div>') +
         '</section>';
 }
 
@@ -1113,7 +1113,7 @@ function renderActionCard(title, text, badges, actionHtml) {
         '<article class="card-list">' +
             '<div class="card-list__header">' +
                 '<div><p class="ui-overline">Operasyon Akışı</p><h3 class="card-list__title">' + esc(title) + '</h3></div>' +
-                '<span class="ui-badge ui-badge--muted">READY</span>' +
+                '<span class="ui-badge ui-badge--muted">CANLI</span>' +
             '</div>' +
             '<p class="card-list__description">' + esc(text) + '</p>' +
             '<div class="card-list__chips">' + safeArray(badges).map(function (badge) {
