@@ -37,7 +37,7 @@ RegisterNetEvent('gs-survival:server:sendInvite', function(tId)
         return
     end
 
-    local canInvite, proximityError = EnsureLobbyProximity(src, tId, targetPlayer and (targetPlayer.PlayerData.charinfo.firstname .. " " .. targetPlayer.PlayerData.charinfo.lastname) or nil)
+    local canInvite, proximityError = EnsureLobbyProximity(src, tId, ServerHelpers.BuildArcPlayerDisplayName(targetPlayer, tId))
     if not canInvite then
         ServerHelpers.NotifyPlayer(src, proximityError, "error")
         return
@@ -194,7 +194,8 @@ local function AddMemberToLobby(leaderId, memberId, memberName)
 end
 local function GetPlayerSurvivalLevel(Player)
     local survivalMetadata = GetModeMetadata('classic')
-    return tonumber(Player.PlayerData.metadata[survivalMetadata.level or 'survival_level'] or 1) or 1
+    local playerMetadata = ServerHelpers.GetPlayerMetadata(Player)
+    return tonumber(playerMetadata[survivalMetadata.level or 'survival_level'] or 1) or 1
 end
 
 local function GetMinimumPlayerSurvivalLevel(playerIds)

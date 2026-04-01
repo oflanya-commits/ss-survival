@@ -102,6 +102,14 @@ RegisterNetEvent('gs-survival:server:moveArcLockerItem', function(fromSide, slot
     local targetItem = targetInventorySlot and ArcLockerHelpers.FindItemBySlot(toStashId, targetInventorySlot) or nil
     local sameInventory = fromStashId == toStashId
 
+    if type(selectedItem) ~= 'table' then
+        selectedItem = nil
+    end
+
+    if type(targetItem) ~= 'table' then
+        targetItem = nil
+    end
+
     if not selectedItem or not selectedItem.name or tonumber(selectedItem.count or 0) <= 0 then
         ServerHelpers.NotifyPlayer(src, "Taşınacak eşya bulunamadı.", "error")
         TriggerClientEvent('gs-survival:client:openArcLockerManager', src, focusSide)
@@ -419,7 +427,8 @@ RegisterNetEvent('gs-survival:server:giveStarterItems', function(weaponName)
     end
 
     local survivalMetadata = GetModeMetadata('classic')
-    local hasWeaponUpgrade = Player.PlayerData.metadata[survivalMetadata.weapon or 'survival_weapon'] or "weapon_pistol"
+    local playerMetadata = ServerHelpers.GetPlayerMetadata(Player)
+    local hasWeaponUpgrade = playerMetadata[survivalMetadata.weapon or 'survival_weapon'] or "weapon_pistol"
 
     -- Hile kontrolü ve eşya verme
     if hasWeaponUpgrade == weaponName then

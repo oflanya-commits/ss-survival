@@ -70,14 +70,16 @@ RegisterNetEvent('gs-survival:server:finishSurvival', function(isVictory)
         -- [DÜZELTME]: Seviye Atlatma ve SQL Kaydı
         local playedStage = lobbyStage[bucketId] or 1
         local survivalMetadata = GetModeMetadata('classic')
-        local currentLevel = Player.PlayerData.metadata[survivalMetadata.level or "survival_level"] or 1
+        local playerMetadata = ServerHelpers.GetPlayerMetadata(Player)
+        local currentLevel = playerMetadata[survivalMetadata.level or "survival_level"] or 1
+        local citizenId = ServerHelpers.GetPlayerCitizenId(Player)
 
-        if playedStage == currentLevel then
+        if playedStage == currentLevel and citizenId then
             local nextLevel = currentLevel + 1
             Player.Functions.SetMetaData(survivalMetadata.level or "survival_level", nextLevel)
 
             -- BURASI EKLENDİ: Metadata ile yetinmeyip direkt DB'ye yazıyoruz
-            exports.oxmysql:update('UPDATE players SET survival_level = ? WHERE citizenid = ?', {nextLevel, Player.PlayerData.citizenid})
+            exports.oxmysql:update('UPDATE players SET survival_level = ? WHERE citizenid = ?', {nextLevel, citizenId})
             Player.Functions.Save()
         end
 
@@ -206,7 +208,11 @@ QBCore.Functions.CreateCallback('gs-survival:server:checkReconnectBackup', funct
     local Player = QBCore.Functions.GetPlayer(src)
     if not Player then return cb({ restored = false }) end
 
-    local cid = Player.PlayerData.citizenid
+    local cid = ServerHelpers.GetPlayerCitizenId(Player)
+    if not cid then
+        return cb({ restored = false })
+    end
+
     local disconnectState = arcDisconnectStates[cid]
     local savedModeId = disconnectState and 'arc_pvp' or nil
     local activeModeId = ResolvePlayerActiveModeState(src, Player) or GetActiveModeId(Player)

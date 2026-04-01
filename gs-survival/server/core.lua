@@ -345,6 +345,19 @@ function ServerHelpers.BuildArcPlayerDisplayName(Player, fallbackPlayerId)
     return ("ID %s"):format(tostring(fallbackPlayerId))
 end
 
+function ServerHelpers.GetPlayerCitizenId(Player)
+    local citizenId = Player and Player.PlayerData and Player.PlayerData.citizenid or nil
+    if citizenId == '' then
+        return nil
+    end
+
+    return citizenId
+end
+
+function ServerHelpers.GetPlayerMetadata(Player)
+    return Player and Player.PlayerData and Player.PlayerData.metadata or {}
+end
+
 function ServerHelpers.RememberArcRaidPlayerProfile(bucketId, playerId, Player)
     local resolvedPlayerId = tonumber(playerId)
     local profileState = ServerHelpers.EnsureArcRaidPlayerProfileState(bucketId)
@@ -647,6 +660,10 @@ local function GetRandomUnlockedStageId(maxLevel, modeId)
 end
 
 local function GetBackupStashId(modeId, citizenId)
+    if not citizenId or citizenId == '' then
+        return nil
+    end
+
     if ServerHelpers.GetGameModeId(modeId) == 'arc_pvp' then
         return (Config.ArcPvP and Config.ArcPvP.BackupStashPrefix or 'arc_backup_') .. citizenId
     end
@@ -700,20 +717,22 @@ local function IsModeActive(Player, modeId)
     if not Player then return false end
 
     local metadata = GetModeMetadata(modeId)
-    if metadata.activeFlag and Player.PlayerData.metadata[metadata.activeFlag] then
+    local playerMetadata = ServerHelpers.GetPlayerMetadata(Player)
+
+    if metadata.activeFlag and playerMetadata[metadata.activeFlag] then
         return true
     end
 
-    if metadata.modeKey and Player.PlayerData.metadata[metadata.modeKey] == ServerHelpers.GetGameModeId(modeId) then
+    if metadata.modeKey and playerMetadata[metadata.modeKey] == ServerHelpers.GetGameModeId(modeId) then
         return true
     end
 
-    local legacyModeId = Player.PlayerData.metadata["survival_mode"]
+    local legacyModeId = playerMetadata["survival_mode"]
     if legacyModeId == ServerHelpers.GetGameModeId(modeId) then
         return true
     end
 
-    if ServerHelpers.GetGameModeId(modeId) == 'classic' and Player.PlayerData.metadata["in_survival"] then
+    if ServerHelpers.GetGameModeId(modeId) == 'classic' and playerMetadata["in_survival"] then
         return true
     end
 
@@ -744,7 +763,11 @@ local function ResolvePlayerActiveModeState(playerId, Player)
         return activeModeId
     end
 
-    local cid = Player.PlayerData.citizenid
+    local cid = ServerHelpers.GetPlayerCitizenId(Player)
+    if not cid then
+        return activeModeId
+    end
+
     local backupStashId = GetBackupStashId(activeModeId, cid)
     local ok, backupItems = pcall(function()
         return exports.ox_inventory:GetInventoryItems(backupStashId)
@@ -779,7 +802,8 @@ local function GetPlayerStarterLoadout(Player, modeId)
     end
 
     local metadata = GetModeMetadata(modeId)
-    local starterWeapon = Player.PlayerData.metadata[metadata.weapon or 'survival_weapon'] or Config.Combat.DefaultWeapon or "weapon_pistol"
+    local playerMetadata = ServerHelpers.GetPlayerMetadata(Player)
+    local starterWeapon = playerMetadata[metadata.weapon or 'survival_weapon'] or Config.Combat.DefaultWeapon or "weapon_pistol"
     local ammoType = Config.Combat.DefaultAmmo or "ammo-9"
     local ammoCount = Config.Combat.DefaultAmmoAmount or 100
 
@@ -796,7 +820,7 @@ local function GetPlayerStarterLoadout(Player, modeId)
         weapon = starterWeapon,
         ammoType = ammoType,
         ammoCount = ammoCount,
-        armor = tonumber(Player.PlayerData.metadata[metadata.armor or 'survival_armor'] or 0) or 0
+        armor = tonumber(playerMetadata[metadata.armor or 'survival_armor'] or 0) or 0
     }
 end
 
@@ -828,7 +852,7 @@ end
 local function RegisterArcMainStash(Player)
     if not Player or not Config.ArcPvP then return nil end
 
-    local citizenId = Player.PlayerData.citizenid
+    local citizenId = ServerHelpers.GetPlayerCitizenId(Player)
     if not citizenId then return nil end
 
     local stashId = (Config.ArcPvP.MainStashPrefix or 'arc_main_') .. citizenId
@@ -845,7 +869,7 @@ end
 local function RegisterArcLoadoutStash(Player)
     if not Player or not Config.ArcPvP then return nil end
 
-    local citizenId = Player.PlayerData.citizenid
+    local citizenId = ServerHelpers.GetPlayerCitizenId(Player)
     if not citizenId then return nil end
 
     local stashId = (Config.ArcPvP.LoadoutStashPrefix or 'arc_loadout_') .. citizenId
@@ -1840,7 +1864,7 @@ end
 
 local function GetArcRaidParticipantKey(playerId)
     local Player = QBCore.Functions.GetPlayer(playerId)
-    local citizenId = Player and Player.PlayerData and Player.PlayerData.citizenid or nil
+    local citizenId = ServerHelpers.GetPlayerCitizenId(Player)
     if citizenId and citizenId ~= '' then
         return tostring(citizenId)
     end
@@ -2303,7 +2327,7 @@ local function FinalizeArcExtractionResult(source, resultType, bucketId)
     end
 
     local Player = QBCore.Functions.GetPlayer(source)
-    local citizenId = Player and Player.PlayerData and Player.PlayerData.citizenid or nil
+    local citizenId = ServerHelpers.GetPlayerCitizenId(Player)
 
     raidState.resultLedger = raidState.resultLedger or {}
     raidState.resultLedger[tonumber(source) or source] = {
@@ -2662,7 +2686,7 @@ end
 
 GetArcPlayerName = function(source)
     local Player = QBCore.Functions.GetPlayer(source)
-    return Player and (Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname) or ("ID " .. tostring(source))
+    return ServerHelpers.BuildArcPlayerDisplayName(Player, source)
 end
 
 TryCompletePlayerExtraction = function(source, bucketId, options)
@@ -2943,7 +2967,7 @@ local function BuildNearbyLobbyPlayers(leaderId)
                 and IsPlayerWithinLobbyProximity(normalizedLeaderId, playerId) then
                 nearbyPlayers[#nearbyPlayers + 1] = {
                     id = playerId,
-                    name = targetPlayer.PlayerData.charinfo.firstname .. " " .. targetPlayer.PlayerData.charinfo.lastname
+                    name = ServerHelpers.BuildArcPlayerDisplayName(targetPlayer, playerId)
                 }
             end
         end

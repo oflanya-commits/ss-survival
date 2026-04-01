@@ -148,54 +148,59 @@ local function StartModeOperation(src, invited, stageId, modeId)
     for _, playerId in pairs(peps) do
         local targetPlayer = QBCore.Functions.GetPlayer(playerId)
         if targetPlayer then
-            local cid = targetPlayer.PlayerData.citizenid
-            local stashId = GetBackupStashId(selectedModeId, cid)
+            local cid = ServerHelpers.GetPlayerCitizenId(targetPlayer)
+            if not cid then
+                print(("[gs-survival] Mode start skipped player %s because citizenid was unavailable."):format(tostring(playerId)))
+                ServerHelpers.NotifyPlayer(playerId, "Karakter verin hazır olmadığı için operasyon başlatılamadı.", "error")
+            else
+                local stashId = GetBackupStashId(selectedModeId, cid)
 
-            ClearAllModeState(targetPlayer)
-            SetModeActiveState(targetPlayer, selectedModeId, true)
-            targetPlayer.Functions.Save()
+                ClearAllModeState(targetPlayer)
+                SetModeActiveState(targetPlayer, selectedModeId, true)
+                targetPlayer.Functions.Save()
 
-            RegisterBackupStash(selectedModeId, stashId)
-            exports.ox_inventory:ClearInventory(stashId)
+                RegisterBackupStash(selectedModeId, stashId)
+                exports.ox_inventory:ClearInventory(stashId)
 
-            if not playerBackups[cid] then
-                playerBackups[cid] = {}
-                local items = exports.ox_inventory:GetInventoryItems(playerId)
-                if items then
-                    for _, item in pairs(items) do
-                        table.insert(playerBackups[cid], { name = item.name, count = item.count, metadata = item.metadata })
-                        exports.ox_inventory:AddItem(stashId, item.name, item.count, item.metadata)
+                if not playerBackups[cid] then
+                    playerBackups[cid] = {}
+                    local items = exports.ox_inventory:GetInventoryItems(playerId)
+                    if items then
+                        for _, item in pairs(items) do
+                            table.insert(playerBackups[cid], { name = item.name, count = item.count, metadata = item.metadata })
+                            exports.ox_inventory:AddItem(stashId, item.name, item.count, item.metadata)
+                        end
                     end
                 end
-            end
 
-            exports.ox_inventory:ClearInventory(playerId)
-            Wait(250)
+                exports.ox_inventory:ClearInventory(playerId)
+                Wait(250)
 
-            if selectedModeId == 'arc_pvp' then
-                RegisterArcMainStash(targetPlayer)
-                RegisterArcLoadoutStash(targetPlayer)
-                ServerHelpers.RememberArcRaidPlayerProfile(bId, playerId, targetPlayer)
-            end
+                if selectedModeId == 'arc_pvp' then
+                    RegisterArcMainStash(targetPlayer)
+                    RegisterArcLoadoutStash(targetPlayer)
+                    ServerHelpers.RememberArcRaidPlayerProfile(bId, playerId, targetPlayer)
+                end
 
-            GiveModeLoadout(playerId, targetPlayer, selectedModeId, preparedArcLoadouts and preparedArcLoadouts[playerId] and preparedArcLoadouts[playerId].items or nil)
-            if selectedModeId == 'arc_pvp' and preparedArcLoadouts and preparedArcLoadouts[playerId] then
-                exports.ox_inventory:ClearInventory(preparedArcLoadouts[playerId].stashId)
-            end
-            SetPlayerRoutingBucket(playerId, bId)
-            ServerHelpers.SetArcPlayerBucketIndex(playerId, bId)
+                GiveModeLoadout(playerId, targetPlayer, selectedModeId, preparedArcLoadouts and preparedArcLoadouts[playerId] and preparedArcLoadouts[playerId].items or nil)
+                if selectedModeId == 'arc_pvp' and preparedArcLoadouts and preparedArcLoadouts[playerId] then
+                    exports.ox_inventory:ClearInventory(preparedArcLoadouts[playerId].stashId)
+                end
+                SetPlayerRoutingBucket(playerId, bId)
+                ServerHelpers.SetArcPlayerBucketIndex(playerId, bId)
 
-            if selectedModeId == 'arc_pvp' and deploymentState and deploymentState.insertion then
-                SetEntityCoords(GetPlayerPed(playerId), deploymentState.insertion.x, deploymentState.insertion.y, deploymentState.insertion.z)
-            elseif stageData and stageData.center then
-                SetEntityCoords(GetPlayerPed(playerId), stageData.center.x, stageData.center.y, stageData.center.z)
-            end
+                if selectedModeId == 'arc_pvp' and deploymentState and deploymentState.insertion then
+                    SetEntityCoords(GetPlayerPed(playerId), deploymentState.insertion.x, deploymentState.insertion.y, deploymentState.insertion.z)
+                elseif stageData and stageData.center then
+                    SetEntityCoords(GetPlayerPed(playerId), stageData.center.x, stageData.center.y, stageData.center.z)
+                end
 
-            TriggerClientEvent('hospital:client:Revive', playerId)
-            if selectedModeId == 'arc_pvp' then
-                TriggerClientEvent('gs-survival:client:initArcPvP', playerId, bId, ServerHelpers.GetArcRaidSquadMembers(bId, playerId), groupMembers[bId], resolvedStageId, deploymentState, nil, GetArcAlivePlayers(bId))
-            else
-                TriggerClientEvent('gs-survival:client:initSurvival', playerId, bId, 1, peps, resolvedStageId)
+                TriggerClientEvent('hospital:client:Revive', playerId)
+                if selectedModeId == 'arc_pvp' then
+                    TriggerClientEvent('gs-survival:client:initArcPvP', playerId, bId, ServerHelpers.GetArcRaidSquadMembers(bId, playerId), groupMembers[bId], resolvedStageId, deploymentState, nil, GetArcAlivePlayers(bId))
+                else
+                    TriggerClientEvent('gs-survival:client:initSurvival', playerId, bId, 1, peps, resolvedStageId)
+                end
             end
         end
     end
@@ -334,6 +339,10 @@ RegisterNetEvent('gs-survival:server:spawnWave', function(bId, wave, stageId)
         sId = 1
     end
 
+    if type(stageData) ~= 'table' then
+        return
+    end
+
     -- [EKLEME]: Önce stage içindeki dalgaya bak
     local cfg = stageData.Waves and stageData.Waves[waveNumber]
 
@@ -448,7 +457,7 @@ RegisterNetEvent('gs-survival:server:createLobby', function(isPublic)
     end
 
     activeLobbies[src] = {
-        leaderName = Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname,
+        leaderName = ServerHelpers.BuildArcPlayerDisplayName(Player, src),
         members = {},
         isPublic = isPublic == true
     }
@@ -514,7 +523,7 @@ RegisterNetEvent('gs-survival:server:confirmInvite', function(leaderId)
             return
         end
 
-        local memberName = member.PlayerData.charinfo.firstname .. " " .. member.PlayerData.charinfo.lastname
+        local memberName = ServerHelpers.BuildArcPlayerDisplayName(member, src)
         local canJoin, proximityError = EnsureLobbyProximity(leaderId, src, memberName)
         if not canJoin then
             ServerHelpers.NotifyPlayer(src, proximityError, "error")
@@ -561,7 +570,7 @@ RegisterNetEvent('gs-survival:server:joinPublicLobby', function(leaderId)
         return
     end
 
-    local memberName = member.PlayerData.charinfo.firstname .. " " .. member.PlayerData.charinfo.lastname
+    local memberName = ServerHelpers.BuildArcPlayerDisplayName(member, src)
     local canJoin, proximityError = EnsureLobbyProximity(leaderId, src, memberName)
     if not canJoin then
         ServerHelpers.NotifyPlayer(src, proximityError, "error")
@@ -581,7 +590,7 @@ RegisterNetEvent('gs-survival:server:denyInvite', function(leaderId)
         return
     end
 
-    local playerName = Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname
+    local playerName = ServerHelpers.BuildArcPlayerDisplayName(Player, src)
     ServerHelpers.NotifyPlayer(leaderId, playerName .. " daveti reddetti.", "error")
 end)
 
@@ -601,8 +610,15 @@ local function RecoverPlayerAfterResourceRestart(playerId)
         return
     end
 
-    local cid = Player.PlayerData.citizenid
+    local cid = ServerHelpers.GetPlayerCitizenId(Player)
+    if not cid then
+        return
+    end
+
     local backupStashId = GetBackupStashId(activeModeId, cid)
+    if not backupStashId then
+        return
+    end
     RegisterBackupStash(activeModeId, backupStashId)
 
     local backupItems = NormalizeInventoryItems(exports.ox_inventory:GetInventoryItems(backupStashId))
@@ -960,8 +976,12 @@ RegisterNetEvent('gs-survival:server:buyUpgrade', function(data)
     local Player = QBCore.Functions.GetPlayer(src)
     if not Player then return end
 
+    if type(data) ~= 'table' then
+        return
+    end
+
     local upgradeId = data.type -- Config'deki anahtar (armor veya weapon)
-    local upgradeData = Config.Upgrades[upgradeId]
+    local upgradeData = (Config.Upgrades or {})[upgradeId]
 
     -- [GÜVENLİK]: Config'de böyle bir ürün var mı?
     if not upgradeData then
@@ -969,11 +989,22 @@ RegisterNetEvent('gs-survival:server:buyUpgrade', function(data)
         return
     end
 
-    local cid = Player.PlayerData.citizenid
+    local cid = ServerHelpers.GetPlayerCitizenId(Player)
+    if not cid then
+        print("^1[HATA]^7 Oyuncu citizenid verisi eksik, market satin alimi iptal edildi.")
+        return
+    end
+
     local price = upgradeData.price
     local value = upgradeData.value
     local metaName = upgradeData.metadataName
     local sqlCol = upgradeData.sqlColumn
+    local playerMetadata = ServerHelpers.GetPlayerMetadata(Player)
+
+    if type(price) ~= 'number' or metaName == nil or metaName == '' or sqlCol == nil or sqlCol == '' or upgradeData.label == nil then
+        print("^1[HATA]^7 Eksik market konfigurasyonu: " .. tostring(upgradeId))
+        return
+    end
 
     -- [GÜVENLİK]: SQL sütun adı whitelist kontrolü — Config.Upgrades'tan türetilir (SQL injection koruması)
     local allowedColumns = {}
@@ -986,7 +1017,7 @@ RegisterNetEvent('gs-survival:server:buyUpgrade', function(data)
     end
 
     -- [SAHİPLİK KONTROLÜ]: Zaten sahip mi?
-    local currentUpgrade = Player.PlayerData.metadata[metaName]
+    local currentUpgrade = playerMetadata[metaName]
     if currentUpgrade == value then
         return ServerHelpers.NotifyPlayer(src, 'Zaten bu geliştirmeye sahipsin!', 'error', 'Survival Market')
     end
@@ -1049,9 +1080,12 @@ local function RestoreBaseInventoryState(targetId, modeId)
     local TPlayer = QBCore.Functions.GetPlayer(targetId)
     if not TPlayer then return nil end
 
-    local cid = TPlayer.PlayerData.citizenid
+    local cid = ServerHelpers.GetPlayerCitizenId(TPlayer)
+    if not cid then return nil end
+
     local resolvedModeId = ServerHelpers.GetGameModeId(modeId)
     local backupStashId = GetBackupStashId(resolvedModeId, cid)
+    if not backupStashId then return nil end
 
     ClearAllModeState(TPlayer)
     TPlayer.Functions.Save()
@@ -1143,7 +1177,7 @@ end
 local function HandleArcDisconnect(source, bucketId, reason)
     local Player = QBCore.Functions.GetPlayer(source)
     local profile = ServerHelpers.GetArcRaidPlayerProfile(bucketId, source)
-    local cid = Player and Player.PlayerData and Player.PlayerData.citizenid or (profile and profile.citizenid) or nil
+    local cid = ServerHelpers.GetPlayerCitizenId(Player) or (profile and profile.citizenid) or nil
     if not cid or cid == '' then return end
 
     local policy = GetArcDisconnectPolicy()
@@ -1199,7 +1233,11 @@ local function RejoinArcDisconnectedPlayer(source, Player, disconnectState)
         return false, "ARC geri dönüş verisi bulunamadı."
     end
 
-    local cid = Player.PlayerData.citizenid
+    local cid = ServerHelpers.GetPlayerCitizenId(Player)
+    if not cid then
+        return false, "Karakter verin hazır değil."
+    end
+
     local bucketId = tonumber(disconnectState.bucketId)
     local canRejoin, rejoinError = CanPlayerRejoinArcSession(bucketId, source, cid)
     if not canRejoin then
