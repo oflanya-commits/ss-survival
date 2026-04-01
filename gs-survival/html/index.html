@@ -3,176 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GS Control UI</title>
-    <!-- PUBG benzeri endüstriyel fontlar -->
-    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <title>GS Survival UI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-    <body>
-        <div id="app" class="hidden" aria-hidden="true">
-        <!-- Arka plan karanlık Lobi efekti -->
-        <div id="overlay"></div>
+<body>
+    <div id="app" class="app hidden" aria-hidden="true">
+        <div class="app__backdrop"></div>
 
-        <div id="panel">
-            <!-- ÜST HEADER KISMI -->
-            <div id="panel-header" class="pubg-top-nav">
-                <div id="panel-titles">
-                    <div id="panel-main-title">GS KONTROL</div>
-                    <div id="panel-sub-title">OPERASYON AĞI</div>
-                </div>
-                <div class="pubg-nav-actions">
-                    <div id="breadcrumb">
-                        <span id="breadcrumb-text">Ana Menü</span>
+        <div class="app__shell">
+            <aside class="app__sidebar ui-surface ui-surface--glass">
+                <div class="sidebar__brand">
+                    <div>
+                        <p class="ui-overline">GS Survival</p>
+                        <h1 class="sidebar__title">Operasyon Arayüzü</h1>
                     </div>
-                    <button id="close-btn" type="button" onclick="closeMenu()" aria-label="Menüyü kapat">X ESC</button>
+                    <span class="ui-badge ui-badge--primary">Drop-in UI</span>
                 </div>
-            </div>
 
-            <!-- ANA İÇERİK KUTUSU -->
-            <div id="pubg-main-container">
-                
-                <!-- SOL PANEL (HUD ve Brief) -->
-                <div class="pubg-side-panel">
-                    
-                    <!-- HUD DURUM KUTUSU -->
-                    <div id="status-strip" class="pubg-crafter-pass">
-                        <div id="status-strip-title" class="pass-header">OPERATÖR BİLGİSİ</div>
-                        
-                        <div class="status-card">
-                            <div class="status-row">
-                                <div class="status-label" id="hud-health-label" style="color: #a8d5e2;">KARAKTER</div>
-                                <div class="status-value" id="hud-health-value" aria-live="polite">84%</div>
-                            </div>
-                            <div class="status-bar"><span id="hud-health-bar" style="background: #a8d5e2;"></span></div>
-                        </div>
+                <div id="summary-cards" class="sidebar__metrics"></div>
 
-                        <div class="status-card">
-                            <div class="status-row">
-                                <div class="status-label" id="hud-radiation-label" style="color: #ff4a4a;">BÖLGE</div>
-                                <div class="status-value" id="hud-radiation-value" aria-live="polite">22%</div>
-                            </div>
-                            <div class="status-bar"><span id="hud-radiation-bar" style="background: #ff4a4a;"></span></div>
+                <section class="sidebar__brief ui-card ui-card--highlight">
+                    <div class="ui-card__header ui-card__header--compact">
+                        <div>
+                            <p class="ui-overline">Görev Özeti</p>
+                            <h2 id="brief-title" class="ui-card__title">Operasyon Hazır</h2>
                         </div>
-
-                        <div class="status-card">
-                            <div class="status-row">
-                                <div class="status-label" id="hud-inventory-label" style="color: #7aff7a;">GELİŞTİRME</div>
-                                <div class="status-value" id="hud-inventory-value" aria-live="polite">03/06</div>
-                            </div>
-                            <div class="status-bar"><span id="hud-inventory-bar" style="background: #7aff7a;"></span></div>
-                        </div>
-
-                        <div class="status-card">
-                            <div class="status-row">
-                                <div class="status-label" id="hud-signal-label" style="color: #f2a900;">TAKIM</div>
-                                <div class="status-value" id="hud-signal-value" aria-live="polite">STABIL</div>
-                            </div>
-                            <div class="status-bar"><span id="hud-signal-bar" style="background: #f2a900;"></span></div>
-                        </div>
+                        <span id="brief-tag" class="ui-badge ui-badge--muted">SOLO</span>
                     </div>
 
-                    <!-- MISSION BRIEF (PUBG Ready / Eşleştirme Stili) -->
-                    <div id="mission-brief" class="pubg-matchmaking-panel">
-                        <div class="brief-label">TAKIM DURUMU</div>
-                        
-                        <div class="brief-main">
-                            <div>
-                                <div id="brief-title">Operasyon Hazır</div>
-                                <div id="brief-text">Takım durumunu kontrol et, bölgeyi seç ve ekipmanını hazırla.</div>
-                                <div id="brief-extraction" class="brief-extraction hidden">
-                                    <div class="brief-extraction-phase" id="brief-extraction-phase">Extraction available</div>
-                                    <div class="brief-extraction-objective" id="brief-extraction-objective">Extraction objective</div>
-                                    <div class="brief-extraction-countdown" id="brief-extraction-countdown">00:00</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Progress Bar -->
-                        <div class="brief-progress">
-                            <span id="brief-progress-bar"></span>
-                        </div>
+                    <p id="brief-text" class="ui-card__text">Takım durumunu kontrol et ve operasyona hazırlan.</p>
+                    <div id="brief-badges" class="ui-chip-list"></div>
 
-                        <!-- Dinamik READY Butonu -->
-                        <div class="brief-side">
-                            <button id="brief-tag" class="pubg-ready-btn" onclick="handleReadyButton()">BEKLE</button>
+                    <div id="brief-extraction" class="brief__extraction hidden">
+                        <div class="brief__extraction-row">
+                            <span class="ui-overline">Tahliye</span>
+                            <strong id="brief-extraction-phase">Hazır</strong>
                         </div>
+                        <p id="brief-extraction-objective" class="brief__extraction-text"></p>
+                        <div id="brief-extraction-countdown" class="brief__extraction-countdown">00:00</div>
                     </div>
 
-                </div>
+                    <div class="ui-progress ui-progress--large" aria-hidden="true">
+                        <span id="brief-progress-fill" class="ui-progress__fill"></span>
+                    </div>
 
-                <!-- SAĞ PANEL (İçerik) -->
-                <div id="panel-body" class="pubg-right-panel">
-                    <div id="content"></div>
-                </div>
+                    <button id="brief-primary-action" class="ui-button ui-button--primary ui-button--block" type="button" disabled>
+                        Bekleniyor
+                    </button>
+                </section>
+            </aside>
 
-            </div>
+            <main class="app__main ui-surface">
+                <header class="app__header">
+                    <div>
+                        <p class="ui-overline">Kontrol Merkezi</p>
+                        <h2 id="screen-title" class="app__screen-title">Ana Menü</h2>
+                        <p id="screen-subtitle" class="app__screen-subtitle">Tüm operasyon akışlarını buradan yönet.</p>
+                    </div>
+
+                    <div class="app__header-actions">
+                        <div class="ui-breadcrumb">
+                            <span id="breadcrumb-text">Operasyon Menüsü / Ana Ekran</span>
+                        </div>
+                        <button id="close-btn" class="ui-button ui-button--ghost" type="button" data-ui-action="close-menu" aria-label="Menüyü kapat">
+                            ESC ile Kapat
+                        </button>
+                    </div>
+                </header>
+
+                <section id="content" class="app__content" aria-live="polite"></section>
+            </main>
         </div>
 
-        <!-- Sistem 4: Bölge Seçimi için Harita Önizleme Kutusu (Sadece Bölgelerde Çıkar) -->
-        <div id="map-preview-box" class="hidden">
-            <div class="map-preview-title">BÖLGE İSTİHBARATI</div>
-            <div class="map-image-placeholder">Sinyal Aranıyor...</div>
-            <div class="map-desc">Seçilen bölgenin uydu görüntüsü ve tehlike seviyesi yükleniyor.</div>
-        </div>
-
-        <div id="hud-tooltip" class="hidden" role="status" aria-live="polite"></div>
+        <div id="modal-root" class="modal-root hidden" aria-hidden="true"></div>
     </div>
 
-    <div id="arc-overlay-root" class="arc-overlay-root hidden" aria-hidden="true">
-        <div id="arc-result-banner" class="arc-result-banner hidden" aria-live="polite" role="status">
-            <div id="arc-result-banner-label" class="arc-result-banner-label">ARC TAHLİYE</div>
-            <div id="arc-result-banner-title" class="arc-result-banner-title">LOBİYE DÖNÜLÜYOR</div>
+    <div id="arc-overlay-root" class="overlay-root hidden" aria-hidden="true">
+        <div id="arc-result-banner" class="overlay-banner hidden" role="status" aria-live="polite">
+            <span id="arc-result-banner-label" class="overlay-banner__label">ARC TAHLİYE</span>
+            <strong id="arc-result-banner-title" class="overlay-banner__title">Lobiye Dönülüyor</strong>
         </div>
 
-        <div id="arc-progress-card" class="arc-progress-card hidden" aria-live="polite" role="status">
-            <div class="arc-progress-kicker">İŞLEM</div>
-            <div id="arc-progress-title" class="arc-progress-title">Operasyon Sürüyor</div>
-            <div id="arc-progress-label" class="arc-progress-label">Lütfen bekle...</div>
-            <div class="arc-progress-track">
-                <span id="arc-progress-fill" class="arc-progress-fill"></span>
+        <div id="arc-progress-card" class="overlay-progress hidden" role="status" aria-live="polite">
+            <p class="ui-overline">İşlem</p>
+            <h3 id="arc-progress-title" class="overlay-progress__title">Operasyon Sürüyor</h3>
+            <p id="arc-progress-label" class="overlay-progress__label">Lütfen bekle...</p>
+            <div class="ui-progress ui-progress--large">
+                <span id="arc-progress-fill" class="ui-progress__fill"></span>
             </div>
-            <div class="arc-progress-meta">
-                <span id="arc-progress-percent" class="arc-progress-percent">0%</span>
-                <span id="arc-progress-cancel" class="arc-progress-cancel">ESC ile iptal edebilirsin</span>
+            <div class="overlay-progress__meta">
+                <span id="arc-progress-percent">0%</span>
+                <span id="arc-progress-cancel">ESC ile iptal edebilirsin</span>
             </div>
         </div>
 
-        <div id="arc-barricade-placement-card" class="arc-barricade-placement-card hidden" aria-live="polite" role="status">
-            <div class="arc-barricade-placement-kicker">YERLEŞTİRME</div>
-            <div id="arc-barricade-placement-title" class="arc-barricade-placement-title">ARC Barricade Kit</div>
-            <div id="arc-barricade-placement-controls" class="arc-barricade-placement-controls"></div>
+        <div id="arc-barricade-placement-card" class="overlay-placement hidden" role="status" aria-live="polite">
+            <p class="ui-overline">Yerleştirme</p>
+            <h3 id="arc-barricade-placement-title" class="overlay-placement__title">ARC Barricade Kit</h3>
+            <div id="arc-barricade-placement-controls" class="overlay-placement__controls"></div>
         </div>
 
-        <div id="arc-info-panel" class="arc-info-panel hidden">
-            <div class="arc-card-header arc-info-header">
-                <div class="arc-card-heading">
-                    <div class="arc-card-kickers">
-                        <div class="arc-info-kicker">ARC BİLGİ</div>
-                        <div class="arc-card-chip">CANLI</div>
-                    </div>
-                    <div id="arc-info-title" class="arc-info-title">ARC Operasyonu</div>
-                    <div id="arc-info-subtitle" class="arc-info-subtitle">Saha telemetrisi</div>
+        <section id="arc-info-panel" class="overlay-panel hidden">
+            <div class="overlay-panel__header">
+                <div>
+                    <p class="ui-overline">ARC Bilgi</p>
+                    <h3 id="arc-info-title" class="overlay-panel__title">ARC Operasyonu</h3>
+                    <p id="arc-info-subtitle" class="overlay-panel__subtitle">Saha telemetrisi</p>
                 </div>
+                <span class="ui-badge ui-badge--success">CANLI</span>
             </div>
-            <div id="arc-info-lines" class="arc-info-lines"></div>
-            <div id="arc-info-prompt" class="arc-info-prompt hidden"></div>
-        </div>
+            <div id="arc-info-lines" class="overlay-panel__lines"></div>
+            <div id="arc-info-prompt" class="overlay-panel__prompt hidden"></div>
+        </section>
 
-        <div id="arc-team-panel" class="arc-team-panel hidden">
-            <div class="arc-team-header">
-                <div class="arc-card-heading">
-                    <div class="arc-card-kickers">
-                        <div class="arc-team-kicker">TAKIM</div>
-                        <div class="arc-card-chip">LINK</div>
-                    </div>
-                    <div class="arc-team-title">ARC Bağlantısı</div>
+        <section id="arc-team-panel" class="overlay-team hidden">
+            <div class="overlay-team__header">
+                <div>
+                    <p class="ui-overline">ARC Takımı</p>
+                    <h3 class="overlay-team__title">Bağlantı Durumu</h3>
                 </div>
-                <div id="arc-team-count" class="arc-team-count">0 ÜYE</div>
+                <span id="arc-team-count" class="ui-badge ui-badge--muted">0 ÜYE</span>
             </div>
-            <div id="arc-team-members" class="arc-team-members"></div>
-        </div>
+            <div id="arc-team-members" class="overlay-team__members"></div>
+        </section>
 
-        <div id="arc-notify-stack" class="arc-notify-stack" aria-live="polite"></div>
+        <div id="arc-notify-stack" class="overlay-toast-stack" aria-live="polite"></div>
     </div>
 
     <script src="script.js"></script>
