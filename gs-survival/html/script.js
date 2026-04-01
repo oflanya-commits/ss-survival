@@ -99,7 +99,31 @@ const LOCKER_RULES = {
 
 const state = {
     currentView: 'menu',
-    menuState: normalizeMenuState({}),
+    menuState: {
+        userLevel: 1,
+        isLeader: false,
+        isMember: false,
+        hasLobby: false,
+        isReady: false,
+        playerName: 'Bilinmeyen Operatif',
+        currentStage: 1,
+        upgradeLabel: '-',
+        lobbyStatus: 'Tek Başına',
+        currentModeId: 'classic',
+        currentModeLabel: 'Klasik Hayatta Kalma',
+        arcMainStacks: 0,
+        arcMainItems: 0,
+        arcLoadoutStacks: 0,
+        arcLoadoutItems: 0,
+        arcLoadoutReady: false,
+        arcLoadoutState: {},
+        arcSummary: {},
+        arcExtraction: {},
+        allowPersonalInventory: true,
+        disconnectPolicy: '',
+        disconnectPolicyLabel: '',
+        disconnectPolicyDescription: ''
+    },
     upgrades: [],
     recipes: [],
     craftSource: {},
@@ -1104,7 +1128,7 @@ function renderViewHeader(title, text, actionHtml) {
                 '<h2 class="view-header__title">' + esc(title) + '</h2>' +
                 '<p class="view-header__text">' + esc(text) + '</p>' +
             '</div>' +
-            (actionHtml ? '<div class="panel-section__actions">' + actionHtml + '</div>' : '<div class="panel-section__actions"><span class="ui-badge ui-badge--muted">TAKTİK PANEL</span></div>') +
+            (actionHtml ? '<div class="panel-section__actions">' + actionHtml + '</div>' : '') +
         '</section>';
 }
 
@@ -1159,7 +1183,7 @@ function button(label, action, payload, variant, disabled) {
     else if (variant === 'danger') className += ' ui-button--danger';
     else className += ' ui-button--ghost';
 
-    return '<button class="' + className + '" type="button" data-ui-action="' + escAttr(action) + '" data-ui-payload="' + jsonAttr(payload) + '"' + (disabled ? ' disabled' : '') + '><span>' + esc(label) + '</span></button>';
+    return '<button class="' + className + '" type="button" data-ui-action="' + escAttr(action) + '" data-ui-payload="' + jsonAttr(payload) + '"' + (disabled ? ' disabled' : '') + '>' + esc(label) + '</button>';
 }
 
 function getLoadoutInfo(menu) {
