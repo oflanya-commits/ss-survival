@@ -12,15 +12,22 @@
 <body>
     <div id="app" class="app hidden" aria-hidden="true">
         <div class="app__backdrop"></div>
+        <div class="app__noise" aria-hidden="true"></div>
 
         <div class="app__shell">
             <aside class="app__sidebar ui-surface ui-surface--glass">
                 <div class="sidebar__brand">
-                    <div>
+                    <div class="sidebar__brand-copy">
                         <p class="ui-overline">GS Survival</p>
                         <h1 class="sidebar__title">Operasyon Arayüzü</h1>
+                        <p class="sidebar__subtitle">Hazırlık, takım ve loot akışları için hafif taktik panel.</p>
                     </div>
-                    <span class="ui-badge ui-badge--primary">Drop-in UI</span>
+                    <span class="ui-badge ui-badge--primary">NUI</span>
+                </div>
+
+                <div class="sidebar__statusbar">
+                    <span class="sidebar__statusdot" aria-hidden="true"></span>
+                    <span>Operasyon bağlantısı aktif</span>
                 </div>
 
                 <div id="summary-cards" class="sidebar__metrics"></div>
@@ -58,7 +65,7 @@
 
             <main class="app__main ui-surface">
                 <header class="app__header">
-                    <div>
+                    <div class="app__header-copy">
                         <p class="ui-overline">Kontrol Merkezi</p>
                         <h2 id="screen-title" class="app__screen-title">Ana Menü</h2>
                         <p id="screen-subtitle" class="app__screen-subtitle">Tüm operasyon akışlarını buradan yönet.</p>

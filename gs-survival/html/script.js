@@ -617,7 +617,10 @@ function renderSidebar(config) {
                     '<span class="metric-card__label">' + esc(card.label || '-') + '</span>' +
                     '<span class="metric-card__value">' + esc(card.value || '-') + '</span>' +
                 '</div>' +
-                '<div class="ui-progress"><span class="ui-progress__fill" style="width:' + width + '%"></span></div>' +
+                '<div class="metric-card__bottom">' +
+                    '<div class="ui-progress"><span class="ui-progress__fill" style="width:' + width + '%"></span></div>' +
+                    '<span class="metric-card__percent">' + esc(width) + '%</span>' +
+                '</div>' +
             '</article>';
     }).join('');
 
@@ -1102,7 +1105,7 @@ function buildStandardSidebar(title, text, tag, progress, cards) {
 function renderViewHeader(title, text, actionHtml) {
     return '' +
         '<section class="view-header">' +
-            '<div><p class="ui-overline">Ekran</p><h2 class="view-header__title">' + esc(title) + '</h2><p class="view-header__text">' + esc(text) + '</p></div>' +
+            '<div class="view-header__copy"><span class="view-header__tag">Aktif Ekran</span><h2 class="view-header__title">' + esc(title) + '</h2><p class="view-header__text">' + esc(text) + '</p></div>' +
             (actionHtml ? '<div class="panel-section__actions">' + actionHtml + '</div>' : '') +
         '</section>';
 }
@@ -1110,12 +1113,14 @@ function renderViewHeader(title, text, actionHtml) {
 function renderActionCard(title, text, badges, actionHtml) {
     return '' +
         '<article class="card-list">' +
-            '<div class="card-list__header"><div><p class="ui-overline">Aksiyon</p><h3 class="card-list__title">' + esc(title) + '</h3></div></div>' +
+            '<div class="card-list__header"><div><p class="ui-overline">Operasyon</p><h3 class="card-list__title">' + esc(title) + '</h3></div></div>' +
             '<p class="card-list__description">' + esc(text) + '</p>' +
-            '<div class="card-list__chips">' + safeArray(badges).map(function (badge) {
-                return '<span class="ui-chip">' + esc(badge) + '</span>';
-            }).join('') + '</div>' +
-            '<div class="card-list__actions">' + actionHtml + '</div>' +
+            '<div class="card-list__footer">' +
+                '<div class="card-list__chips">' + safeArray(badges).map(function (badge) {
+                    return '<span class="ui-chip">' + esc(badge) + '</span>';
+                }).join('') + '</div>' +
+                '<div class="card-list__actions">' + actionHtml + '</div>' +
+            '</div>' +
         '</article>';
 }
 
@@ -1125,6 +1130,7 @@ function renderStat(label, value, percent) {
             '<span class="status-grid__label">' + esc(label) + '</span>' +
             '<strong class="status-grid__value">' + esc(value) + '</strong>' +
             renderMeter(percent) +
+            '<span class="metric-card__percent">Durum ' + esc(clamp(safeNumber(percent, 0), 0, 100)) + '%</span>' +
         '</div>';
 }
 
@@ -1143,7 +1149,8 @@ function renderMetaRow(label, value, raw) {
 function renderEmptyState(icon, text) {
     return '' +
         '<div class="empty-state">' +
-            '<div class="empty-state__icon">' + esc(icon) + '</div>' +
+            '<div class="empty-state__icon"><span class="empty-state__glyph">' + esc(icon) + '</span></div>' +
+            '<span class="empty-state__caption">Veri Bekleniyor</span>' +
             '<div class="empty-state__text">' + esc(text) + '</div>' +
         '</div>';
 }
@@ -1305,6 +1312,7 @@ function renderStageCard(stage, index, isArc) {
         '<' + tag + ' class="stage-card' + (locked ? ' is-locked' : '') + '"' + attrs + ' style="background:linear-gradient(135deg,' + palette[0] + ',' + palette[1] + ')">' +
             '<div class="stage-card__body">' +
                 '<div class="stage-card__header">' +
+                    '<span class="stage-card__index">Sektör ' + esc(index + 1) + '</span>' +
                     '<span class="ui-badge ' + (locked ? 'ui-badge--warning' : 'ui-badge--muted') + '">' + esc(locked ? STRINGS.badge.locked : 'Hazır') + '</span>' +
                     '<span class="ui-badge ui-badge--muted">' + esc(isArc ? 'ARC' : ('x' + multiplier)) + '</span>' +
                 '</div>' +
