@@ -12,18 +12,32 @@
 <body>
     <div id="app" class="app hidden" aria-hidden="true">
         <div class="app__backdrop"></div>
+        <div class="app__grid"></div>
 
         <div class="app__shell">
-            <aside class="app__sidebar ui-surface ui-surface--glass">
-                <div class="sidebar__brand">
-                    <div>
-                        <p class="ui-overline">GS Survival</p>
-                        <h1 class="sidebar__title">Operasyon Arayüzü</h1>
+            <aside class="app__sidebar" aria-label="Operasyon özeti">
+                <div class="sidebar__brand ui-surface ui-surface--panel">
+                    <div class="sidebar__brand-row">
+                        <p class="ui-overline">GS Survival // Tactical Network</p>
+                        <span class="ui-badge ui-badge--success">ONLINE</span>
                     </div>
-                    <span class="ui-badge ui-badge--primary">Drop-in UI</span>
+                    <div class="sidebar__brand-copy">
+                        <h1 class="sidebar__title">Extraction Command</h1>
+                        <p class="sidebar__subtitle">Takım, stage, craft ve ARC akışlarını tek merkezden yönet.</p>
+                    </div>
+                    <div class="sidebar__signature">
+                        <span class="sidebar__signature-line"></span>
+                        <span class="sidebar__signature-text">NUI OPERATIONS BOARD</span>
+                    </div>
                 </div>
 
-                <div id="summary-cards" class="sidebar__metrics"></div>
+                <section class="sidebar__intel ui-surface ui-surface--panel">
+                    <div class="section-kicker">
+                        <p class="ui-overline">Canlı Telemetri</p>
+                        <span class="ui-badge ui-badge--muted">SYNCED</span>
+                    </div>
+                    <div id="summary-cards" class="sidebar__metrics"></div>
+                </section>
 
                 <section class="sidebar__brief ui-card ui-card--highlight">
                     <div class="ui-card__header ui-card__header--compact">
@@ -31,7 +45,7 @@
                             <p class="ui-overline">Görev Özeti</p>
                             <h2 id="brief-title" class="ui-card__title">Operasyon Hazır</h2>
                         </div>
-                        <span id="brief-tag" class="ui-badge ui-badge--muted">SOLO</span>
+                        <span id="brief-tag" class="ui-badge ui-badge--primary">SOLO</span>
                     </div>
 
                     <p id="brief-text" class="ui-card__text">Takım durumunu kontrol et ve operasyona hazırlan.</p>
@@ -56,10 +70,10 @@
                 </section>
             </aside>
 
-            <main class="app__main ui-surface">
+            <main class="app__main ui-surface ui-surface--main">
                 <header class="app__header">
-                    <div>
-                        <p class="ui-overline">Kontrol Merkezi</p>
+                    <div class="app__header-copy">
+                        <p class="ui-overline">Command Deck</p>
                         <h2 id="screen-title" class="app__screen-title">Ana Menü</h2>
                         <p id="screen-subtitle" class="app__screen-subtitle">Tüm operasyon akışlarını buradan yönet.</p>
                     </div>
@@ -74,7 +88,9 @@
                     </div>
                 </header>
 
-                <section id="content" class="app__content" aria-live="polite"></section>
+                <section class="app__content-shell">
+                    <section id="content" class="app__content" aria-live="polite"></section>
+                </section>
             </main>
         </div>
 

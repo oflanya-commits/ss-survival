@@ -2,9 +2,9 @@
 
 const STRINGS = {
     app: {
-        title: 'Operasyon Arayüzü',
-        subtitle: 'Tüm operasyon akışlarını buradan yönet.',
-        breadcrumb: 'Operasyon Menüsü / Ana Ekran'
+        title: 'Extraction Command',
+        subtitle: 'Taktik akışları, takım koordinasyonunu ve ARC hazırlığını tek merkezde yönet.',
+        breadcrumb: 'Command Deck / Ana Ekran'
     },
     badge: {
         solo: 'SOLO',
@@ -591,13 +591,13 @@ const viewRenderers = {
 function buildDefaultSidebar() {
     return {
         cards: [
-            { label: 'Karakter', value: 'Hazır', percent: 84 },
-            { label: 'Takım', value: 'Solo', percent: 34 },
+            { label: 'Operatör', value: 'Çevrimiçi', percent: 84 },
+            { label: 'Takım Kanalı', value: 'Solo', percent: 34 },
             { label: 'Bağlantı', value: 'Stabil', percent: 72 },
-            { label: 'Hazırlık', value: 'Bekleniyor', percent: 28 }
+            { label: 'Hazırlık', value: 'Beklemede', percent: 28 }
         ],
         title: 'Operasyon Hazır',
-        text: 'Takım durumunu kontrol et ve operasyona hazırlan.',
+        text: 'Görev akışlarını kontrol et, takım durumunu doğrula ve operasyona hazırlan.',
         tag: STRINGS.badge.solo,
         badges: [],
         progress: 24,
@@ -1102,15 +1102,22 @@ function buildStandardSidebar(title, text, tag, progress, cards) {
 function renderViewHeader(title, text, actionHtml) {
     return '' +
         '<section class="view-header">' +
-            '<div><p class="ui-overline">Ekran</p><h2 class="view-header__title">' + esc(title) + '</h2><p class="view-header__text">' + esc(text) + '</p></div>' +
-            (actionHtml ? '<div class="panel-section__actions">' + actionHtml + '</div>' : '') +
+            '<div>' +
+                '<p class="ui-overline">Mission Brief</p>' +
+                '<h2 class="view-header__title">' + esc(title) + '</h2>' +
+                '<p class="view-header__text">' + esc(text) + '</p>' +
+            '</div>' +
+            (actionHtml ? '<div class="panel-section__actions">' + actionHtml + '</div>' : '<div class="panel-section__actions"><span class="ui-badge ui-badge--muted">TACTICAL UI</span></div>') +
         '</section>';
 }
 
 function renderActionCard(title, text, badges, actionHtml) {
     return '' +
         '<article class="card-list">' +
-            '<div class="card-list__header"><div><p class="ui-overline">Aksiyon</p><h3 class="card-list__title">' + esc(title) + '</h3></div></div>' +
+            '<div class="card-list__header">' +
+                '<div><p class="ui-overline">Operasyon Akışı</p><h3 class="card-list__title">' + esc(title) + '</h3></div>' +
+                '<span class="ui-badge ui-badge--muted">READY</span>' +
+            '</div>' +
             '<p class="card-list__description">' + esc(text) + '</p>' +
             '<div class="card-list__chips">' + safeArray(badges).map(function (badge) {
                 return '<span class="ui-chip">' + esc(badge) + '</span>';
@@ -1144,6 +1151,7 @@ function renderEmptyState(icon, text) {
     return '' +
         '<div class="empty-state">' +
             '<div class="empty-state__icon">' + esc(icon) + '</div>' +
+            '<div class="empty-state__label">Beklemede</div>' +
             '<div class="empty-state__text">' + esc(text) + '</div>' +
         '</div>';
 }
@@ -1154,7 +1162,7 @@ function button(label, action, payload, variant, disabled) {
     else if (variant === 'danger') className += ' ui-button--danger';
     else className += ' ui-button--ghost';
 
-    return '<button class="' + className + '" type="button" data-ui-action="' + escAttr(action) + '" data-ui-payload="' + jsonAttr(payload) + '"' + (disabled ? ' disabled' : '') + '>' + esc(label) + '</button>';
+    return '<button class="' + className + '" type="button" data-ui-action="' + escAttr(action) + '" data-ui-payload="' + jsonAttr(payload) + '"' + (disabled ? ' disabled' : '') + '><span>' + esc(label) + '</span></button>';
 }
 
 function getLoadoutInfo(menu) {
