@@ -2,9 +2,9 @@
 
 const STRINGS = {
     app: {
-        title: 'Operasyon Arayüzü',
-        subtitle: 'Tüm operasyon akışlarını buradan yönet.',
-        breadcrumb: 'Operasyon Menüsü / Ana Ekran'
+        title: 'Extraction Komuta',
+        subtitle: 'Taktik akışları, takım koordinasyonunu ve ARC hazırlığını tek merkezde yönet.',
+        breadcrumb: 'Komuta Güvertesi / Ana Ekran'
     },
     badge: {
         solo: 'SOLO',
@@ -99,7 +99,31 @@ const LOCKER_RULES = {
 
 const state = {
     currentView: 'menu',
-    menuState: {},
+    menuState: {
+        userLevel: 1,
+        isLeader: false,
+        isMember: false,
+        hasLobby: false,
+        isReady: false,
+        playerName: 'Bilinmeyen Operatif',
+        currentStage: 1,
+        upgradeLabel: '-',
+        lobbyStatus: 'Tek Başına',
+        currentModeId: 'classic',
+        currentModeLabel: 'Klasik Hayatta Kalma',
+        arcMainStacks: 0,
+        arcMainItems: 0,
+        arcLoadoutStacks: 0,
+        arcLoadoutItems: 0,
+        arcLoadoutReady: false,
+        arcLoadoutState: {},
+        arcSummary: {},
+        arcExtraction: {},
+        allowPersonalInventory: true,
+        disconnectPolicy: '',
+        disconnectPolicyLabel: '',
+        disconnectPolicyDescription: ''
+    },
     upgrades: [],
     recipes: [],
     craftSource: {},
@@ -323,9 +347,6 @@ document.addEventListener('dragleave', handleDragLeave);
 document.addEventListener('drop', handleDrop);
 document.addEventListener('dragend', clearDropTargets);
 document.addEventListener('contextmenu', handleContextMenu);
-
-renderCurrentView();
-renderOverlays();
 
 function getDefaultArcHudState() {
     return {
@@ -591,13 +612,13 @@ const viewRenderers = {
 function buildDefaultSidebar() {
     return {
         cards: [
-            { label: 'Karakter', value: 'Hazır', percent: 84 },
-            { label: 'Takım', value: 'Solo', percent: 34 },
+            { label: 'Operatör', value: 'Çevrimiçi', percent: 84 },
+            { label: 'Takım Kanalı', value: 'Solo', percent: 34 },
             { label: 'Bağlantı', value: 'Stabil', percent: 72 },
-            { label: 'Hazırlık', value: 'Bekleniyor', percent: 28 }
+            { label: 'Hazırlık', value: 'Beklemede', percent: 28 }
         ],
         title: 'Operasyon Hazır',
-        text: 'Takım durumunu kontrol et ve operasyona hazırlan.',
+        text: 'Görev akışlarını kontrol et, takım durumunu doğrula ve operasyona hazırlan.',
         tag: STRINGS.badge.solo,
         badges: [],
         progress: 24,
@@ -1102,7 +1123,11 @@ function buildStandardSidebar(title, text, tag, progress, cards) {
 function renderViewHeader(title, text, actionHtml) {
     return '' +
         '<section class="view-header">' +
-            '<div><p class="ui-overline">Ekran</p><h2 class="view-header__title">' + esc(title) + '</h2><p class="view-header__text">' + esc(text) + '</p></div>' +
+            '<div>' +
+                '<p class="ui-overline">Görev Brifi</p>' +
+                '<h2 class="view-header__title">' + esc(title) + '</h2>' +
+                '<p class="view-header__text">' + esc(text) + '</p>' +
+            '</div>' +
             (actionHtml ? '<div class="panel-section__actions">' + actionHtml + '</div>' : '') +
         '</section>';
 }
@@ -1110,7 +1135,10 @@ function renderViewHeader(title, text, actionHtml) {
 function renderActionCard(title, text, badges, actionHtml) {
     return '' +
         '<article class="card-list">' +
-            '<div class="card-list__header"><div><p class="ui-overline">Aksiyon</p><h3 class="card-list__title">' + esc(title) + '</h3></div></div>' +
+            '<div class="card-list__header">' +
+                '<div><p class="ui-overline">Operasyon Akışı</p><h3 class="card-list__title">' + esc(title) + '</h3></div>' +
+                '<span class="ui-badge ui-badge--muted">CANLI</span>' +
+            '</div>' +
             '<p class="card-list__description">' + esc(text) + '</p>' +
             '<div class="card-list__chips">' + safeArray(badges).map(function (badge) {
                 return '<span class="ui-chip">' + esc(badge) + '</span>';
@@ -1144,6 +1172,7 @@ function renderEmptyState(icon, text) {
     return '' +
         '<div class="empty-state">' +
             '<div class="empty-state__icon">' + esc(icon) + '</div>' +
+            '<div class="empty-state__label">Beklemede</div>' +
             '<div class="empty-state__text">' + esc(text) + '</div>' +
         '</div>';
 }
@@ -2150,3 +2179,6 @@ function clearArcHudState() {
     ui.notifyStack.innerHTML = '';
     renderOverlays();
 }
+
+renderCurrentView();
+renderOverlays();
