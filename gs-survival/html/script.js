@@ -595,13 +595,15 @@ const viewRenderers = {
 };
 
 function buildDefaultSidebar() {
+    const menu = state.menuState || {};
+    const loadout = getLoadoutInfo(menu);
     return {
         nav: buildNavItems(),
         cards: [
-            { label: 'Operator', value: 'Standby', percent: 84 },
-            { label: 'Squad', value: 'Solo', percent: 34 },
-            { label: 'Queue', value: 'Idle', percent: 28 },
-            { label: 'Link', value: 'Stable', percent: 72 }
+            { label: 'Operator', value: safeString(menu.playerName, 'Standby'), percent: clamp(30 + safeString(menu.playerName).length * 3, 20, 100) },
+            { label: 'Squad', value: safeString(menu.lobbyStatus, 'Solo'), percent: menu.hasLobby ? 78 : 28 },
+            { label: 'Queue', value: menu.isReady ? 'Ready' : 'Idle', percent: menu.isReady ? 88 : 26 },
+            { label: 'Loadout', value: loadout.shortLabel || 'Idle', percent: clamp(safeNumber(loadout.percent, 34), 0, 100) }
         ],
         title: 'Deployment Standby',
         text: 'Frame the operator, review the squad, and launch the next run.',
@@ -671,12 +673,17 @@ function buildChromeConfig() {
             { label: 'View', value: viewName }
         ],
         utilities: [
-            { label: 'LVL', value: '0' + safeNumber(menu.userLevel, 1) },
+            { label: 'LVL', value: formatRankLevel(menu.userLevel) },
             { label: 'SQUAD', value: safeString(menu.lobbyStatus, 'Solo') },
             { label: 'LOADOUT', value: loadout.shortLabel || 'Idle' },
             { label: 'UPGRADE', value: safeString(menu.upgradeLabel, '-') }
         ]
     };
+}
+
+function formatRankLevel(level) {
+    const normalized = Math.max(0, Math.floor(safeNumber(level, 1)));
+    return String(normalized).padStart(2, '0');
 }
 
 function getViewLabel(currentView) {
@@ -787,7 +794,7 @@ function renderMenuView() {
                 '</div>' +
                 '<div class="hero-stage__intel hero-stage__intel--right">' +
                     '<span class="ui-overline">Deployment</span>' +
-                    '<strong>Level ' + esc(menu.userLevel) + '</strong>' +
+                    '<strong>Level ' + esc(safeNumber(menu.userLevel, 1)) + '</strong>' +
                     '<p>' + esc(menu.currentModeLabel || 'Classic Survival') + '</p>' +
                 '</div>' +
                 '<div class="hero-stage__content">' +
@@ -843,8 +850,8 @@ function renderMenuView() {
                     '<p class="ui-card__text">Loadout prep, stash access, and current upgrade path stay visible in the tactical rail.</p>' +
                     '<div class="mission-card__rows">' +
                         renderMetaRow('Upgrade', menu.upgradeLabel || '-') +
-                        renderMetaRow('Main Stash', menu.arcMainStacks + ' stacks / ' + menu.arcMainItems + ' items') +
-                        renderMetaRow('Loadout Bag', menu.arcLoadoutStacks + ' stacks / ' + menu.arcLoadoutItems + ' items') +
+                        renderMetaRow('Main Stash', safeNumber(menu.arcMainStacks, 0) + ' stacks / ' + safeNumber(menu.arcMainItems, 0) + ' items') +
+                        renderMetaRow('Loadout Bag', safeNumber(menu.arcLoadoutStacks, 0) + ' stacks / ' + safeNumber(menu.arcLoadoutItems, 0) + ' items') +
                         renderMetaRow('Inventory', menu.allowPersonalInventory ? 'Enabled' : 'Restricted') +
                     '</div>' +
                 '</article>' +
@@ -901,7 +908,7 @@ function renderMenuView() {
                 { label: 'Queue', value: queueState }
             ],
             utilities: [
-                { label: 'LVL', value: '0' + safeNumber(menu.userLevel, 1) },
+                { label: 'LVL', value: formatRankLevel(menu.userLevel) },
                 { label: 'MODE', value: safeString(menu.currentModeId, 'classic').toUpperCase() },
                 { label: 'ARC', value: loadoutInfo.shortLabel || 'Idle' },
                 { label: 'ALERT', value: extraction.phase ? '01' : '00' }
