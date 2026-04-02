@@ -1290,7 +1290,7 @@ function getRenderableMenuView(state, view) {
     var sectionKey = view.section || fallback.section;
     var panelKey = view.panel || getSectionDefaultPanel(sectionKey);
 
-    if (panelKey === 'arcLoadout' || panelKey === 'arcWorkshop' || panelKey === 'arcDepot' || panelKey === 'survivalMarket' || panelKey === 'survivalWorkshop') {
+    if (getDirectPanelAction(panelKey)) {
         panelKey = getSectionDefaultPanel(sectionKey);
     }
 
