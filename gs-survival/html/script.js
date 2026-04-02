@@ -949,10 +949,10 @@ function getSectionDefaultPanel(sectionKey) {
 }
 
 function getDefaultMenuView(state) {
-    var defaultSection = MENU_NAV_ITEMS[0] || {};
+    var defaultSection = MENU_NAV_ITEMS.length > 0 ? MENU_NAV_ITEMS[0] : null;
     return {
-        section: defaultSection.key || null,
-        panel: getSectionDefaultPanel(defaultSection.key)
+        section: defaultSection ? defaultSection.key : null,
+        panel: getSectionDefaultPanel(defaultSection ? defaultSection.key : null)
     };
 }
 
@@ -1288,8 +1288,8 @@ function hasActiveMenuSelection(view) {
     return !!(view && (view.section || view.panel));
 }
 
-// Normalizes menu view state before render; invalid selections fall back to the section default
-// and direct-action sidebar items never leave the main menu on an empty intermediate screen.
+// Normalizes menu view state before render; invalid selections fall back to the section default,
+// and panels handled by getDirectPanelAction resume that section default instead of a blank menu.
 function getRenderableMenuView(state, view) {
     var fallback = getDefaultMenuView(state);
     if (!hasActiveMenuSelection(view)) {
