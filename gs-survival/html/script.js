@@ -238,6 +238,7 @@ var ARC_LOCKER_DRAG_SUPPRESS_END_MS = 150;
 var ARC_LOCKER_POINTER_DRAG_THRESHOLD_PX = 8;
 var ARC_LOCKER_POINTER_DRAG_THRESHOLD_SQ = ARC_LOCKER_POINTER_DRAG_THRESHOLD_PX * ARC_LOCKER_POINTER_DRAG_THRESHOLD_PX;
 var ARC_LOCKER_DEFAULT_SPLIT_RATIO = 0.5;
+var ARC_LOADOUT_VISIBLE_SLOTS = 24;
 var arcLockerDragState = null;
 var arcLockerDragSuppressUntil = 0;
 var arcLockerNativeDragActive = false;
@@ -1313,7 +1314,14 @@ function renderMenuPanel(state, view) {
     switch (view.panel) {
         case 'arcRaid':
             return renderArcRaidPanel(state);
+        case 'arcLoadout':
+        case 'arcWorkshop':
+        case 'arcDepot':
+            return renderArcRaidPanel(state);
         case 'survivalRaid':
+            return renderSurvivalRaidPanel(state);
+        case 'survivalMarket':
+        case 'survivalWorkshop':
             return renderSurvivalRaidPanel(state);
         case 'lobbySettings':
             return renderLobbySettingsPanel(state);
@@ -2149,9 +2157,7 @@ function renderArcLoadoutPanel(section, focusSide) {
     section = section || {};
     var stats = getArcLockerSectionStats(section);
     var helperText = section.helperText || 'Buraya koyduğun ekipman baskın girişinde üstüne verilir.';
-    var defaultBackpackSlots = 24;
-    var maxBackpackSlots = 24;
-    var visibleBackpackSlots = Math.max(stats.items.length, Math.min(stats.totalSlots || defaultBackpackSlots, maxBackpackSlots));
+    var visibleBackpackSlots = Math.max(stats.items.length, Math.min(stats.totalSlots || ARC_LOADOUT_VISIBLE_SLOTS, ARC_LOADOUT_VISIBLE_SLOTS));
     var placeholderCount = Math.max(visibleBackpackSlots - stats.items.length, 0);
     var html = '<section class="arc-locker-panel arc-locker-panel-loadout' + (section.side === focusSide ? ' is-focused' : '') + '">' +
         '<div class="arc-locker-panel-top arc-locker-panel-top-loadout">' +
