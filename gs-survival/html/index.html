@@ -18,7 +18,7 @@
         <div class="app__frame">
             <header class="topbar">
                 <div class="topbar__brand">
-                    <button class="topbar__back" type="button" data-ui-action="go-back" aria-label="Geri dön">❮</button>
+                    <button id="back-btn" class="topbar__back" type="button" data-ui-action="go-back" aria-label="Geri dön">❮</button>
                     <div>
                         <p class="topbar__eyebrow">MULTIPLAYER</p>
                         <h1 class="topbar__title">GS SURVIVAL</h1>
@@ -26,9 +26,6 @@
                 </div>
 
                 <div class="topbar__utilities">
-                    <button class="utility-button" type="button" data-ui-action="noop" aria-label="Ses"><span>🔇</span></button>
-                    <button class="utility-button" type="button" data-ui-action="noop" aria-label="Mikrofon"><span>🎙</span></button>
-                    <button class="utility-button" type="button" data-ui-action="noop" aria-label="Ekip"><span>👥</span></button>
                     <button id="close-btn" class="utility-button utility-button--alert" type="button" data-ui-action="close-menu" aria-label="Menüyü kapat"><span>⨯</span></button>
                 </div>
             </header>
@@ -37,38 +34,18 @@
                 <aside class="left-rail panel panel--soft">
                     <nav id="left-nav" class="rail-nav" aria-label="Ana menü"></nav>
 
-                    <section class="rail-roster panel panel--soft">
-                        <div class="rail-roster__header">
-                            <p class="ui-overline">TEAM FEED</p>
-                            <span class="ui-badge ui-badge--muted">LIVE</span>
-                        </div>
-                        <div id="social-cards" class="social-stack"></div>
-                    </section>
-
-                    <button class="rail-chat" type="button" data-ui-action="noop">
-                        <span class="rail-chat__icon">💬</span>
-                        <span>[WORLD] AI</span>
-                    </button>
                 </aside>
 
                 <main class="battlefield">
                     <section class="battlefield__stage">
-                        <div class="stage-slot">
-                            <span class="stage-slot__plus">+</span>
-                            <span class="stage-slot__label">JOIN</span>
-                        </div>
-
-                        <div class="operator-card">
-                            <div class="operator-card__silhouette">
-                                <div class="operator-card__helmet"></div>
-                                <div class="operator-card__torso"></div>
-                                <div class="operator-card__weapon"></div>
-                            </div>
-                            <div class="operator-card__plate">
-                                <span id="brief-tag" class="ui-badge ui-badge--primary">SOLO</span>
-                                <p class="ui-overline">ACTIVE DEPLOYMENT</p>
-                                <h2 id="brief-title" class="operator-card__title">Operasyon Hazır</h2>
-                                <p id="brief-text" class="operator-card__text">Takım durumunu kontrol et ve operasyona hazırlan.</p>
+                        <div class="character-preview">
+                            <div class="character-preview__glow"></div>
+                            <div class="character-preview__frame"></div>
+                            <div class="character-preview__plate">
+                                <span id="preview-tag" class="ui-badge ui-badge--primary">OPERATÖR</span>
+                                <p class="ui-overline">LOBBY PREVIEW</p>
+                                <h2 id="preview-title" class="operator-card__title">Karakter Önizleme</h2>
+                                <p id="preview-text" class="operator-card__text">Karakter görünümü orta alanda canlı olarak gösterilir.</p>
                             </div>
                         </div>
 
@@ -86,18 +63,11 @@
                     </section>
 
                     <aside class="right-rail">
-                        <div class="quick-tools">
-                            <button class="quick-tools__button" type="button" data-ui-action="noop" aria-label="Bildirim"><span>⚑</span></button>
-                            <button class="quick-tools__button" type="button" data-ui-action="noop" aria-label="Görev"><span>⌁</span></button>
-                            <button class="quick-tools__button" type="button" data-ui-action="noop" aria-label="Takvim"><span>◫</span></button>
-                            <button class="quick-tools__button quick-tools__button--accent" type="button" data-ui-action="noop" aria-label="Etkinlik"><span>◆</span></button>
-                        </div>
-
                         <section class="mission-board panel panel--soft">
                             <div class="mission-board__header">
                                 <div>
-                                    <p class="ui-overline">DAY OPS</p>
-                                    <h3 class="mission-board__title">Daily Intel</h3>
+                                    <p class="ui-overline">OPERATÖR</p>
+                                    <h3 class="mission-board__title">Durum</h3>
                                 </div>
                                 <span class="ui-badge ui-badge--success">LIVE</span>
                             </div>
@@ -107,13 +77,24 @@
                         <section class="launch-panel panel panel--accent">
                             <div class="launch-panel__header">
                                 <div>
-                                    <p class="ui-overline">EVENT</p>
-                                    <h3 class="launch-panel__title">Deployment Queue</h3>
+                                    <p class="ui-overline">SEÇİM</p>
+                                    <h3 id="brief-title" class="launch-panel__title">Operasyon Hazır</h3>
                                 </div>
-                                <span class="launch-panel__signal"></span>
+                                <span id="brief-tag" class="ui-badge ui-badge--primary">SOLO</span>
                             </div>
 
+                            <p id="brief-text" class="launch-panel__description">Takım durumunu kontrol et ve operasyona hazırlan.</p>
                             <div id="brief-badges" class="launch-panel__badges"></div>
+
+                            <div class="launch-panel__meter">
+                                <div class="launch-panel__meter-copy">
+                                    <span class="ui-overline">HAZIRLIK</span>
+                                    <strong>Genel İlerleme</strong>
+                                </div>
+                                <div class="ui-progress ui-progress--large" aria-hidden="true">
+                                    <span id="brief-progress-fill" class="ui-progress__fill"></span>
+                                </div>
+                            </div>
 
                             <div id="brief-extraction" class="launch-panel__extraction hidden">
                                 <div class="launch-panel__extraction-row">
@@ -124,26 +105,12 @@
                                 <div id="brief-extraction-countdown" class="launch-panel__countdown">00:00</div>
                             </div>
 
-                            <div class="launch-panel__meter">
-                                <div class="launch-panel__meter-copy">
-                                    <span class="ui-overline">MATCH STATUS</span>
-                                    <strong>Hazırlık Yüzdesi</strong>
-                                </div>
-                                <div class="ui-progress ui-progress--large" aria-hidden="true">
-                                    <span id="brief-progress-fill" class="ui-progress__fill"></span>
-                                </div>
-                            </div>
-
                             <button id="brief-primary-action" class="ui-button ui-button--primary ui-button--launch" type="button" disabled>
                                 Bekleniyor
                             </button>
                         </section>
                     </aside>
                 </main>
-
-                <footer class="bottom-dock">
-                    <div id="footer-tabs" class="dock-tabs"></div>
-                </footer>
             </div>
 
             <div id="modal-root" class="modal-root hidden" aria-hidden="true"></div>
