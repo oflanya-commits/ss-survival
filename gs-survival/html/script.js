@@ -20,9 +20,9 @@ var ARC_TEAM_STATUS = {
         badge: 'ONLINE'
     }
 };
-var ARC_NOTIFY_DEFAULT_DURATION = 4500;
-var ARC_NOTIFY_MIN_DURATION = 1200;
-var ARC_NOTIFY_MAX_DURATION = 15000;
+var ARC_NOTIFY_DEFAULT_DURATION = 7000;
+var ARC_NOTIFY_MIN_DURATION = 4500;
+var ARC_NOTIFY_MAX_DURATION = 18000;
 var ARC_NOTIFY_EXIT_DURATION_MS = 300;
 var ARC_BARRICADE_DEFAULT_BOTTOM_OFFSET = 34;
 var ARC_BARRICADE_TEAM_PANEL_GAP = 18;
@@ -899,25 +899,38 @@ function getMenuPanelDefinition(panelKey) {
 }
 
 function getDefaultMenuView(state) {
-    if (state && state.currentModeId === 'arc_pvp') {
-        return { section: 'arc', panel: 'arcRaid' };
-    }
-    return { section: 'survival', panel: 'survivalRaid' };
+    return { section: null, panel: null };
 }
 
 function syncMenuView(state) {
     var fallback = getDefaultMenuView(state);
     var view = screenData.menuView || fallback;
-    var activeSection = getNavItemBySection(view.section);
-    var hasPanel = (activeSection.panels || []).some(function (panel) {
-        return panel.key === view.panel;
-    });
-    if (!hasPanel) {
-        view.panel = activeSection.panels[0].key;
+    if (!view.section) {
+        screenData.menuView = fallback;
+        return screenData.menuView;
     }
+
+    var activeSection = MENU_NAV_ITEMS.find(function (item) {
+        return item.key === view.section;
+    });
+    if (!activeSection) {
+        screenData.menuView = fallback;
+        return screenData.menuView;
+    }
+
+    var panelKey = view.panel || null;
+    if (panelKey) {
+        var hasPanel = (activeSection.panels || []).some(function (panel) {
+            return panel.key === panelKey;
+        });
+        if (!hasPanel) {
+            panelKey = null;
+        }
+    }
+
     screenData.menuView = {
         section: activeSection.key,
-        panel: view.panel
+        panel: panelKey
     };
     return screenData.menuView;
 }
@@ -936,14 +949,41 @@ function selectMenuSection(sectionKey) {
     var item = getNavItemBySection(sectionKey);
     screenData.menuView = {
         section: item.key,
-        panel: item.panels[0].key
+        panel: null
     };
     if (currentScreen === 'menu') {
         showMenu(screenData.menuState);
     }
 }
 
+function getDirectPanelAction(panelKey) {
+    switch (panelKey) {
+        case 'arcLoadout':
+            return { action: 'openArcLoadoutStash', data: {} };
+        case 'arcWorkshop':
+            return { action: 'openCraft', data: { source: 'arc_main' } };
+        case 'arcDepot':
+            return { action: 'openArcMainStash', data: {} };
+        case 'survivalMarket':
+            return { action: 'openMarket', data: {} };
+        case 'survivalWorkshop':
+            return { action: 'openCraft', data: {} };
+        default:
+            return null;
+    }
+}
+
 function selectMenuPanel(sectionKey, panelKey) {
+    var directAction = getDirectPanelAction(panelKey);
+    if (directAction) {
+        screenData.menuView = {
+            section: sectionKey,
+            panel: null
+        };
+        sendAction(directAction.action, directAction.data);
+        return;
+    }
+
     screenData.menuView = {
         section: sectionKey,
         panel: panelKey
@@ -1041,13 +1081,29 @@ function renderMenuPopupFrame(config) {
 }
 
 function renderMenuPopupFooter(primaryLabel, primaryAction, footerCopy, disabled) {
+    var statusClass = disabled ? ' is-unavailable is-static' : ' is-available';
     return '<div class="menu-popup-footer">' +
         '<div class="menu-popup-actions">' +
-            '<button class="pubg-ready-btn menu-popup-start' + (disabled ? ' is-static' : '') + '" type="button" ' +
+            '<button class="pubg-ready-btn menu-popup-start' + statusClass + '" type="button" ' +
                 (disabled ? 'disabled' : '') + ' onclick="' + primaryAction + '">' + esc(primaryLabel) + '</button>' +
         '</div>' +
         '<div class="menu-popup-footer-copy">' + esc(footerCopy || '') + '</div>' +
     '</div>';
+}
+
+function renderMenuLanding(state, view) {
+    var sectionLabel = view.section ? getNavItemBySection(view.section).label : 'Operasyon';
+    return renderMenuPopupFrame({
+        kicker: 'BEKLEME',
+        title: 'Soldan Bir Menü Seç',
+        desc: 'Menü ilk açıldığında içerik otomatik yüklenmez. Soldaki başlıklardan bölüm seçip ilgili ekranı kendin açarsın.',
+        note: '<strong>' + esc(sectionLabel) + '</strong><br>İçerik seçimi bekleniyor.',
+        body: '<div class="menu-popup-grid">' +
+            renderPopupStat('Karakter', state.playerName || 'Bilinmeyen Operatif', 'Ön izleme açık kalır.') +
+            renderPopupStat('Takım', state.lobbyStatus || 'Tek Başına', 'Hazırlık ve lobby bilgileri soldan yönetilir.') +
+            renderPopupStat('Mod', state.currentModeLabel || 'Klasik Hayatta Kalma', 'ARC ve survival akışları soldaki menüden açılır.') +
+        '</div>'
+    });
 }
 
 function renderArcRaidPanel(state) {
@@ -1177,74 +1233,17 @@ function renderMenuPanel(state, view) {
         case 'arcRaid':
             return renderArcRaidPanel(state);
         case 'arcLoadout':
-            return renderArcActionPanel(
-                'Baskın Çantası',
-                'Baskına girişte üstüne verilecek ekipmanı burada yönetirsin.',
-                [
-                    renderPopupStat('Hazır Durum', state.arcLoadoutReady ? 'Hazır' : 'Boş', state.arcLoadoutReady ? 'Çanta baskına hazır.' : 'Hazırlık eksik olabilir.'),
-                    renderPopupStat('Stack', String(state.arcLoadoutStacks || 0), 'Toplam farklı yığın sayısı.'),
-                    renderPopupStat('Eşya', String(state.arcLoadoutItems || 0), 'Toplam item adedi.')
-                ],
-                'BASKIN ÇANTASINI AÇ',
-                'sendAction(\'openArcLoadoutStash\',{})',
-                'Çanta ekranı açıldığında yükleme ekipmanını doğrudan düzenlersin.'
-            );
         case 'arcWorkshop':
-            return renderArcActionPanel(
-                'ARC Atölyesi',
-                'Kalıcı depodan beslenen ARC craft akışını burada başlatırsın.',
-                [
-                    renderPopupStat('Depo Stack', String(state.arcMainStacks || 0), 'Kalıcı depodaki stack adedi.'),
-                    renderPopupStat('Depo Eşya', String(state.arcMainItems || 0), 'Kalıcı depodaki toplam eşya.'),
-                    renderPopupStat('Craft Kaynağı', 'ARC Ana Depo', 'Üretilen eşyalar aynı depoya geri düşer.')
-                ],
-                'ARC ATÖLYESİNİ AÇ',
-                'sendAction(\'openCraft\',{source:\'arc_main\'})',
-                'Atölye büyük pencere olarak açılır ve kalıcı depo malzemelerini kullanır.'
-            );
         case 'arcDepot':
-            return renderArcActionPanel(
-                'Kalıcı Depo',
-                'Baskın dışında da sende kalan tüm ARC lootlarını bu depoda saklarsın.',
-                [
-                    renderPopupStat('Stack', String(state.arcMainStacks || 0), 'Kalıcı saklanan stack sayısı.'),
-                    renderPopupStat('Eşya', String(state.arcMainItems || 0), 'Kalıcı depodaki toplam içerik.'),
-                    renderPopupStat('Bağlantı', state.disconnectPolicyLabel || 'Güvenli', 'Kopma politikası bu depoyu da etkiler.')
-                ],
-                'KALICI DEPOYU AÇ',
-                'sendAction(\'openArcMainStash\',{})',
-                'Depo yöneticisi açıldığında kalıcı depo ile baskın çantasını birlikte görebilirsin.'
-            );
+        case 'survivalMarket':
+        case 'survivalWorkshop':
+            return renderMenuLanding(state, view);
         case 'survivalRaid':
             return renderSurvivalRaidPanel(state);
-        case 'survivalMarket':
-            return renderArcActionPanel(
-                'Market',
-                'Hayatta kalma operasyonuna girmeden önce güçlendirmeleri incele.',
-                [
-                    renderPopupStat('Seviye', String(state.userLevel || 1), 'Açık haritalar seviyene göre artar.'),
-                    renderPopupStat('Paket', state.upgradeLabel || 'Standart Paket', 'Satın aldığın avantajlar burada görünür.'),
-                    renderPopupStat('Takım', state.lobbyStatus || 'Tek Başına', 'Market ekranı takım açıkken de erişilebilir.')
-                ],
-                'MARKETİ AÇ',
-                'sendAction(\'openMarket\',{})',
-                'Market ekranı büyük pencere olarak açılır.'
-            );
-        case 'survivalWorkshop':
-            return renderArcActionPanel(
-                'Atölye',
-                'Topladığın kaynaklarla hayatta kalma ekipmanını üret.',
-                [
-                    renderPopupStat('Kaynak Akışı', 'Genel Çanta', 'Craft normal kaynaklarını kullanır.'),
-                    renderPopupStat('Hazırlık', state.isReady ? 'Hazır' : 'Beklemede', 'Takımla giriyorsan hazır durumunu ayrıca kontrol et.'),
-                    renderPopupStat('Operatif', state.playerName || 'Bilinmeyen', 'Karakter ön izlemesi açık kalır.')
-                ],
-                'ATÖLYEYİ AÇ',
-                'sendAction(\'openCraft\',{})',
-                'Atölye ekranı ayrı büyük pencere olarak açılır.'
-            );
-        default:
+        case 'lobbySettings':
             return renderLobbySettingsPanel(state);
+        default:
+            return renderMenuLanding(state, view);
     }
 }
 
@@ -2205,7 +2204,7 @@ function showMenu(state) {
     screenData.menuState = state;
     ensureMenuSelections(state);
     var view = syncMenuView(state);
-    var panel = getMenuPanelDefinition(view.panel);
+    var panel = view.panel ? getMenuPanelDefinition(view.panel) : null;
     var isArcPanel = view.section === 'arc';
     var operatorCards = isArcPanel ? [
         {
@@ -2231,7 +2230,7 @@ function showMenu(state) {
     ] : buildOperatorCards();
     setMainNavigationVisible(true);
     renderMenuSidebar(buildSidebarHtml(state, view));
-    setBreadcrumb('Operasyon Menüsü / ' + (panel.label || 'Ana Menü'));
+    setBreadcrumb(panel ? ('Operasyon Menüsü / ' + (panel.label || 'Ana Menü')) : 'Operasyon Menüsü');
     setHudState({
         operatorCards: operatorCards,
         health: clamp(MAIN_MENU_BASE_HEALTH + ((state.userLevel || 1) * MAIN_MENU_HEALTH_PER_LEVEL), 0, 100),
@@ -2242,8 +2241,8 @@ function showMenu(state) {
             : (state.hasLobby ? '04/06' : '03/06'),
         signal: state.hasLobby ? 86 : 71,
         signalText: state.hasLobby ? 'TAKIM' : 'TEK',
-        briefTitle: panel.label || 'Operasyon Hazır',
-        briefText: panel.desc || 'Sol menüden seç, açılan pencereden yönet.',
+        briefTitle: panel ? (panel.label || 'Operasyon Hazır') : 'Hazırlık Ekranı',
+        briefText: panel ? (panel.desc || 'Sol menüden seç, açılan pencereden yönet.') : 'İçerik otomatik açılmaz; soldaki menüden ekran seç.',
         briefTag: view.section === 'arc' ? 'ARC' : view.section === 'survival' ? 'SURV' : 'LOBİ',
         progress: state.hasLobby ? 54 : 36,
         slotsFilled: state.hasLobby ? 4 : 3,
@@ -2384,6 +2383,8 @@ function renderCraftRequirementList(recipe, isArcCraft) {
 }
 
 function renderCraftCard(recipe, recipeIndex, isArcCraft) {
+    var maxCraftable = Math.max(Math.floor(Number(recipe.maxCraftable) || 0), 0);
+    var canCraft = recipe.ready === true && maxCraftable > 0;
     var meterValue = recipe.ready
         ? CRAFT_READY_METER_VALUE
         : clamp(CRAFT_METER_BASE_VALUE + (recipeIndex * CRAFT_METER_INCREMENT), CRAFT_METER_MIN, CRAFT_METER_MAX);
@@ -2396,7 +2397,9 @@ function renderCraftCard(recipe, recipeIndex, isArcCraft) {
         screenMeter(recipe.ready ? 'Hazır' : 'Eksik Parça', meterValue) +
         renderCraftRequirementList(recipe, isArcCraft) +
         '<div class="card-footer"><span class="menu-item-badge' + (recipe.ready ? ' ok' : ' warn') + '">' + esc(recipe.ready ? 'HAZIR' : 'EKSİK') + '</span>' +
-            '<button class="btn btn-primary btn-craft-action" type="button" onclick="craftItem(' + recipeIndex + ')">&#9878; Üret / Birleştir</button>' +
+            '<button class="btn ' + (canCraft ? 'btn-primary' : 'btn-danger') + ' btn-craft-action" type="button"' +
+                (canCraft ? ' onclick="craftItem(' + recipeIndex + ')"' : ' disabled aria-disabled="true"') +
+            '>&#9878; Üret / Birleştir</button>' +
         '</div>' +
     '</div>';
 }
@@ -2579,6 +2582,7 @@ function craftItem(idx) {
     var r = screenData.recipes[idx];
     if (!r) return;
     var maxCraftable = Math.max(Math.floor(Number(r.maxCraftable) || 0), 0);
+    if (r.ready !== true || maxCraftable < 1) return;
     screenData.craftDialog = {
         recipeIndex: idx,
         recipeName: r.label || r.header || 'Tarif',
