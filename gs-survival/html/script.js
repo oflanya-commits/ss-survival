@@ -937,6 +937,11 @@ function getMenuPanelDefinition(panelKey) {
     return MENU_NAV_ITEMS[0].panels[0];
 }
 
+/**
+ * Returns the first panel key for the given sidebar section.
+ * @param {string|null} sectionKey
+ * @returns {string|null} First panel key, or null when the section is missing or has no panels.
+ */
 function getSectionDefaultPanel(sectionKey) {
     if (!sectionKey) {
         return null;
@@ -1288,8 +1293,14 @@ function hasActiveMenuSelection(view) {
     return !!(view && (view.section || view.panel));
 }
 
-// Normalizes menu view state before render; invalid selections fall back to the section default,
-// and panels handled by getDirectPanelAction resume that section default instead of a blank menu.
+/**
+ * Normalizes menu view state before render.
+ * Invalid or missing selections fall back to the section default, and panels handled by
+ * getDirectPanelAction resume that section default instead of leaving the main menu blank.
+ * @param {object} state
+ * @param {{section?: string|null, panel?: string|null}} view
+ * @returns {{section: string|null, panel: string|null}}
+ */
 function getRenderableMenuView(state, view) {
     var fallback = getDefaultMenuView(state);
     if (!hasActiveMenuSelection(view)) {
