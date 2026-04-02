@@ -1,381 +1,57 @@
 'use strict';
 
-const STRINGS = {
-    app: {
-        title: 'Operasyon Arayüzü',
-        subtitle: 'Tüm operasyon akışlarını buradan yönet.',
-        breadcrumb: 'Operasyon Menüsü / Ana Ekran'
+var MAX_LOBBY_SIZE = 4;
+var ARC_HUD_DEFAULTS = {
+    title: 'ARC Operasyonu',
+    subtitle: 'Saha telemetrisi'
+};
+var ARC_TEAM_COUNT_TEXT = 'ÜYE';
+var ARC_TEAM_STATUS = {
+    self: {
+        text: 'Sen',
+        badge: 'SEN'
     },
-    badge: {
-        solo: 'SOLO',
-        team: 'TAKIM',
-        leader: 'LİDER',
-        waiting: 'BEKLİYOR',
-        ready: 'HAZIR',
-        locked: 'KİLİTLİ',
-        active: 'AKTİF'
+    down: {
+        text: 'Bağlantı Kesildi',
+        badge: 'KESİK'
     },
-    readyDock: {
-        waiting: 'Bekleniyor',
-        teamTitle: 'Takım Hazırlığı',
-        lobbyTitle: 'Lobi Durumu',
-        readyText: 'Hazır durumundasın. Liderin maçı başlatmasını bekleyebilirsin.',
-        waitingText: 'Takım eşleşmesi için hazır olup liderine sinyal gönderebilirsin.',
-        leaderText: 'Takımın hazır durumunu bu alandan hızlıca takip edebilirsin.',
-        soloText: 'Hazır sistemi için önce bir lobiye katılman gerekiyor.'
-    },
-    notifyTitle: {
-        info: 'Bilgilendirme',
-        success: 'Başarılı',
-        error: 'Hata',
-        warning: 'Uyarı',
-        primary: 'ARC Bildirimi'
-    },
-    progress: {
-        title: 'Operasyon Sürüyor',
-        label: 'Lütfen bekle...',
-        cancel: 'ESC ile iptal edebilirsin',
-        locked: 'İptal devre dışı'
-    },
-    banner: {
-        label: 'ARC TAHLİYE',
-        title: 'Lobiye Dönülüyor'
-    },
-    barricade: {
-        title: 'ARC Barricade Kit'
-    },
-    empty: {
-        market: 'Satın alınabilir güçlendirme bulunamadı.',
-        craft: 'Görüntülenecek tarif bulunamadı.',
-        stages: 'Seçilebilir stage bulunamadı.',
-        invite: 'Davet edilebilecek oyuncu bulunamadı.',
-        lobbies: 'Şu anda görüntülenecek aktif lobi yok.',
-        members: 'Takımda görüntülenecek oyuncu kalmadı.',
-        locker: 'Bu kategoride eşya bulunamadı.'
-    },
-    craftCategories: {
-        all: 'Tümü',
-        ammo: 'Mermi',
-        weapon: 'Silah',
-        health: 'Sağlık',
-        material: 'Malzeme',
-        misc: 'Diğer'
-    },
-    lockerCategories: {
-        all: 'Tümü',
-        weapon: 'Silah',
-        ammo: 'Mermi',
-        medical: 'Medikal',
-        food: 'Gıda',
-        utility: 'Ekipman',
-        misc: 'Diğer'
-    },
-    teamStatus: {
-        self: { badge: 'SEN', text: 'Sen' },
-        online: { badge: 'ONLINE', text: 'Takım Arkadaşı' },
-        down: { badge: 'KESİK', text: 'Bağlantı Kesildi' }
+    online: {
+        text: 'Takım Arkadaşı',
+        badge: 'ONLINE'
     }
 };
-
-const LIMITS = {
-    notifyDefault: 4500,
-    notifyMin: 1200,
-    notifyMax: 15000,
-    bannerDefault: 3200,
-    bannerMin: 1200,
-    bannerMax: 8000,
-    progressMin: 250,
-    progressMax: 60000,
-    lobbySize: 4
+var ARC_NOTIFY_DEFAULT_DURATION = 4500;
+var ARC_NOTIFY_MIN_DURATION = 1200;
+var ARC_NOTIFY_MAX_DURATION = 15000;
+var ARC_NOTIFY_EXIT_DURATION_MS = 300;
+var ARC_BARRICADE_DEFAULT_BOTTOM_OFFSET = 34;
+var ARC_BARRICADE_TEAM_PANEL_GAP = 18;
+var ARC_TEAM_PANEL_BOTTOM_OFFSET = 22;
+var ARC_BANNER_DEFAULT_DURATION = 3200;
+var ARC_BANNER_MIN_DURATION = 1200;
+var ARC_BANNER_MAX_DURATION = 8000;
+var ARC_BANNER_DEFAULT_LABEL = 'ARC TAHLİYE';
+var ARC_BANNER_DEFAULT_TITLE = 'LOBİYE DÖNÜLÜYOR';
+var ARC_PROGRESS_DEFAULT_TITLE = 'Operasyon Sürüyor';
+var ARC_PROGRESS_DEFAULT_LABEL = 'Lütfen bekle...';
+var ARC_PROGRESS_CANCEL_ENABLED_TEXT = 'ESC ile iptal edebilirsin';
+var ARC_PROGRESS_CANCEL_DISABLED_TEXT = 'İptal devre dışı';
+var ARC_PROGRESS_MIN_DURATION = 250;
+var ARC_PROGRESS_MAX_DURATION = 60000;
+var ARC_NOTIFY_TYPES = {
+    info: true,
+    success: true,
+    error: true,
+    warning: true,
+    primary: true
 };
-
-const MODE_ID_CLASSIC = 'classic';
-const MODE_ID_RANKED = 'arc_pvp';
-
-const LOCKER_CATEGORIES = [
-    { key: 'all', label: STRINGS.lockerCategories.all },
-    { key: 'weapon', label: STRINGS.lockerCategories.weapon },
-    { key: 'ammo', label: STRINGS.lockerCategories.ammo },
-    { key: 'medical', label: STRINGS.lockerCategories.medical },
-    { key: 'food', label: STRINGS.lockerCategories.food },
-    { key: 'utility', label: STRINGS.lockerCategories.utility },
-    { key: 'misc', label: STRINGS.lockerCategories.misc }
-];
-
-const LOCKER_RULES = {
-    ammo: [/(ammo|bullet|9mm|5\.56|7\.62|12g|shell|mermi)/i],
-    medical: [/(med|bandage|first aid|painkiller|adrenaline|syringe|health|cream|medikal)/i],
-    food: [/(water|cola|drink|food|sandwich|bread|burger|milk|juice|consume|gıda)/i],
-    utility: [/(tool|lockpick|radio|phone|repair kit|repairkit|armor|z[ıi]rh|helmet|bag|utility|ekipman)/i]
-};
-
-const state = {
-    currentView: 'menu',
-    menuState: normalizeMenuState({}),
-    upgrades: [],
-    recipes: [],
-    craftSource: {},
-    craftSearch: '',
-    craftCategory: 'all',
-    craftDialog: null,
-    stages: [],
-    selectedModeId: MODE_ID_CLASSIC,
-    stageModeLabel: 'Klasik Hayatta Kalma',
-    players: [],
-    lobbies: [],
-    members: [],
-    memberLeaderId: null,
-    inviteLeaderId: null,
-    reconnectPrompt: null,
-    arcLockers: null,
-    lockerCategory: 'all',
-    confirmDialog: null,
-    arcHud: getDefaultArcHudState(),
-    arcBanner: getDefaultArcBannerState(),
-    arcProgress: getDefaultArcProgressState(),
-    arcBarricadePlacement: getDefaultArcBarricadeState()
-};
-
-const ui = {
-    app: document.getElementById('app'),
-    content: document.getElementById('content'),
-    modalRoot: document.getElementById('modal-root'),
-    hubPanel: document.querySelector('.hub-panel'),
-    leftNav: document.getElementById('left-nav'),
-    topbarBack: document.getElementById('back-btn'),
-    breadcrumb: document.getElementById('breadcrumb-text'),
-    screenTitle: document.getElementById('screen-title'),
-    screenSubtitle: document.getElementById('screen-subtitle'),
-    previewTag: document.getElementById('preview-tag'),
-    previewTitle: document.getElementById('preview-title'),
-    previewText: document.getElementById('preview-text'),
-    summaryCards: document.getElementById('summary-cards'),
-    briefTitle: document.getElementById('brief-title'),
-    briefText: document.getElementById('brief-text'),
-    briefTag: document.getElementById('brief-tag'),
-    briefBadges: document.getElementById('brief-badges'),
-    briefExtraction: document.getElementById('brief-extraction'),
-    briefExtractionPhase: document.getElementById('brief-extraction-phase'),
-    briefExtractionObjective: document.getElementById('brief-extraction-objective'),
-    briefExtractionCountdown: document.getElementById('brief-extraction-countdown'),
-    briefProgressFill: document.getElementById('brief-progress-fill'),
-    briefPrimaryAction: document.getElementById('brief-primary-action'),
-    bottomDock: document.getElementById('bottom-dock'),
-    dockReadyTitle: document.getElementById('dock-ready-title'),
-    dockReadyText: document.getElementById('dock-ready-text'),
-    dockReadyBadge: document.getElementById('dock-ready-badge'),
-    dockReadyAction: document.getElementById('dock-ready-action'),
-    overlayRoot: document.getElementById('arc-overlay-root'),
-    banner: document.getElementById('arc-result-banner'),
-    bannerLabel: document.getElementById('arc-result-banner-label'),
-    bannerTitle: document.getElementById('arc-result-banner-title'),
-    progressCard: document.getElementById('arc-progress-card'),
-    progressTitle: document.getElementById('arc-progress-title'),
-    progressLabel: document.getElementById('arc-progress-label'),
-    progressFill: document.getElementById('arc-progress-fill'),
-    progressPercent: document.getElementById('arc-progress-percent'),
-    progressCancel: document.getElementById('arc-progress-cancel'),
-    barricadeCard: document.getElementById('arc-barricade-placement-card'),
-    barricadeTitle: document.getElementById('arc-barricade-placement-title'),
-    barricadeControls: document.getElementById('arc-barricade-placement-controls'),
-    infoPanel: document.getElementById('arc-info-panel'),
-    infoTitle: document.getElementById('arc-info-title'),
-    infoSubtitle: document.getElementById('arc-info-subtitle'),
-    infoLines: document.getElementById('arc-info-lines'),
-    infoPrompt: document.getElementById('arc-info-prompt'),
-    teamPanel: document.getElementById('arc-team-panel'),
-    teamCount: document.getElementById('arc-team-count'),
-    teamMembers: document.getElementById('arc-team-members'),
-    notifyStack: document.getElementById('arc-notify-stack')
-};
-
-let appHideTimer = null;
-let bannerTimer = null;
-let progressFrame = null;
-let notifyTimers = [];
-
-function isPopupPanelView(viewKey) {
-    return viewKey !== 'menu';
-}
-
-const messageHandlers = {
-    openMenu(data) {
-        state.menuState = normalizeMenuState(data);
-        state.currentView = 'menu';
-        closeDialogs();
-        showApp();
-        renderCurrentView();
-    },
-    updateMenuState(data) {
-        state.menuState = normalizeMenuState(data);
-        if (state.currentView === 'menu') renderCurrentView();
-    },
-    openMarket(data) {
-        state.upgrades = safeArray(data && data.upgrades);
-        state.currentView = 'market';
-        closeDialogs();
-        showApp();
-        renderCurrentView();
-    },
-    openCraft(data) {
-        state.recipes = normalizeRecipes(data && data.recipes);
-        state.craftSource = {
-            sourceKey: safeString(data && data.sourceKey),
-            sourceLabel: safeString(data && data.sourceLabel),
-            helperText: safeString(data && data.helperText)
-        };
-        redirectRemovedCraftToMenu();
-    },
-    openStages(data) {
-        state.stages = safeArray(data && data.stages);
-        state.selectedModeId = safeString(data && data.modeId, MODE_ID_CLASSIC);
-        state.stageModeLabel = safeString(data && data.modeLabel, state.selectedModeId === MODE_ID_RANKED ? 'ARC Baskını' : 'Klasik Hayatta Kalma');
-        state.currentView = 'stages';
-        closeDialogs();
-        showApp();
-        renderCurrentView();
-    },
-    openArcLockers(data) {
-        state.arcLockers = normalizeArcLockers(data);
-        state.currentView = 'arcLockers';
-        closeDialogs(true);
-        showApp();
-        renderCurrentView();
-    },
-    openInvite(data) {
-        state.players = safeArray(data && data.players);
-        state.currentView = 'invite';
-        closeDialogs();
-        showApp();
-        renderCurrentView();
-    },
-    openActiveLobbies(data) {
-        state.lobbies = safeArray(data && data.lobbies);
-        state.currentView = 'active-lobbies';
-        closeDialogs();
-        showApp();
-        renderCurrentView();
-    },
-    openMembers(data) {
-        state.members = safeArray(data && data.members);
-        state.memberLeaderId = data && data.leaderId != null ? Number(data.leaderId) : null;
-        state.currentView = 'members';
-        closeDialogs();
-        showApp();
-        renderCurrentView();
-    },
-    syncLobbyMembers(data) {
-        state.members = safeArray(data && data.members);
-        if (data && data.leaderId != null) state.memberLeaderId = Number(data.leaderId);
-        if (state.currentView === 'members') renderCurrentView();
-    },
-    setArcHud(data) {
-        state.arcHud = Object.assign({}, state.arcHud, data || {});
-        renderOverlays();
-    },
-    clearArcHud() {
-        clearArcHudState();
-    },
-    arcNotify(data) {
-        pushToast(data || {});
-    },
-    showArcBanner(data) {
-        showBanner(data || {});
-    },
-    clearArcBanner() {
-        clearBanner();
-    },
-    showArcProgress(data) {
-        showProgress(data || {});
-    },
-    hideArcProgress() {
-        clearProgress();
-    },
-    showArcBarricadePlacement(data) {
-        state.arcBarricadePlacement = {
-            visible: true,
-            title: safeString(data && data.title, STRINGS.barricade.title),
-            controls: safeArray(data && data.controls)
-        };
-        renderOverlays();
-    },
-    hideArcBarricadePlacement() {
-        state.arcBarricadePlacement = getDefaultArcBarricadeState();
-        renderOverlays();
-    },
-    openReconnectPrompt(data) {
-        state.reconnectPrompt = data || {};
-        state.currentView = 'arc-reconnect';
-        closeDialogs();
-        showApp();
-        renderCurrentView();
-    },
-    receiveInvite(data) {
-        state.inviteLeaderId = data && data.leaderId != null ? Number(data.leaderId) : null;
-        state.currentView = 'invite-received';
-        closeDialogs();
-        showApp();
-        renderCurrentView();
-    },
-    closeMenu() {
-        hideApp();
-    }
-};
-
-window.addEventListener('message', function (event) {
-    const payload = event && event.data ? event.data : {};
-    const handler = messageHandlers[payload.type];
-    if (!handler) {
-        console.warn('[gs-survival-ui] Unknown message type:', payload.type, payload);
-        return;
-    }
-
-    try {
-        handler(payload.data);
-    } catch (error) {
-        console.warn('[gs-survival-ui] Message handler failed:', payload.type, error, payload);
-    }
-});
-
-document.addEventListener('keydown', handleKeydown);
-document.addEventListener('click', handleClick);
-document.addEventListener('input', handleInput);
-document.addEventListener('change', handleInput);
-document.addEventListener('dragstart', handleDragStart);
-document.addEventListener('dragover', handleDragOver);
-document.addEventListener('dragleave', handleDragLeave);
-document.addEventListener('drop', handleDrop);
-document.addEventListener('dragend', clearDropTargets);
-document.addEventListener('contextmenu', handleContextMenu);
-
-function getDefaultArcHudState() {
-    return {
-        enabled: false,
-        showInfo: false,
-        title: 'ARC Operasyonu',
-        subtitle: 'Saha telemetrisi',
-        lines: [],
-        prompt: '',
-        teamMembers: []
-    };
-}
-
-function getDefaultArcBannerState() {
-    return {
-        visible: false,
-        label: STRINGS.banner.label,
-        title: STRINGS.banner.title,
-        duration: LIMITS.bannerDefault,
-        transition: false
-    };
-}
 
 function getDefaultArcProgressState() {
     return {
         visible: false,
         id: 0,
-        title: STRINGS.progress.title,
-        label: STRINGS.progress.label,
+        title: ARC_PROGRESS_DEFAULT_TITLE,
+        label: ARC_PROGRESS_DEFAULT_LABEL,
         duration: 0,
         canCancel: true,
         startedAt: 0,
@@ -383,1349 +59,2182 @@ function getDefaultArcProgressState() {
     };
 }
 
-function getDefaultArcBarricadeState() {
+function getDefaultArcBarricadePlacementState() {
     return {
         visible: false,
-        title: STRINGS.barricade.title,
+        title: 'ARC Barricade Kit',
         controls: []
     };
 }
 
-function safeArray(value) {
-    return Array.isArray(value) ? value : [];
-}
+// ─── Per-screen data store (avoids inline JSON injection) ──────────────────
+var screenData = {
+    upgrades: [],
+    recipes:  [],
+    craftSource: null,
+    craftDialog: null,
+    stages:   [],
+    players:  [],
+    lobbies:  [],
+    members:  [],
+    arcLockers: null,
+    inviteLeaderId: null,
+    memberLeaderId: null,
+    reconnectPrompt: null,
+    menuState: {},
+    arcHud: {
+        enabled: false,
+        showInfo: false,
+        title: ARC_HUD_DEFAULTS.title,
+        subtitle: ARC_HUD_DEFAULTS.subtitle,
+        lines: [],
+        prompt: '',
+        teamMembers: []
+    },
+    arcBanner: {
+        visible: false,
+        label: ARC_BANNER_DEFAULT_LABEL,
+        title: ARC_BANNER_DEFAULT_TITLE,
+        duration: ARC_BANNER_DEFAULT_DURATION,
+        transition: false
+    },
+    arcProgress: getDefaultArcProgressState()
+    ,
+    arcBarricadePlacement: getDefaultArcBarricadePlacementState()
+};
 
-function safeString(value, fallback) {
-    if (value === undefined || value === null) return fallback || '';
-    return String(value);
-}
+// ─── Cached nodes for HUD, tooltip, and menu transitions ───────────────────
+var appEl = document.getElementById('app');
+var contentEl = document.getElementById('content');
+var tooltipEl = document.getElementById('hud-tooltip');
+var hudEls = {
+    statusTitle: document.getElementById('status-strip-title'),
+    healthLabel: document.getElementById('hud-health-label'),
+    healthValue: document.getElementById('hud-health-value'),
+    healthBar: document.getElementById('hud-health-bar'),
+    radiationLabel: document.getElementById('hud-radiation-label'),
+    radiationValue: document.getElementById('hud-radiation-value'),
+    radiationBar: document.getElementById('hud-radiation-bar'),
+    inventoryLabel: document.getElementById('hud-inventory-label'),
+    inventoryValue: document.getElementById('hud-inventory-value'),
+    inventoryBar: document.getElementById('hud-inventory-bar'),
+    signalLabel: document.getElementById('hud-signal-label'),
+    signalValue: document.getElementById('hud-signal-value'),
+    signalBar: document.getElementById('hud-signal-bar'),
+    briefTitle: document.getElementById('brief-title'),
+    briefText: document.getElementById('brief-text'),
+    briefExtraction: document.getElementById('brief-extraction'),
+    briefExtractionPhase: document.getElementById('brief-extraction-phase'),
+    briefExtractionObjective: document.getElementById('brief-extraction-objective'),
+    briefExtractionCountdown: document.getElementById('brief-extraction-countdown'),
+    briefTag: document.getElementById('brief-tag'),
+    briefProgress: document.getElementById('brief-progress-bar'),
+    arcOverlayRoot: document.getElementById('arc-overlay-root'),
+    arcInfoPanel: document.getElementById('arc-info-panel'),
+    arcInfoTitle: document.getElementById('arc-info-title'),
+    arcInfoSubtitle: document.getElementById('arc-info-subtitle'),
+    arcInfoLines: document.getElementById('arc-info-lines'),
+    arcInfoPrompt: document.getElementById('arc-info-prompt'),
+    arcTeamPanel: document.getElementById('arc-team-panel'),
+    arcTeamCount: document.getElementById('arc-team-count'),
+    arcTeamMembers: document.getElementById('arc-team-members'),
+    arcNotifyStack: document.getElementById('arc-notify-stack'),
+    arcResultBanner: document.getElementById('arc-result-banner'),
+    arcResultBannerLabel: document.getElementById('arc-result-banner-label'),
+    arcResultBannerTitle: document.getElementById('arc-result-banner-title'),
+    arcProgressCard: document.getElementById('arc-progress-card'),
+    arcProgressTitle: document.getElementById('arc-progress-title'),
+    arcProgressLabel: document.getElementById('arc-progress-label'),
+    arcProgressFill: document.getElementById('arc-progress-fill'),
+    arcProgressPercent: document.getElementById('arc-progress-percent'),
+    arcProgressCancel: document.getElementById('arc-progress-cancel'),
+    arcBarricadePlacementCard: document.getElementById('arc-barricade-placement-card'),
+    arcBarricadePlacementTitle: document.getElementById('arc-barricade-placement-title'),
+    arcBarricadePlacementControls: document.getElementById('arc-barricade-placement-controls')
+};
+var hideTimer = null;
+var audioCtx = null;
+var currentScreen = 'menu';
+var arcNotifyTimers = [];
+var arcBannerTimer = null;
+var arcProgressFrame = null;
+var DEFAULT_HUD = {
+    health: 84,
+    radiation: 22,
+    inventoryPct: 50,
+    inventoryText: '03/06',
+    signal: 68,
+    signalText: 'STABIL',
+    briefTitle: 'Operasyon Hazır',
+    briefText: 'Takım durumunu kontrol et, bölgeyi seç ve ekipmanını hazırla.',
+    briefExtractionPhase: '',
+    briefExtractionObjective: '',
+    briefExtractionCountdown: '',
+    briefTag: 'BEKLE',
+    progress: 28,
+    slotsFilled: 3
+};
+var MAIN_MENU_BASE_HEALTH = 62;
+var MAIN_MENU_HEALTH_PER_LEVEL = 3;
+var ARC_LOCKER_CATEGORIES = [
+    { key: 'all', label: 'Tümü', icon: '&#9638;' },
+    { key: 'weapon', label: 'Silah', icon: '&#128299;' },
+    { key: 'ammo', label: 'Mermi', icon: '&#9903;' },
+    { key: 'medical', label: 'Medikal', icon: '&#10010;' },
+    { key: 'food', label: 'Gıda', icon: '&#127860;' },
+    { key: 'utility', label: 'Ekipman', icon: '&#128295;' },
+    { key: 'misc', label: 'Diğer', icon: '&#128230;' }
+];
+var ARC_LOCKER_CATEGORY_RULES = {
+    ammo: [/(ammo|bullet|9mm|5\.56|7\.62|12g|shell|mermi)/],
+    medical: [/(med|bandage|first aid|painkiller|adrenaline|syringe|health|burn cream|cream)/],
+    food: [/(water|cola|drink|food|sandwich|bread|burger|milk|juice|consume)/],
+    utility: [/(tool|lockpick|radio|phone|repair kit|repairkit|armor|z[ıi]rh|helmet|bag|utility)/]
+};
+// Drag sonrası istemsiz click tetiklenmesini önlemek için kısa bastırma süreleri kullanılır.
+var ARC_LOCKER_DRAG_SUPPRESS_START_MS = 250;
+var ARC_LOCKER_DRAG_SUPPRESS_DROP_MS = 350;
+var ARC_LOCKER_DRAG_SUPPRESS_END_MS = 150;
+var ARC_LOCKER_POINTER_DRAG_THRESHOLD_PX = 8;
+var ARC_LOCKER_POINTER_DRAG_THRESHOLD_SQ = ARC_LOCKER_POINTER_DRAG_THRESHOLD_PX * ARC_LOCKER_POINTER_DRAG_THRESHOLD_PX;
+var ARC_LOCKER_DEFAULT_SPLIT_RATIO = 0.5;
+var arcLockerDragState = null;
+var arcLockerDragSuppressUntil = 0;
+var arcLockerNativeDragActive = false;
+var arcLockerPointerDragState = null;
 
-function safeNumber(value, fallback) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : (fallback !== undefined ? fallback : 0);
-}
-
-function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
-}
-
-function esc(value) {
-    return safeString(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
-
-function escAttr(value) {
-    return esc(value).replace(/`/g, '&#096;');
-}
-
-function jsonAttr(payload) {
-    return escAttr(JSON.stringify(payload || {}));
-}
-
-function formatSecondsClock(totalSeconds) {
-    const seconds = Math.max(0, Math.floor(safeNumber(totalSeconds, 0)));
-    const minutes = Math.floor(seconds / 60);
-    return String(minutes).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');
-}
-
-function formatCurrency(value) {
-    return safeNumber(value, 0).toLocaleString('tr-TR');
-}
-
-function describeCount(count, singular, plural) {
-    const total = Math.max(0, Math.floor(safeNumber(count, 0)));
-    return total + ' ' + (total === 1 ? singular : plural);
-}
-
-function parsePayload(node) {
-    if (!node) return {};
-    const raw = node.getAttribute('data-ui-payload');
-    if (!raw) return {};
-    try {
-        return JSON.parse(raw);
-    } catch (error) {
-        console.warn('[gs-survival-ui] Invalid element payload:', error, raw);
-        return {};
+// ─── NUI Message Handler ───────────────────────────────────────────────────
+window.addEventListener('message', function (event) {
+    var d = event.data;
+    switch (d.type) {
+        case 'openMenu':      showMenu(d.data);         showApp(); break;
+        case 'openMarket':    showMarket(d.data);                  break;
+        case 'openCraft':     showCraft(d.data); showApp();        break;
+        case 'openStages':    showStages(d.data);                  break;
+        case 'openArcLockers': showArcLockers(d.data); showApp();  break;
+        case 'openInvite':    showInvite(d.data);                  break;
+        case 'openActiveLobbies': showActiveLobbies(d.data);       break;
+        case 'openMembers':   showMembers(d.data);                 break;
+        case 'syncLobbyMembers': syncLobbyMembers(d.data);         break;
+        case 'updateMenuState':  updateMenuState(d.data);          break;
+        case 'setArcHud':     setArcHud(d.data);                   break;
+        case 'clearArcHud':   clearArcHud();                       break;
+        case 'arcNotify':     pushArcNotify(d.data);               break;
+        case 'showArcBanner': showArcBanner(d.data);              break;
+        case 'clearArcBanner': clearArcBanner();                  break;
+        case 'showArcProgress': showArcProgress(d.data);          break;
+        case 'hideArcProgress': clearArcProgress();               break;
+        case 'showArcBarricadePlacement': showArcBarricadePlacement(d.data); break;
+        case 'hideArcBarricadePlacement': clearArcBarricadePlacement(); break;
+        case 'openReconnectPrompt': showReconnectPrompt(d.data); showApp(); break;
+        case 'receiveInvite': showReceiveInvite(d.data); showApp(); break;
+        case 'closeMenu':     hideApp();                           break;
     }
-}
+});
 
-function normalizeMenuState(data) {
-    const next = data || {};
-    return {
-        userLevel: Math.max(1, Math.floor(safeNumber(next.userLevel, 1))),
-        isLeader: next.isLeader === true,
-        isMember: next.isMember === true,
-        hasLobby: next.hasLobby === true,
-        isReady: next.isReady === true,
-        playerName: safeString(next.playerName, 'Bilinmeyen Operatif'),
-        currentStage: safeNumber(next.currentStage, 1),
-        upgradeLabel: safeString(next.upgradeLabel, '-'),
-        lobbyStatus: safeString(next.lobbyStatus, 'Tek Başına'),
-        currentModeId: safeString(next.currentModeId, MODE_ID_CLASSIC),
-        currentModeLabel: safeString(next.currentModeLabel, 'Klasik Hayatta Kalma'),
-        arcMainStacks: safeNumber(next.arcMainStacks, 0),
-        arcMainItems: safeNumber(next.arcMainItems, 0),
-        arcLoadoutStacks: safeNumber(next.arcLoadoutStacks, 0),
-        arcLoadoutItems: safeNumber(next.arcLoadoutItems, 0),
-        arcLoadoutReady: next.arcLoadoutReady === true,
-        arcLoadoutState: next.arcLoadoutState || {},
-        arcSummary: next.arcSummary || {},
-        arcExtraction: next.arcExtraction || {},
-        allowPersonalInventory: next.allowPersonalInventory !== false,
-        disconnectPolicy: safeString(next.disconnectPolicy),
-        disconnectPolicyLabel: safeString(next.disconnectPolicyLabel),
-        disconnectPolicyDescription: safeString(next.disconnectPolicyDescription)
-    };
-}
+// ─── ESC closes menu ──────────────────────────────────────────────────────
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && currentScreen === 'arcLockers' && screenData.arcLockers && screenData.arcLockers.splitDialog) {
+        closeArcLockerSplitDialog();
+        return;
+    }
+    if (e.key === 'Escape' && currentScreen === 'craft' && screenData.craftDialog) {
+        closeCraftQuantityDialog();
+        return;
+    }
+    if (e.key === 'Escape' && currentScreen === 'arc-reconnect') {
+        submitArcReconnectDecision(false);
+        return;
+    }
+    if (e.key === 'Escape') closeMenu();
+});
 
-function normalizeRecipes(recipes) {
-    return safeArray(recipes).map(function (recipe) {
-        const next = recipe || {};
-        return {
-            header: safeString(next.header),
-            txt: safeString(next.txt),
-            item: safeString(next.item),
-            amount: Math.max(1, Math.floor(safeNumber(next.amount, 1))),
-            label: safeString(next.label, safeString(next.header, 'Tarif')),
-            requirements: safeArray(next.requirements),
-            stashId: safeString(next.stashId),
-            sourceLabel: safeString(next.sourceLabel),
-            category: safeString(next.category, 'misc'),
-            ready: next.ready === true,
-            maxCraftable: Math.max(0, Math.floor(safeNumber(next.maxCraftable, next.ready ? 1 : 0)))
-        };
-    });
-}
+// ─── UI click + hover feedback ─────────────────────────────────────────────
+document.addEventListener('click', function (event) {
+    var target = event.target.closest('.btn, .menu-item, .player-item, .stage-card');
+    if (target && !target.classList.contains('disabled') && !target.disabled) {
+        // Ready/craft actions play their own mechanical sounds from their dedicated handlers.
+        if (target.classList.contains('pubg-ready-btn') || target.classList.contains('btn-craft-action')) return;
+        playUiTone(target.classList.contains('btn-danger') || target.classList.contains('danger') ? 'alert' : 'confirm');
+    }
+});
 
-function normalizeArcLockers(data) {
-    const next = data || {};
-    return {
-        focusSide: safeString(next.focusSide, 'main') === 'loadout' ? 'loadout' : 'main',
-        main: normalizeArcLockerSection(next.main || next.focused, 'main'),
-        loadout: normalizeArcLockerSection(next.loadout || next.paired, 'loadout'),
-        transferSupport: next.transferSupport || {},
-        splitDialog: null
-    };
-}
+document.addEventListener('click', function (event) {
+    if (Date.now() < arcLockerDragSuppressUntil && event.target.closest('.arc-item-card')) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+}, true);
 
-function normalizeArcLockerSection(section, defaultSide) {
-    const next = section || {};
-    return {
-        side: safeString(next.side, defaultSide),
-        stashId: safeString(next.stashId),
-        label: safeString(next.label, defaultSide === 'loadout' ? 'ARC Baskın Çantası' : 'ARC Kalıcı Depo'),
-        title: safeString(next.title, defaultSide === 'loadout' ? 'Baskın Çantası' : 'Kalıcı Depo'),
-        helperText: safeString(next.helperText),
-        slots: Math.max(0, Math.floor(safeNumber(next.slots, 0))),
-        items: safeArray(next.items).map(function (item) {
-            const value = item || {};
-            return {
-                slot: Math.max(0, Math.floor(safeNumber(value.slot, 0))),
-                name: safeString(value.name),
-                label: safeString(value.label, safeString(value.name, 'İsimsiz Eşya')),
-                count: Math.max(0, Math.floor(safeNumber(value.count, 0))),
-                image: safeString(value.image),
-                description: safeString(value.description),
-                metadata: value.metadata || {},
-                isWeapon: value.isWeapon === true,
-                stackable: value.stackable !== false
-            };
-        })
-    };
-}
+document.addEventListener('mouseover', function (event) {
+    var target = event.target.closest('[data-tip]');
+    if (!target || target.classList.contains('disabled')) {
+        hideTooltip();
+        return;
+    }
+    showTooltip(target.getAttribute('data-tip'));
+});
 
+document.addEventListener('mousemove', function (event) {
+    if (tooltipEl.classList.contains('hidden')) return;
+    tooltipEl.style.left = event.clientX + 'px';
+    tooltipEl.style.top = event.clientY + 'px';
+});
+
+document.addEventListener('mouseout', function (event) {
+    if (!event.target.closest('[data-tip]')) return;
+    if (event.relatedTarget && event.relatedTarget.closest('[data-tip]')) return;
+    hideTooltip();
+});
+
+document.addEventListener('mouseleave', function () {
+    hideTooltip();
+});
+
+// ─── Visibility ───────────────────────────────────────────────────────────
 function showApp() {
-    clearTimeout(appHideTimer);
-    ui.app.classList.remove('hidden');
+    clearTimeout(hideTimer);
+    appEl.classList.remove('hidden');
+    appEl.setAttribute('aria-hidden', 'false');
     requestAnimationFrame(function () {
-        ui.app.classList.add('is-visible');
-        ui.app.setAttribute('aria-hidden', 'false');
+        appEl.classList.add('is-visible');
     });
 }
 
 function hideApp() {
-    ui.app.classList.remove('is-visible');
-    ui.app.setAttribute('aria-hidden', 'true');
-    closeDialogs();
-    clearTimeout(appHideTimer);
-    appHideTimer = setTimeout(function () {
-        ui.app.classList.add('hidden');
-    }, 220);
+    appEl.classList.remove('is-visible');
+    appEl.setAttribute('aria-hidden', 'true');
+    hideTooltip();
+    hideTimer = setTimeout(function () {
+        appEl.classList.add('hidden');
+    }, 280);
 }
 
-function sendAction(action, data) {
-    fetch('https://' + GetParentResourceName() + '/nuiAction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: action, data: data || {} })
-    }).catch(function (error) {
-        console.warn('[gs-survival-ui] Failed to send action:', action, error);
-    });
-}
-
+// ─── Close menu (tell Lua to release focus) ───────────────────────────────
 function closeMenu() {
-    if (state.currentView === 'arc-reconnect') {
-        sendAction('arcReconnectDecision', { accepted: false });
+    if (currentScreen === 'arc-reconnect') {
+        submitArcReconnectDecision(false);
         return;
     }
     hideApp();
     sendAction('closeMenu', {});
 }
 
-function closeDialogs(keepLockerSplit) {
-    state.confirmDialog = null;
-    state.craftDialog = null;
-    if (!keepLockerSplit && state.arcLockers) state.arcLockers.splitDialog = null;
-    renderModal();
+// ─── Lua callback ─────────────────────────────────────────────────────────
+function sendAction(action, data) {
+    fetch('https://' + GetParentResourceName() + '/nuiAction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: action, data: data })
+    }).catch(function () {});
 }
 
-function redirectRemovedCraftToMenu() {
-    state.currentView = 'menu';
-    state.craftDialog = null;
-    closeDialogs();
-    showApp();
-    renderCurrentView();
+// ─── Breadcrumb ───────────────────────────────────────────────────────────
+function setBreadcrumb(text) {
+    document.getElementById('breadcrumb-text').textContent = text;
 }
 
-function renderCurrentView() {
-    const renderer = viewRenderers[state.currentView] || renderMenuView;
-    const view = renderer();
-    ui.app.dataset.view = state.currentView;
-    ui.app.dataset.popupOpen = isPopupPanelView(state.currentView) ? '1' : '0';
-    ui.screenTitle.textContent = view.title || STRINGS.app.title;
-    ui.screenSubtitle.textContent = view.subtitle || STRINGS.app.subtitle;
-    ui.breadcrumb.textContent = view.breadcrumb || STRINGS.app.breadcrumb;
-    if (ui.hubPanel) {
-        ui.hubPanel.classList.toggle('is-open', isPopupPanelView(state.currentView));
-    }
-    if (ui.topbarBack) {
-        ui.topbarBack.classList.toggle('hidden', !isPopupPanelView(state.currentView));
-    }
-    renderSidebar(view.sidebar || buildDefaultSidebar());
-    renderShellChrome(view);
-    ui.content.innerHTML = view.html;
-    bindImageFallbacks(ui.content);
-    renderModal();
+// ─── Helper: menu row ─────────────────────────────────────────────────────
+function menuRow(icon, title, desc, badgeHtml, onclickJs, extraClass, tipText) {
+    var cls = 'menu-item' + (extraClass ? ' ' + extraClass : '');
+    var clickAttr = onclickJs ? ' onclick="' + onclickJs + '"' : '';
+    var arrowHtml = (extraClass !== 'disabled') ? '<div class="menu-arrow">&#8250;</div>' : '';
+    var tipAttr = tipText ? ' data-tip="' + esc(tipText) + '"' : '';
+    return '<div class="' + cls + '"' + clickAttr + tipAttr + '>' +
+        '<div class="menu-item-icon">' + icon + '</div>' +
+        '<div class="menu-item-content">' +
+            '<div class="menu-item-title">' + esc(title) + '</div>' +
+            (desc ? '<div class="menu-item-desc">' + esc(desc) + '</div>' : '') +
+        '</div>' +
+        (badgeHtml || '') +
+        arrowHtml +
+    '</div>';
 }
 
-const viewRenderers = {
-    menu: renderMenuView,
-    market: renderMarketView,
-    craft: renderCraftView,
-    stages: renderStagesView,
-    invite: renderInviteView,
-    'active-lobbies': renderActiveLobbiesView,
-    members: renderMembersView,
-    'invite-received': renderReceiveInviteView,
-    'arc-reconnect': renderReconnectView,
-    'create-lobby': renderCreateLobbyView,
-    arcLockers: renderArcLockersView
-};
-
-function renderShellChrome(view) {
-    renderPrimaryNav(view);
+function backBtn() {
+    return '<button class="btn btn-back" type="button" onclick="sendAction(\'goBack\',{})" data-tip="Ana ekrana geri dön.">&#8592; Ana Menüye Dön</button>';
 }
 
-function renderPrimaryNav() {
-    if (!ui.leftNav) return;
-    const items = [
-        { key: 'match', label: 'Match', action: 'open-stages', payload: { modeId: MODE_ID_CLASSIC }, active: state.currentView === 'stages' && state.selectedModeId !== MODE_ID_RANKED },
-        { key: 'ranked', label: 'Ranked Match', action: 'open-stages', payload: { modeId: MODE_ID_RANKED }, active: state.currentView === 'stages' && state.selectedModeId === MODE_ID_RANKED },
-        { key: 'market', label: 'Store', action: 'open-market', active: state.currentView === 'market' },
-        { key: 'loadout', label: 'Loadout', action: 'open-loadout-stash', active: state.currentView === 'arcLockers' && state.arcLockers && state.arcLockers.focusSide === 'loadout' },
-        { key: 'arcLockers', label: 'Locker', action: 'open-main-stash', active: state.currentView === 'arcLockers' && !(state.arcLockers && state.arcLockers.focusSide === 'loadout') }
-    ];
-
-    ui.leftNav.innerHTML = items.map(function (item) {
-        const className = 'rail-nav__item' + (item.active ? ' is-active' : '');
-        return '<button class="' + className + '" type="button" data-ui-action="' + escAttr(item.action) + '" data-ui-payload="' + jsonAttr(item.payload || {}) + '"' + (item.disabled ? ' disabled' : '') + '>' + esc(item.label) + '</button>';
-    }).join('');
+function actionBtn(label, action, data, tipText, extraClass) {
+    var payload = JSON.stringify(data || {}).replace(/"/g, '&quot;');
+    return '<button class="btn' + (extraClass ? ' ' + extraClass : '') + '" type="button" onclick="sendAction(\'' + esc(action) + '\',' + payload + ')"' +
+        (tipText ? ' data-tip="' + esc(tipText) + '"' : '') + '>' + esc(label) + '</button>';
 }
 
-function buildDefaultSidebar() {
-    return {
-        cards: [
-            { label: 'Karakter', value: 'Hazır', percent: 84 },
-            { label: 'Takım', value: 'Solo', percent: 34 },
-            { label: 'Bağlantı', value: 'Stabil', percent: 72 },
-            { label: 'Hazırlık', value: 'Bekleniyor', percent: 28 }
-        ],
-        title: 'Operasyon Hazır',
-        text: 'Takım durumunu kontrol et ve operasyona hazırlan.',
-        tag: STRINGS.badge.solo,
-        badges: [],
-        progress: 24,
-        action: 'noop',
-        actionLabel: 'Bekleniyor',
-        actionDisabled: true
-    };
+function emptyState(icon, text) {
+    return '<div class="empty-state"><div class="empty-icon">' + icon + '</div><div>' + esc(text) + '</div></div>';
 }
 
-function renderSidebar(config) {
-    const sidebar = config || buildDefaultSidebar();
-    ui.summaryCards.innerHTML = safeArray(sidebar.cards).map(function (card) {
-        const width = clamp(safeNumber(card.percent, 0), 0, 100);
-        return '' +
-            '<article class="mission-card">' +
-                '<div class="mission-card__meta">' +
-                    '<span class="mission-card__label">' + esc(card.label || '-') + '</span>' +
-                    '<span class="mission-card__value">' + esc(card.value || '-') + '</span>' +
-                '</div>' +
-                '<div class="ui-progress"><span class="ui-progress__fill" style="width:' + width + '%"></span></div>' +
-            '</article>';
-    }).join('');
-
-    ui.briefTitle.textContent = safeString(sidebar.title, 'Operasyon Hazır');
-    ui.briefText.textContent = safeString(sidebar.text, '');
-    ui.briefTag.textContent = safeString(sidebar.tag, STRINGS.badge.solo);
-    if (ui.previewTag) ui.previewTag.textContent = safeString(sidebar.tag, STRINGS.badge.solo);
-    if (ui.previewTitle) ui.previewTitle.textContent = safeString(state.menuState.playerName, 'Operatör');
-    if (ui.previewText) ui.previewText.textContent = safeString(sidebar.text, 'Karakter görünümü orta alanda canlı olarak gösterilir.');
-    ui.briefBadges.innerHTML = safeArray(sidebar.badges).map(function (badge) {
-        return '<span class="ui-chip">' + esc(badge && badge.label ? badge.label : badge) + '</span>';
-    }).join('');
-    ui.briefProgressFill.style.width = clamp(safeNumber(sidebar.progress, 0), 0, 100) + '%';
-
-    const extraction = sidebar.extraction;
-    const hasExtraction = extraction && (extraction.phase || extraction.objective || extraction.countdown);
-    ui.briefExtraction.classList.toggle('hidden', !hasExtraction);
-    if (hasExtraction) {
-        ui.briefExtractionPhase.textContent = safeString(extraction.phase, 'Hazır');
-        ui.briefExtractionObjective.textContent = safeString(extraction.objective);
-        ui.briefExtractionCountdown.textContent = safeString(extraction.countdown, '00:00');
-    }
-
-    ui.briefPrimaryAction.textContent = safeString(sidebar.actionLabel, 'Bekleniyor');
-    ui.briefPrimaryAction.disabled = sidebar.actionDisabled === true;
-    ui.briefPrimaryAction.className = 'ui-button ui-button--primary ui-button--block ui-button--launch';
-    if (sidebar.actionVariant === 'danger') ui.briefPrimaryAction.className = 'ui-button ui-button--danger ui-button--block ui-button--launch';
-    ui.briefPrimaryAction.setAttribute('data-ui-action', safeString(sidebar.action, 'noop'));
-    ui.briefPrimaryAction.setAttribute('data-ui-payload', jsonAttr(sidebar.actionPayload || {}));
-    renderReadyDock(sidebar);
+function esc(str) {
+    str = (str === null || str === undefined) ? '' : String(str);
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
-function renderReadyDock(sidebar) {
-    if (!ui.bottomDock) return;
-
-    const menu = state.menuState || {};
-    const hasInteractiveReady = menu.isMember === true && safeString(sidebar.action) === 'toggle-ready';
-    const actionLabel = safeString(sidebar.actionLabel, STRINGS.readyDock.waiting);
-    const readyBadge = menu.isReady === true
-        ? { text: STRINGS.badge.ready, className: 'ui-badge ui-badge--success' }
-        : (hasInteractiveReady
-            ? { text: STRINGS.badge.waiting, className: 'ui-badge ui-badge--warning' }
-            : { text: safeString(sidebar.tag, STRINGS.badge.solo), className: 'ui-badge ui-badge--muted' });
-
-    ui.bottomDock.classList.toggle('hidden', false);
-    ui.dockReadyTitle.textContent = hasInteractiveReady ? STRINGS.readyDock.teamTitle : STRINGS.readyDock.lobbyTitle;
-    ui.dockReadyText.textContent = hasInteractiveReady
-        ? (menu.isReady === true ? STRINGS.readyDock.readyText : STRINGS.readyDock.waitingText)
-        : (menu.isLeader === true ? STRINGS.readyDock.leaderText : STRINGS.readyDock.soloText);
-    ui.dockReadyBadge.className = readyBadge.className;
-    ui.dockReadyBadge.textContent = readyBadge.text;
-    ui.dockReadyAction.textContent = actionLabel;
-    ui.dockReadyAction.disabled = sidebar.actionDisabled === true;
-    ui.dockReadyAction.className = sidebar.actionVariant === 'danger'
-        ? 'ui-button ui-button--danger'
-        : 'ui-button ui-button--primary';
-    ui.dockReadyAction.setAttribute('data-ui-action', safeString(sidebar.action, 'noop'));
-    ui.dockReadyAction.setAttribute('data-ui-payload', jsonAttr(sidebar.actionPayload || {}));
+function fmtNum(n) {
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
-function renderMenuView() {
-    const menu = state.menuState;
-    const loadoutInfo = getLoadoutInfo(menu);
-    const extraction = getExtractionInfo(menu);
-
-    return {
-        title: 'Ana Menü',
-        subtitle: 'Sol taraftan bir bölüm seç ve büyük pencere olarak aç.',
-        breadcrumb: STRINGS.app.breadcrumb,
-        sidebar: {
-            cards: [
-                { label: 'Seviye', value: 'Lv.' + menu.userLevel, percent: clamp(28 + menu.userLevel * 6, 18, 100) },
-                { label: 'Takım', value: menu.hasLobby ? 'Bağlı' : 'Solo', percent: menu.hasLobby ? 84 : 30 },
-                { label: 'ARC', value: loadoutInfo.shortLabel, percent: loadoutInfo.percent },
-                { label: 'Tahliye', value: extraction.phase || 'Pasif', percent: extraction.percent }
-            ],
-            title: menu.currentModeId === MODE_ID_RANKED ? 'ARC Baskın Hazırlığı' : 'Operasyon Hazır',
-            text: menu.currentModeId === MODE_ID_RANKED
-                ? menu.currentModeLabel + ' seçili. ' + loadoutInfo.detail
-                : menu.currentModeLabel + ' seçili. Takımını düzenle ve operasyona hazırlan.',
-            tag: menu.isLeader ? STRINGS.badge.leader : (menu.isMember ? STRINGS.badge.team : STRINGS.badge.solo),
-            badges: [
-                { label: menu.lobbyStatus },
-                { label: loadoutInfo.badge },
-                { label: menu.disconnectPolicyLabel || 'Bağlantı Politikası' }
-            ],
-            progress: menu.hasLobby ? 70 : 42,
-            action: menu.isMember ? 'toggle-ready' : 'noop',
-            actionLabel: menu.isMember ? (menu.isReady ? 'Hazır Değil Yap' : 'Hazır Ol') : (menu.isLeader ? 'Lider Kontrolü' : 'Solo Mod'),
-            actionDisabled: !menu.isMember,
-            extraction: extraction.phase ? extraction : null
-        },
-        html: ''
-    };
+function setContent(html) {
+    hideTooltip();
+    contentEl.innerHTML = html;
+    bindImageFallbacks(contentEl);
 }
 
-function renderMarketView() {
-    const cards = state.upgrades.length ? state.upgrades.map(function (upgrade, index) {
-        const value = clamp(44 + index * 11, 18, 96);
-        return '' +
-            '<article class="item-card">' +
-                '<div class="item-card__header">' +
-                    '<div><p class="ui-overline">Market</p><h3 class="item-card__title">' + esc(upgrade.label || 'Yükseltme') + '</h3></div>' +
-                    '<span class="ui-badge ui-badge--primary">$' + esc(formatCurrency(upgrade.price)) + '</span>' +
-                '</div>' +
-                '<p class="ui-card__text">Satın alındığında takımına doğrudan saha avantajı sağlar.</p>' +
-                renderMeter(value) +
-                '<div class="card-list__chips">' +
-                    '<span class="ui-chip">Tür: ' + esc(upgrade.type || '-') + '</span>' +
-                    '<span class="ui-chip">Değer: ' + esc(upgrade.value || '-') + '</span>' +
-                '</div>' +
-                '<div class="card-list__actions">' + button('Satın Al', 'buy-upgrade', { index: index }, 'primary') + '</div>' +
-            '</article>';
-    }).join('') : renderEmptyState('🛒', STRINGS.empty.market);
-
-    return {
-        title: 'Store',
-        subtitle: 'Tüm market içeriği büyük açılır pencere içinde listelenir.',
-        breadcrumb: 'Operasyon Menüsü / Store',
-        sidebar: buildStandardSidebar('Saha Marketi', 'Güçlendirmeleri satın al ve bir sonraki çatışma için avantaj kazan.', 'PAZAR', 68, [
-            { label: 'Ürün', value: describeCount(state.upgrades.length, 'ürün', 'ürün'), percent: clamp(state.upgrades.length * 16, 18, 100) },
-            { label: 'Takım', value: state.menuState.lobbyStatus || 'Solo', percent: state.menuState.hasLobby ? 78 : 32 },
-            { label: 'Hazırlık', value: 'Aktif', percent: 84 },
-            { label: 'Mod', value: state.menuState.currentModeLabel || '-', percent: 72 }
-        ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader('Saha Marketi', 'Kartlar üzerinden fiyat, etki ve satın alma adımlarını takip et.', button('Ana Menüye Dön', 'go-back', {}, 'ghost')) +
-            '<div class="card-grid">' + cards + '</div>' +
-        '</div>'
-    };
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
 }
 
-function renderCraftView() {
-    const filtered = getFilteredRecipes();
-    const sourceLabel = state.craftSource.sourceLabel || 'Atölye';
-    const sourceKey = state.craftSource.sourceKey || '';
-    const isArcCraft = sourceKey.indexOf('arc_') === 0;
-    const cards = filtered.length ? filtered.map(function (recipe) {
-        const index = state.recipes.indexOf(recipe);
-        const maxCraftable = Math.max(0, safeNumber(recipe.maxCraftable, recipe.ready ? 1 : 0));
-        const ready = recipe.ready === true || maxCraftable > 0;
-        return '' +
-            '<article class="item-card">' +
-                '<div class="item-card__header">' +
-                    '<div><p class="ui-overline">' + esc(getCraftCategoryLabel(recipe.category)) + '</p><h3 class="item-card__title">' + esc(recipe.label || recipe.header || 'Tarif') + '</h3></div>' +
-                    '<span class="ui-badge ' + (ready ? 'ui-badge--success' : 'ui-badge--warning') + '">' + esc(ready ? 'Hazır' : 'Eksik') + '</span>' +
-                '</div>' +
-                '<p class="ui-card__text">' + esc(recipe.txt || 'Saha kullanımı için hazırlanabilen ekipman paketi.') + '</p>' +
-                '<div class="card-list__chips">' +
-                    '<span class="ui-chip">Çıktı: x' + esc(recipe.amount) + '</span>' +
-                    '<span class="ui-chip">Maks: x' + esc(maxCraftable) + '</span>' +
-                    '<span class="ui-chip">' + esc(isArcCraft ? 'Kaynak: Depo' : 'Kaynak: Envanter') + '</span>' +
-                '</div>' +
-                '<div class="item-card__requirements">' + renderRequirements(recipe.requirements, isArcCraft) + '</div>' +
-                '<div class="card-list__actions">' + button(ready ? 'Üret' : 'Yetersiz', 'craft-open', { index: index }, ready ? 'primary' : 'ghost', !ready) + '</div>' +
-            '</article>';
-    }).join('') : renderEmptyState('🧰', STRINGS.empty.craft);
-
-    return {
-        title: 'Atölye',
-        subtitle: 'Kategori, arama ve adet seçimi akışı sadeleştirildi.',
-        breadcrumb: 'Operasyon Menüsü / Atölye',
-        sidebar: buildStandardSidebar(sourceLabel, state.craftSource.helperText || 'Malzemelerini kullanarak ekipman üret.', isArcCraft ? 'ARC' : 'CRAFT', isArcCraft ? 74 : 60, [
-            { label: 'Tarif', value: describeCount(state.recipes.length, 'tarif', 'tarif'), percent: clamp(state.recipes.length * 8, 20, 100) },
-            { label: 'Hazır', value: describeCount(countReadyRecipes(), 'tarif', 'tarif'), percent: clamp(countReadyRecipes() * 12, 18, 100) },
-            { label: 'Filtre', value: getCraftCategoryLabel(state.craftCategory), percent: 64 },
-            { label: 'Arama', value: state.craftSearch ? 'Aktif' : 'Kapalı', percent: state.craftSearch ? 86 : 22 }
-        ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader(sourceLabel, 'Arama, kategori ve gereksinim görünümü tek akışta toplandı.', button('Ana Menüye Dön', 'go-back', {}, 'ghost')) +
-            '<section class="panel-section">' +
-                '<div class="toolbar">' +
-                    '<div class="toolbar__left"><input class="ui-input" type="text" value="' + escAttr(state.craftSearch) + '" placeholder="Tarif ara..." data-craft-search="1"></div>' +
-                    '<div class="toolbar__right toolbar__chips">' + renderCraftFilterChips() + '</div>' +
-                '</div>' +
-            '</section>' +
-            '<div class="card-grid">' + cards + '</div>' +
-        '</div>'
-    };
-}
-
-function renderStagesView() {
-    const isArc = state.selectedModeId === MODE_ID_RANKED;
-    const cards = state.stages.length ? state.stages.map(function (stage, index) {
-        return renderStageCard(stage, index, isArc);
-    }).join('') : renderEmptyState('📍', STRINGS.empty.stages);
-
-    return {
-        title: isArc ? 'Ranked Match' : 'Match',
-        subtitle: 'Maç seçimi artık büyük pencere içinde daha rahat kullanılır.',
-        breadcrumb: isArc ? 'Operasyon Menüsü / Ranked Match' : 'Operasyon Menüsü / Match',
-        sidebar: buildStandardSidebar(state.stageModeLabel, isArc ? 'ARC baskını sabit ayarlarla başlar.' : 'Takımına uygun stage seç ve operasyona başla.', isArc ? 'ARC' : 'STAGE', 82, [
-            { label: 'Stage', value: describeCount(state.stages.length, 'seçenek', 'seçenek'), percent: clamp(state.stages.length * 18, 20, 100) },
-            { label: 'Seviye', value: 'Lv.' + safeNumber(state.menuState.userLevel, 1), percent: clamp(28 + safeNumber(state.menuState.userLevel, 1) * 6, 18, 100) },
-            { label: 'Takım', value: state.menuState.lobbyStatus || 'Solo', percent: state.menuState.hasLobby ? 76 : 30 },
-            { label: 'Mod', value: state.stageModeLabel, percent: isArc ? 100 : 74 }
-        ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader(state.stageModeLabel, 'Kartlar önerilen seviye, risk ve başlatma aksiyonunu ayrıştırır.', button('Ana Menüye Dön', 'go-back', {}, 'ghost')) +
-            '<div class="stage-grid">' + cards + '</div>' +
-        '</div>'
-    };
-}
-
-function renderInviteView() {
-    const cards = state.players.length ? state.players.map(function (player, index) {
-        return '' +
-            '<article class="member-card">' +
-                '<div class="member-card__header">' +
-                    '<div><p class="ui-overline">Yakındaki Oyuncu</p><h3 class="member-card__title">' + esc(player.name || 'Bilinmeyen Oyuncu') + '</h3></div>' +
-                    '<span class="ui-badge ui-badge--muted">ID ' + esc(player.id || '-') + '</span>' +
-                '</div>' +
-                '<p class="ui-card__text">Yakındaysa daveti kabul ettiğinde doğrudan takımına katılabilir.</p>' +
-                '<div class="card-list__actions">' + button('Davet Gönder', 'invite-player', { index: index }, 'primary') + '</div>' +
-            '</article>';
-    }).join('') : renderEmptyState('🤝', STRINGS.empty.invite);
-
-    return {
-        title: 'Davet',
-        subtitle: 'Yakındaki oyuncular sade liste kartlarıyla yenilendi.',
-        breadcrumb: 'Operasyon Menüsü / Davet',
-        sidebar: buildStandardSidebar('Yakındaki Oyuncular', 'Yakındaki oyuncuları seçerek takım daveti gönder.', 'DAVET', 62, [
-            { label: 'Oyuncu', value: describeCount(state.players.length, 'kişi', 'kişi'), percent: clamp(state.players.length * 18, 20, 100) },
-            { label: 'Lider', value: state.menuState.isLeader ? 'Evet' : 'Hayır', percent: state.menuState.isLeader ? 100 : 20 },
-            { label: 'Lobi', value: state.menuState.lobbyStatus || 'Solo', percent: state.menuState.hasLobby ? 80 : 24 },
-            { label: 'Tarama', value: 'Canlı', percent: 88 }
-        ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader('Yakındaki Oyuncular', 'Takım daveti gönderebileceğin oyuncular burada listelenir.', button('Ana Menüye Dön', 'go-back', {}, 'ghost')) +
-            '<div class="card-grid">' + cards + '</div>' +
-        '</div>'
-    };
-}
-
-function renderActiveLobbiesView() {
-    const cards = state.lobbies.length ? state.lobbies.map(function (lobby, index) {
-        const maxPlayers = Math.max(1, safeNumber(lobby.maxPlayers, LIMITS.lobbySize));
-        const fill = clamp((safeNumber(lobby.playerCount, 1) / maxPlayers) * 100, 0, 100);
-        return '' +
-            '<article class="lobby-card">' +
-                '<div class="lobby-card__header">' +
-                    '<div><p class="ui-overline">Aktif Lobi</p><h3 class="lobby-card__title">' + esc(lobby.leaderName || 'Bilinmeyen Lider') + '</h3></div>' +
-                    '<span class="ui-badge ' + getLobbyBadgeClass(lobby) + '">' + esc(getLobbyBadgeText(lobby)) + '</span>' +
-                '</div>' +
-                '<p class="ui-card__text">Lider ID: ' + esc(lobby.leaderId || '-') + ' · Hazır oyuncu: ' + esc(lobby.readyCount || 0) + '</p>' +
-                '<div class="ui-progress"><span class="ui-progress__fill" style="width:' + fill + '%"></span></div>' +
-                '<div class="lobby-card__meta">' +
-                    renderMetaRow('Görünürlük', lobby.isPublic ? 'Herkese Açık' : 'Özel') +
-                    renderMetaRow('Oyuncu', safeNumber(lobby.playerCount, 1) + '/' + maxPlayers) +
-                    renderMetaRow('Üye', safeNumber(lobby.memberCount, 0)) +
-                    renderMetaRow('Hazır', safeNumber(lobby.readyCount, 0)) +
-                '</div>' +
-                '<div class="card-list__actions">' +
-                    (lobby.canJoin ? button('Lobiye Katıl', 'join-lobby-open', { index: index }, 'primary') : button('Katılım Kapalı', 'noop', {}, 'ghost', true)) +
-                '</div>' +
-            '</article>';
-    }).join('') : renderEmptyState('🏠', STRINGS.empty.lobbies);
-
-    return {
-        title: 'Aktif Lobiler',
-        subtitle: 'Public lobi görünürlüğü ve katılım durumu netleştirildi.',
-        breadcrumb: 'Operasyon Menüsü / Aktif Lobiler',
-        sidebar: buildStandardSidebar('Açık Lobi İzleme', 'Sunucudaki aktif lobileri, liderlerini ve doluluk durumlarını takip et.', 'LOBİLER', 70, [
-            { label: 'Lobi', value: describeCount(state.lobbies.length, 'lobi', 'lobi'), percent: clamp(state.lobbies.length * 18, 20, 100) },
-            { label: 'Takım', value: state.menuState.lobbyStatus || 'Solo', percent: state.menuState.hasLobby ? 78 : 30 },
-            { label: 'Yakınlık', value: 'Kontrol', percent: 84 },
-            { label: 'Hazır', value: 'Canlı', percent: 82 }
-        ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader('Aktif Lobiler', 'Katılabilir, bağlı ve kendi lobi durumları görsel olarak ayrılır.', button('Ana Menüye Dön', 'go-back', {}, 'ghost')) +
-            '<div class="card-grid">' + cards + '</div>' +
-        '</div>'
-    };
-}
-
-function renderMembersView() {
-    const cards = state.members.length ? state.members.map(function (member) {
-        const isLeader = Number(member.id) === Number(state.memberLeaderId) || member.isLeader === true;
-        const statusText = isLeader ? 'Lider' : (member.isReady ? 'Hazır' : 'Bekleniyor');
-        const statusClass = isLeader ? 'is-leader' : (member.isReady ? 'is-ready' : 'is-waiting');
-        return '' +
-            '<article class="member-card">' +
-                '<div class="member-card__header">' +
-                    '<div><p class="ui-overline">Takım Üyesi</p><h3 class="member-card__title">' + esc(member.name || 'Bilinmeyen Operatör') + '</h3></div>' +
-                    '<span class="ui-badge ' + (isLeader ? 'ui-badge--primary' : (member.isReady ? 'ui-badge--success' : 'ui-badge--warning')) + '">' + esc(statusText) + '</span>' +
-                '</div>' +
-                '<div class="member-card__meta">' +
-                    renderMetaRow('ID', member.id || '-') +
-                    renderMetaRow('Rol', isLeader ? 'Lider' : 'Üye') +
-                    renderMetaRow('Durum', '<span class="member-card__status ' + statusClass + '">' + esc(statusText) + '</span>', true) +
-                '</div>' +
-            '</article>';
-    }).join('') : renderEmptyState('👥', STRINGS.empty.members);
-
-    return {
-        title: 'Takım',
-        subtitle: 'Lider ve hazır bilgisi daha net kartlarla gösteriliyor.',
-        breadcrumb: 'Operasyon Menüsü / Takım',
-        sidebar: buildStandardSidebar('Takım Durumu', 'Takımdaki oyuncuları ve lider bilgisini buradan kontrol et.', 'TAKIM', 74, [
-            { label: 'Oyuncu', value: describeCount(state.members.length, 'kişi', 'kişi'), percent: clamp(state.members.length * 20, 18, 100) },
-            { label: 'Hazır', value: describeCount(countReadyMembers(), 'kişi', 'kişi'), percent: clamp(countReadyMembers() * 18, 18, 100) },
-            { label: 'Lider', value: state.memberLeaderId || '-', percent: 92 },
-            { label: 'Lobi', value: state.menuState.lobbyStatus || 'Solo', percent: state.menuState.hasLobby ? 82 : 30 }
-        ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader('Takım Oyuncuları', 'Takım üyeleri hazır durumlarıyla birlikte listelenir.', button('Ana Menüye Dön', 'go-back', {}, 'ghost')) +
-            '<div class="card-grid">' + cards + '</div>' +
-        '</div>'
-    };
-}
-
-function renderReceiveInviteView() {
-    return {
-        title: 'Gelen Davet',
-        subtitle: 'Kabul / red akışı standart modal diliyle yeniden tasarlandı.',
-        breadcrumb: 'Operasyon Menüsü / Gelen Davet',
-        sidebar: buildStandardSidebar('Takım Daveti Alındı', 'Başka bir lider seni takımına çağırıyor. Daveti kabul edebilir veya reddedebilirsin.', 'UYARI', 88, [
-            { label: 'Lider ID', value: state.inviteLeaderId || '-', percent: 82 },
-            { label: 'Karar', value: 'Bekleniyor', percent: 50 },
-            { label: 'Lobi', value: state.menuState.lobbyStatus || 'Solo', percent: 36 },
-            { label: 'Durum', value: 'Canlı Davet', percent: 96 }
-        ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader('Takım Daveti', 'Davet geldiğinde ekrandan doğrudan karar verebilirsin.') +
-            '<article class="modal">' +
-                '<div class="modal__header">' +
-                    '<div><p class="ui-overline">Davet</p><h3 class="modal__title">Takıma Katılmak İstiyor musun?</h3></div>' +
-                    '<span class="ui-badge ui-badge--primary">ID ' + esc(state.inviteLeaderId || '-') + '</span>' +
-                '</div>' +
-                '<div class="modal__content"><p class="modal__text">Bir takım lideri seni ekibine çağırıyor. Kabul ettiğinde o lobiye katılırsın.</p></div>' +
-                '<div class="modal__actions">' +
-                    button('Daveti Kabul Et', 'accept-invite', {}, 'primary') +
-                    button('Daveti Reddet', 'deny-invite', {}, 'danger') +
-                '</div>' +
-            '</article>' +
-        '</div>'
-    };
-}
-
-function renderReconnectView() {
-    const prompt = state.reconnectPrompt || {};
-    const extraction = prompt.extraction || {};
-    return {
-        title: 'Geri Katılım',
-        subtitle: 'ARC reconnect kararı daha okunabilir kartlarla sunulur.',
-        breadcrumb: 'ARC Bağlantı / Geri Katılım',
-        sidebar: buildStandardSidebar('ARC Geri Katılım Onayı', 'Bağlantın koptu. Uygunsa aynı baskına geri dönebilirsin.', 'UYARI', 90, [
-            { label: 'Mod', value: safeString(prompt.modeId, 'ARC'), percent: 92 },
-            { label: 'Tahliye', value: safeString(extraction.phaseLabel, 'Bilinmiyor'), percent: extraction.phaseLabel ? 76 : 24 },
-            { label: 'Karar', value: 'Bekleniyor', percent: 50 },
-            { label: 'Politika', value: safeString(prompt.disconnectPolicyLabel, 'Varsayılan'), percent: 80 }
-        ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader('Baskına Geri Katıl', 'Uygunsa aynı ARC baskınına kaldığın yerden dönersin.') +
-            '<article class="modal">' +
-                '<div class="modal__header">' +
-                    '<div><p class="ui-overline">Reconnect</p><h3 class="modal__title">' + esc(prompt.title || 'Oyuna geri katılmak ister misin?') + '</h3></div>' +
-                    '<span class="ui-badge ui-badge--warning">Karar Gerekli</span>' +
-                '</div>' +
-                '<div class="modal__content">' +
-                    '<p class="modal__text">' + esc(prompt.message || 'Bağlantın koptu. Aynı baskına geri katılmak ister misin?') + '</p>' +
-                    (extraction.phaseLabel ? '<div class="dialog-stats"><div class="dialog-stats__item"><span class="status-grid__label">Son Tahliye Fazı</span><strong class="status-grid__value">' + esc(extraction.phaseLabel) + '</strong></div></div>' : '') +
-                '</div>' +
-                '<div class="modal__actions">' +
-                    button('Evet, Katıl', 'reconnect-decision', { accepted: true }, 'primary') +
-                    button('Hayır, Güvenli Dön', 'reconnect-decision', { accepted: false }, 'danger') +
-                '</div>' +
-            '</article>' +
-        '</div>'
-    };
-}
-
-function renderCreateLobbyView() {
-    return {
-        title: 'Lobi Kur',
-        subtitle: 'Public / private seçimi sade kartlarla yenilendi.',
-        breadcrumb: 'Operasyon Menüsü / Lobi Kur',
-        sidebar: buildStandardSidebar('Lobi Görünürlüğü', 'Lobi türünü seç. Kurulum tamamlandığında ana ekrana dönersin.', 'TAKIM', 58, [
-            { label: 'Oyuncu Sınırı', value: LIMITS.lobbySize + ' kişi', percent: 100 },
-            { label: 'Kurulum', value: '1 adım', percent: 78 },
-            { label: 'Davetiye', value: 'Hazır', percent: 88 },
-            { label: 'Akış', value: 'Hızlı', percent: 84 }
-        ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader('Lobi Görünürlüğünü Seç', 'Herkese açık lobi listede görünür; özel lobi yalnızca davet kabul eden oyuncular içindir.', button('Ana Menüye Dön', 'go-back', {}, 'ghost')) +
-            '<div class="card-grid">' +
-                renderActionCard('Herkese Açık Lobi', 'Aktif lobi listesinde görünür ve boş slot varsa doğrudan katılım alabilir.', [
-                    'Liste Üzerinden Katılım',
-                    'Hızlı Dolum'
-                ], button('Public Lobi Kur', 'create-lobby', { isPublic: true }, 'primary')) +
-                renderActionCard('Özel Lobi', 'Yalnızca senin gönderdiğin daveti kabul eden oyuncular katılır.', [
-                    'Davet Tabanlı',
-                    'Kapalı Ekip'
-                ], button('Private Lobi Kur', 'create-lobby', { isPublic: false }, 'ghost')) +
-            '</div>' +
-        '</div>'
-    };
-}
-
-function renderArcLockersView() {
-    const lockers = state.arcLockers || normalizeArcLockers({});
-    const focusSide = lockers.focusSide === 'loadout' ? 'loadout' : 'main';
-    const otherSide = focusSide === 'loadout' ? 'main' : 'loadout';
-    const mainUsage = Math.max(0, safeArray(lockers.main.items).length);
-    const loadoutUsage = Math.max(0, safeArray(lockers.loadout.items).length);
-
-    return {
-        title: focusSide === 'loadout' ? 'Loadout' : 'Locker',
-        subtitle: 'Stash ve loadout aynı büyük pencere içinde birlikte gösterilir.',
-        breadcrumb: 'Operasyon Menüsü / Locker',
-        sidebar: buildStandardSidebar(focusSide === 'loadout' ? 'Loadout' : 'Locker', lockers.transferSupport.helperText || 'Taşıma, stackleme ve split akışı korunur.', focusSide === 'loadout' ? 'LOADOUT' : 'LOCKER', 82, [
-            { label: 'Odak', value: focusSide === 'loadout' ? 'Loadout' : 'Locker', percent: 100 },
-            { label: 'Stash', value: describeCount(lockers.main.items.length, 'slot', 'slot'), percent: getLockerUsage(lockers.main) },
-            { label: 'Loadout', value: describeCount(lockers.loadout.items.length, 'slot', 'slot'), percent: getLockerUsage(lockers.loadout) },
-            { label: 'Filtre', value: getLockerCategoryLabel(state.lockerCategory), percent: 66 }
-        ]),
-        html: '<div class="view-stack">' +
-            renderViewHeader('Locker', 'Stash solda, loadout sağda büyük kullanım alanıyla açılır.', button('Ana Menüye Dön', 'go-back', {}, 'ghost')) +
-            '<section class="locker-shell">' +
-                '<div class="locker-shell__header">' +
-                    '<div>' +
-                        '<p class="ui-overline">ENVANTER</p>' +
-                        '<h3 class="ui-card__title">Locker Yönetimi</h3>' +
-                        '<p class="ui-card__text">' + esc(lockers.transferSupport.helperText || 'Sol tık taşıma, sağ tık split ve sürükle-bırak desteklenir.') + '</p>' +
-                    '</div>' +
-                    '<div class="locker-actions">' +
-                        button('Yenile', 'refresh-lockers', { focusSide: focusSide }, 'ghost') +
-                        button(otherSide === 'loadout' ? 'Loadout Aç' : 'Locker Aç', 'swap-locker-focus', { focusSide: otherSide }, 'ghost') +
-                    '</div>' +
-                '</div>' +
-                '<div class="locker-shell__summary">' +
-                    '<span class="ui-chip">Stash: ' + esc(mainUsage + '/' + (lockers.main.slots || mainUsage)) + '</span>' +
-                    '<span class="ui-chip">Loadout: ' + esc(loadoutUsage + '/' + (lockers.loadout.slots || loadoutUsage)) + '</span>' +
-                '</div>' +
-                '<div class="locker-filters">' + renderLockerFilterChips() + '</div>' +
-                '<div class="locker-grid">' +
-                    renderLockerPanel(lockers.main, focusSide) +
-                    renderLockerPanel(lockers.loadout, focusSide) +
-                '</div>' +
-            '</section>' +
-        '</div>'
-    };
-}
-
-function buildStandardSidebar(title, text, tag, progress, cards) {
-    return {
-        cards: cards,
-        title: title,
-        text: text,
-        tag: tag,
-        badges: [],
-        progress: progress,
-        action: 'noop',
-        actionLabel: 'Bilgi',
-        actionDisabled: true
-    };
-}
-
-function renderViewHeader(title, text, actionHtml) {
-    return '' +
-        '<section class="view-header">' +
-            '<div><p class="ui-overline">Ekran</p><h2 class="view-header__title">' + esc(title) + '</h2><p class="view-header__text">' + esc(text) + '</p></div>' +
-            (actionHtml ? '<div class="panel-section__actions">' + actionHtml + '</div>' : '') +
-        '</section>';
-}
-
-function renderActionCard(title, text, badges, actionHtml) {
-    return '' +
-        '<article class="card-list">' +
-            '<div class="card-list__header"><div><p class="ui-overline">Aksiyon</p><h3 class="card-list__title">' + esc(title) + '</h3></div></div>' +
-            '<p class="card-list__description">' + esc(text) + '</p>' +
-            '<div class="card-list__chips">' + safeArray(badges).map(function (badge) {
-                return '<span class="ui-chip">' + esc(badge) + '</span>';
-            }).join('') + '</div>' +
-            '<div class="card-list__actions">' + actionHtml + '</div>' +
-        '</article>';
-}
-
-function renderStat(label, value, percent) {
-    return '' +
-        '<div class="status-grid__item">' +
-            '<span class="status-grid__label">' + esc(label) + '</span>' +
-            '<strong class="status-grid__value">' + esc(value) + '</strong>' +
-            renderMeter(percent) +
-        '</div>';
-}
-
-function renderMeter(percent) {
-    return '<div class="ui-progress"><span class="ui-progress__fill" style="width:' + clamp(safeNumber(percent, 0), 0, 100) + '%"></span></div>';
-}
-
-function renderMetaRow(label, value, raw) {
-    return '' +
-        '<div class="meta-list__item">' +
-            '<span class="list-meta__label">' + esc(label) + '</span>' +
-            '<strong class="list-meta__value">' + (raw ? value : esc(value)) + '</strong>' +
-        '</div>';
-}
-
-function renderEmptyState(icon, text) {
-    return '' +
-        '<div class="empty-state">' +
-            '<div class="empty-state__icon">' + esc(icon) + '</div>' +
-            '<div class="empty-state__text">' + esc(text) + '</div>' +
-        '</div>';
-}
-
-function button(label, action, payload, variant, disabled) {
-    let className = 'ui-button';
-    if (variant === 'primary') className += ' ui-button--primary';
-    else if (variant === 'danger') className += ' ui-button--danger';
-    else className += ' ui-button--ghost';
-
-    return '<button class="' + className + '" type="button" data-ui-action="' + escAttr(action) + '" data-ui-payload="' + jsonAttr(payload) + '"' + (disabled ? ' disabled' : '') + '>' + esc(label) + '</button>';
-}
-
-function getLoadoutInfo(menu) {
-    const loadoutState = menu.arcLoadoutState || {};
-    if (loadoutState.isReady) {
-        return {
-            badge: 'Çanta Hazır',
-            shortLabel: 'Hazır',
-            detail: 'Hazırladığın ekipman baskın girişinde üstüne verilecek.',
-            percent: 94
-        };
-    }
-    if (loadoutState.usesFallback) {
-        return {
-            badge: 'Yedek Paket',
-            shortLabel: 'Yedek',
-            detail: 'Çanta boşsa varsayılan başlangıç paketi kullanılacak.',
-            percent: 58
-        };
+// ARC info satırlarını "etiket: değer" düzenine ayırır; ayıracın olmadığı durumlarda tek blok metin döndürür.
+function splitArcLine(text) {
+    var value = String(text || '').trim();
+    if (!value) return { label: 'ARC', value: '-' };
+    var separatorIndex = value.indexOf(':');
+    if (separatorIndex === -1) {
+        return { label: 'ARC', value: value };
     }
     return {
-        badge: 'Eksik Hazırlık',
-        shortLabel: 'Eksik',
-        detail: 'Baskın öncesi çantanı kontrol et.',
-        percent: 34
+        label: value.slice(0, separatorIndex).trim(),
+        value: value.slice(separatorIndex + 1).trim()
     };
 }
 
-function getExtractionInfo(menu) {
-    const extraction = menu.arcExtraction || (menu.arcSummary && menu.arcSummary.extraction) || {};
-    const countdown = safeNumber(extraction.countdown, 0) > 0
-        ? formatSecondsClock(extraction.countdown)
-        : (safeNumber(extraction.availableIn, 0) > 0 ? formatSecondsClock(extraction.availableIn) : 'READY');
-    return {
-        phase: extraction.enabled === true ? safeString(extraction.phaseLabel, 'Tahliye Hazır') : '',
-        objective: extraction.enabled === true ? safeString(extraction.objective, '') : '',
-        countdown: extraction.enabled === true ? countdown : '',
-        percent: extraction.enabled === true ? 82 : 18
-    };
-}
-
-function buildMenuTeamCards(menu) {
-    const cards = [
-        renderActionCard('Takım Oyuncuları', 'Takımdaki oyuncuları, lideri ve hazır durumunu görüntüle.', [
-            menu.hasLobby ? 'Lobi Aktif' : 'Lobi Yok',
-            'Telemetri'
-        ], button('Takımı Gör', 'open-members', {}, 'ghost', !menu.hasLobby)),
-        renderActionCard('Aktif Lobiler', 'Sunucuda açık olan lobileri ve doluluklarını listele.', [
-            'Sunucu Tarama',
-            'Public / Private'
-        ], button('Lobileri Listele', 'open-active-lobbies', {}, 'ghost'))
-    ];
-
-    if (menu.isLeader) {
-        cards.push(
-            renderActionCard('Oyuncu Davet Et', 'Yakındaki oyunculara takım daveti gönder.', [
-                'Lider Yetkisi',
-                'Yakın Oyuncular'
-            ], button('Davet Listesini Aç', 'open-invite', {}, 'primary')),
-            renderActionCard('Lobiyi Dağıt', 'Mevcut lobiyi tamamen kapat.', [
-                'Riskli Aksiyon',
-                'Onay Gerektirir'
-            ], button('Lobiyi Dağıt', 'request-disband', {}, 'danger'))
-        );
-    } else if (menu.isMember) {
-        cards.push(
-            renderActionCard('Lobiden Ayrıl', 'Mevcut lobiden ayrılıp solo moda dön.', [
-                'Üye Aksiyonu',
-                'Onay Gerektirir'
-            ], button('Lobiden Ayrıl', 'request-leave', {}, 'danger'))
-        );
-    } else {
-        cards.push(
-            renderActionCard('Yeni Lobi Kur', 'Public veya private yeni lobi oluştur.', [
-                'En Fazla ' + LIMITS.lobbySize + ' Oyuncu',
-                'Kurulum'
-            ], button('Lobi Kur', 'show-create-lobby', {}, 'primary'))
-        );
+function getArcTeamMemberStatus(member) {
+    if (member && member.isSelf) {
+        return ARC_TEAM_STATUS.self;
     }
-
-    return cards.join('');
+    if (member && member.isAlive === false) {
+        return ARC_TEAM_STATUS.down;
+    }
+    return ARC_TEAM_STATUS.online;
 }
 
-function countReadyRecipes() {
-    return state.recipes.filter(function (recipe) {
-        return recipe.ready === true || safeNumber(recipe.maxCraftable, 0) > 0;
-    }).length;
+function setArcHud(data) {
+    data = data || {};
+    var currentState = screenData.arcHud || {};
+    var nextState = Object.assign({}, currentState, data);
+
+    screenData.arcHud = nextState;
+    renderArcHud();
 }
 
-function countReadyMembers() {
-    return state.members.filter(function (member) {
-        return member.isReady === true;
-    }).length;
-}
-
-function getCraftCategoryLabel(key) {
-    return STRINGS.craftCategories[key] || STRINGS.craftCategories.misc;
-}
-
-function renderCraftFilterChips() {
-    const categories = { all: true };
-    state.recipes.forEach(function (recipe) {
-        categories[safeString(recipe.category, 'misc')] = true;
+function clearArcHud() {
+    screenData.arcHud = {
+        enabled: false,
+        showInfo: false,
+        title: ARC_HUD_DEFAULTS.title,
+        subtitle: ARC_HUD_DEFAULTS.subtitle,
+        lines: [],
+        prompt: '',
+        teamMembers: []
+    };
+    screenData.arcBanner = {
+        visible: false,
+        label: ARC_BANNER_DEFAULT_LABEL,
+        title: ARC_BANNER_DEFAULT_TITLE,
+        duration: ARC_BANNER_DEFAULT_DURATION,
+        transition: false
+    };
+    clearArcProgress(true);
+    clearArcBarricadePlacement(true);
+    arcNotifyTimers.forEach(function (timerId) {
+        clearTimeout(timerId);
     });
+    arcNotifyTimers = [];
+    if (arcBannerTimer) {
+        clearTimeout(arcBannerTimer);
+        arcBannerTimer = null;
+    }
+    hudEls.arcNotifyStack.innerHTML = '';
+    renderArcHud();
+}
 
-    return Object.keys(categories).map(function (key) {
-        return '<button class="ui-chip' + (state.craftCategory === key ? ' is-active' : '') + '" type="button" data-ui-action="craft-category" data-ui-payload="' + jsonAttr({ category: key }) + '">' + esc(getCraftCategoryLabel(key)) + '</button>';
+function renderArcHud() {
+    var state = screenData.arcHud || {};
+    var bannerState = screenData.arcBanner || {};
+    var progressState = screenData.arcProgress || {};
+    var barricadePlacementState = screenData.arcBarricadePlacement || {};
+    var teamMembers = Array.isArray(state.teamMembers) ? state.teamMembers : [];
+    var infoLines = Array.isArray(state.lines) ? state.lines : [];
+    var hasToasts = hudEls.arcNotifyStack.children.length > 0;
+    var hasBanner = bannerState.visible === true && String(bannerState.title || '').trim().length > 0;
+    var hasProgress = progressState.visible === true;
+    var hasBarricadePlacement = barricadePlacementState.visible === true;
+    var hasPrompt = String(state.prompt || '').trim().length > 0;
+    var hasInfo = state.enabled === true && state.showInfo === true && (String(state.title || '').trim() || String(state.subtitle || '').trim() || infoLines.length > 0 || hasPrompt);
+
+    hudEls.arcOverlayRoot.classList.toggle('hidden', state.enabled !== true && !hasToasts && !hasBanner && !hasProgress && !hasBarricadePlacement);
+    hudEls.arcOverlayRoot.setAttribute('aria-hidden', (state.enabled === true || hasToasts || hasBanner || hasProgress || hasBarricadePlacement) ? 'false' : 'true');
+
+    hudEls.arcInfoPanel.classList.toggle('hidden', !hasInfo);
+    hudEls.arcTeamPanel.classList.toggle('hidden', !(state.enabled === true && teamMembers.length > 0));
+    hudEls.arcResultBanner.classList.toggle('hidden', !hasBanner);
+    hudEls.arcProgressCard.classList.toggle('hidden', !hasProgress);
+    hudEls.arcBarricadePlacementCard.classList.toggle('hidden', !hasBarricadePlacement);
+    hudEls.arcResultBanner.classList.toggle('is-transition', bannerState.transition === true);
+    hudEls.arcResultBanner.style.setProperty('--arc-banner-duration', String(Number(bannerState.duration || ARC_BANNER_DEFAULT_DURATION)) + 'ms');
+    hudEls.arcResultBannerLabel.textContent = bannerState.label || ARC_BANNER_DEFAULT_LABEL;
+    hudEls.arcResultBannerTitle.textContent = bannerState.title || ARC_BANNER_DEFAULT_TITLE;
+    hudEls.arcProgressTitle.textContent = progressState.title || ARC_PROGRESS_DEFAULT_TITLE;
+    hudEls.arcProgressLabel.textContent = progressState.label || ARC_PROGRESS_DEFAULT_LABEL;
+    hudEls.arcProgressCancel.textContent = progressState.canCancel === false ? ARC_PROGRESS_CANCEL_DISABLED_TEXT : ARC_PROGRESS_CANCEL_ENABLED_TEXT;
+    hudEls.arcBarricadePlacementTitle.textContent = barricadePlacementState.title || 'ARC Barricade Kit';
+    hudEls.arcBarricadePlacementControls.innerHTML = (Array.isArray(barricadePlacementState.controls) ? barricadePlacementState.controls : []).map(function (control) {
+        control = control || {};
+        return '<div class="arc-barricade-placement-control">' +
+            '<span class="arc-barricade-placement-key">' + esc(control.key || '-') + '</span>' +
+            '<span class="arc-barricade-placement-action">' + esc(control.action || '') + '</span>' +
+        '</div>';
     }).join('');
-}
+    updateArcProgressVisuals(Date.now());
 
-function getFilteredRecipes() {
-    const search = safeString(state.craftSearch).trim().toLowerCase();
-    return state.recipes.filter(function (recipe) {
-        const category = safeString(recipe.category, 'misc');
-        const text = [recipe.label, recipe.header, recipe.txt, recipe.item].join(' ').toLowerCase();
-        return (state.craftCategory === 'all' || state.craftCategory === category) && (!search || text.indexOf(search) !== -1);
-    });
-}
-
-function renderRequirements(requirements, isArcCraft) {
-    return safeArray(requirements).map(function (requirement) {
-        const owned = safeNumber(requirement && requirement.ownedAmount, 0);
-        const amount = safeNumber(requirement && requirement.amount, 0);
-        const isMet = requirement && requirement.isMet === true;
-        return '' +
-            '<div class="item-card__requirement ' + (isMet ? 'is-met' : 'is-missing') + '">' +
-                '<strong>x' + esc(amount) + ' ' + esc((requirement && (requirement.itemLabel || requirement.item)) || 'Parça') + '</strong>' +
-                '<span class="item-card__meta-label">' + esc((isArcCraft ? 'Depoda: ' : 'Sende: ') + owned + '/' + amount) + '</span>' +
-            '</div>';
+    hudEls.arcInfoTitle.textContent = state.title || ARC_HUD_DEFAULTS.title;
+    hudEls.arcInfoSubtitle.textContent = state.subtitle || ARC_HUD_DEFAULTS.subtitle;
+    hudEls.arcInfoLines.innerHTML = infoLines.map(function (line) {
+        var parsed = splitArcLine(line);
+        return '<div class="arc-info-line">' +
+            '<span class="arc-info-line-label">' + esc(parsed.label || 'ARC') + '</span>' +
+            '<span class="arc-info-line-value">' + esc(parsed.value || '-') + '</span>' +
+        '</div>';
     }).join('');
-}
 
-function renderStageCard(stage, index, isArc) {
-    const locked = stage && stage.locked === true;
-    const multiplier = safeNumber(stage && stage.multiplier, 1);
-    const recommended = Math.max(1, safeNumber(stage && stage.id, index + 1));
-    const palette = [
-        ['#162844', '#315f9f'],
-        ['#14281f', '#2f7a54'],
-        ['#2a1e16', '#94542f'],
-        ['#25182b', '#8652d1']
-    ][index % 4];
-    const difficulty = isArc ? 'Sabit Konfigürasyon' : (multiplier >= 1.5 ? 'Yüksek Risk' : multiplier >= 1.2 ? 'Orta Risk' : 'Düşük Risk');
+    hudEls.arcInfoPrompt.textContent = state.prompt || '';
+    hudEls.arcInfoPrompt.classList.toggle('hidden', !hasPrompt);
+    if (hudEls.arcTeamCount) {
+        hudEls.arcTeamCount.textContent = teamMembers.length + ' ' + ARC_TEAM_COUNT_TEXT;
+    }
 
-    const tag = locked ? 'article' : 'button';
-    const attrs = locked ? '' : ' type="button" data-ui-action="select-stage" data-ui-payload="' + jsonAttr({ index: index }) + '"';
-    return '' +
-        '<' + tag + ' class="stage-card' + (locked ? ' is-locked' : '') + '"' + attrs + ' style="background:linear-gradient(135deg,' + palette[0] + ',' + palette[1] + ')">' +
-            '<div class="stage-card__body">' +
-                '<div class="stage-card__header">' +
-                    '<span class="ui-badge ' + (locked ? 'ui-badge--warning' : 'ui-badge--muted') + '">' + esc(locked ? STRINGS.badge.locked : 'Hazır') + '</span>' +
-                    '<span class="ui-badge ui-badge--muted">' + esc(isArc ? 'ARC' : ('x' + multiplier)) + '</span>' +
+    hudEls.arcTeamMembers.innerHTML = teamMembers.map(function (member) {
+        member = member || {};
+        var status = getArcTeamMemberStatus(member);
+        var isSelf = status === ARC_TEAM_STATUS.self;
+        var isDown = status === ARC_TEAM_STATUS.down;
+        var classes = 'arc-team-member';
+        if (isSelf) classes += ' is-self';
+        if (isDown) classes += ' is-down';
+        return '<div class="' + classes + '">' +
+            '<span class="arc-team-member-bar"></span>' +
+            '<div class="arc-team-member-body">' +
+                '<div class="arc-team-member-top">' +
+                    '<div class="arc-team-member-name">' + esc(member.name || 'Bilinmeyen Operatör') + '</div>' +
+                    '<div class="arc-team-member-state">' + esc(status.badge) + '</div>' +
                 '</div>' +
-                '<div>' +
-                    '<h3 class="stage-card__title">' + esc((stage && stage.label) || ('Stage ' + (index + 1))) + '</h3>' +
-                    '<p class="ui-card__text">' + esc(locked ? ('Bu stage için önerilen seviye: ' + recommended) : (isArc ? 'ARC baskını sabit kurallarla başlar.' : 'Takımın hazırsa operasyona başlayabilirsin.')) + '</p>' +
-                '</div>' +
-                '<div class="stage-card__meta">' +
-                    '<span class="ui-chip">' + esc(difficulty) + '</span>' +
-                    '<span class="ui-chip">Önerilen Seviye: ' + esc(recommended) + '</span>' +
-                '</div>' +
-                '<div class="stage-card__action">' + esc(locked ? 'Kilit Açılmadı' : (isArc ? 'Baskını Başlat' : 'Operasyonu Başlat')) + '</div>' +
+                '<div class="arc-team-member-meta">' + esc(status.text) + '</div>' +
             '</div>' +
-        '</' + tag + '>';
+        '</div>';
+    }).join('');
+    updateArcBarricadePlacementPosition(state.enabled === true && teamMembers.length > 0);
 }
 
-function getLobbyBadgeClass(lobby) {
-    if (lobby && lobby.isOwnLobby) return 'ui-badge--primary';
-    if (lobby && lobby.isJoinedLobby) return 'ui-badge--success';
-    return 'ui-badge--muted';
+function cancelArcProgressFrame() {
+    if (arcProgressFrame) {
+        cancelAnimationFrame(arcProgressFrame);
+        arcProgressFrame = null;
+    }
 }
 
-function getLobbyBadgeText(lobby) {
-    if (lobby && lobby.isOwnLobby) return 'Senin Lobin';
-    if (lobby && lobby.isJoinedLobby) return 'Bağlı Olduğun Lobi';
-    return 'Açık Lobi';
+function updateArcProgressVisuals(currentTime) {
+    var progressState = screenData.arcProgress || {};
+    var percent = 0;
+    var duration = Number(progressState.duration || 0);
+    var startedAt = Number(progressState.startedAt || 0);
+    var now = Number(currentTime || Date.now());
+
+    if (progressState.visible === true && duration > 0) {
+        percent = clamp(((now - startedAt) / duration) * 100, 0, 100);
+    }
+
+    if (hudEls.arcProgressFill) {
+        hudEls.arcProgressFill.style.width = percent + '%';
+    }
+    if (hudEls.arcProgressPercent) {
+        hudEls.arcProgressPercent.textContent = Math.round(percent) + '%';
+    }
 }
 
-function getLockerUsage(section) {
-    const slots = Math.max(1, safeNumber(section && section.slots, safeArray(section && section.items).length || 1));
-    return clamp((safeArray(section && section.items).length / slots) * 100, 0, 100);
-}
+function tickArcProgress() {
+    cancelArcProgressFrame();
+    var progressState = screenData.arcProgress || {};
+    var duration = Number(progressState.duration || 0);
+    var startedAt = Number(progressState.startedAt || 0);
+    var now = Date.now();
 
-function getLockerCategory(item) {
-    if (!item) return 'misc';
-    if (item.isWeapon) return 'weapon';
-    const text = [item.name, item.label, item.description].join(' ');
-    const key = Object.keys(LOCKER_RULES).find(function (ruleKey) {
-        return LOCKER_RULES[ruleKey].some(function (pattern) {
-            return pattern.test(text);
+    if (!progressState || progressState.visible !== true) {
+        updateArcProgressVisuals(now);
+        return;
+    }
+
+    updateArcProgressVisuals(now);
+
+    if ((now - startedAt) < duration) {
+        arcProgressFrame = requestAnimationFrame(tickArcProgress);
+    } else if (progressState.completedNotified !== true) {
+        progressState.completedNotified = true;
+        sendAction('arcProgressComplete', {
+            id: Number(progressState.id || 0)
         });
-    });
-    return key || 'misc';
+    }
 }
 
-function getLockerCategoryLabel(key) {
-    const match = LOCKER_CATEGORIES.find(function (category) {
-        return category.key === key;
-    });
-    return match ? match.label : STRINGS.lockerCategories.misc;
+function clearArcProgress(skipRender) {
+    cancelArcProgressFrame();
+    screenData.arcProgress = getDefaultArcProgressState();
+    if (!skipRender) {
+        renderArcHud();
+    }
 }
 
-function renderLockerFilterChips() {
-    return LOCKER_CATEGORIES.map(function (category) {
-        return '<button class="ui-chip' + (state.lockerCategory === category.key ? ' is-active' : '') + '" type="button" data-ui-action="locker-category" data-ui-payload="' + jsonAttr({ category: category.key }) + '">' + esc(category.label) + '</button>';
-    }).join('');
+function clearArcBarricadePlacement(skipRender) {
+    screenData.arcBarricadePlacement = getDefaultArcBarricadePlacementState();
+    if (!skipRender) {
+        renderArcHud();
+    }
 }
 
-function renderLockerPanel(section, focusSide) {
-    const items = safeArray(section && section.items).filter(function (item) {
-        return state.lockerCategory === 'all' || getLockerCategory(item) === state.lockerCategory;
-    });
-    const placeholderLimit = section.side === 'loadout' ? 12 : 18;
-    const placeholders = Math.max(0, Math.min(placeholderLimit, Math.max(safeNumber(section && section.slots, 0), items.length) - items.length));
-    const sectionLabel = section.side === 'loadout' ? 'Loadout' : 'Stash';
+function updateArcBarricadePlacementPosition(hasTeamPanel) {
+    if (!hudEls.arcBarricadePlacementCard) {
+        return;
+    }
 
-    return '' +
-        '<section class="locker-panel locker-panel--' + escAttr(section.side) + (section.side === focusSide ? ' is-focused' : '') + '">' +
-            '<div class="locker-panel__header">' +
-                '<div><p class="ui-overline">' + esc(sectionLabel) + '</p><h3 class="locker-panel__title">' + esc(sectionLabel) + '</h3><p class="ui-card__text">' + esc(section.helperText || '') + '</p></div>' +
-                '<span class="ui-badge ' + (section.side === focusSide ? 'ui-badge--primary' : 'ui-badge--muted') + '">' + esc(safeArray(section.items).length + '/' + (section.slots || safeArray(section.items).length)) + '</span>' +
-            '</div>' +
-            '<div class="locker-panel__summary">' +
-                '<span class="ui-chip">' + esc(describeCount(safeArray(section.items).length, 'slot', 'slot')) + '</span>' +
-                '<span class="ui-chip">' + esc(getLockerCategoryLabel(state.lockerCategory)) + '</span>' +
-            '</div>' +
-            '<div class="locker-panel__grid" data-locker-drop-side="' + escAttr(section.side) + '">' +
-                (items.length ? items.map(function (item) {
-                    return renderLockerItem(section, item, focusSide);
-                }).join('') : renderLockerPlaceholder(STRINGS.empty.locker)) +
-                Array.from({ length: placeholders }).map(function () {
-                    return renderLockerPlaceholder('Boş Slot');
-                }).join('') +
-            '</div>' +
-        '</section>';
+    var bottomOffset = ARC_BARRICADE_DEFAULT_BOTTOM_OFFSET;
+    var teamPanel = hudEls.arcTeamPanel;
+    if (hasTeamPanel && teamPanel && !teamPanel.classList.contains('hidden')) {
+        bottomOffset = teamPanel.offsetHeight + ARC_TEAM_PANEL_BOTTOM_OFFSET + ARC_BARRICADE_TEAM_PANEL_GAP;
+    }
+
+    hudEls.arcBarricadePlacementCard.style.bottom = bottomOffset + 'px';
 }
 
-function renderLockerItem(section, item, focusSide) {
-    const category = getLockerCategory(item);
-    const toSide = section.side === 'loadout' ? 'main' : 'loadout';
-    return '' +
-        '<button class="locker-item" type="button" draggable="true" data-locker-side="' + escAttr(section.side) + '" data-locker-slot="' + escAttr(item.slot) + '">' +
-            '<div class="locker-item__thumb">' +
-                '<img src="' + escAttr(resolveItemImage(item)) + '" alt="' + escAttr(item.label) + '" data-fallback-src="' + escAttr(buildItemPlaceholder(item.label)) + '">' +
-                '<span class="locker-item__count">x' + esc(item.count) + '</span>' +
-            '</div>' +
-            '<div class="locker-item__header">' +
-                '<span class="locker-item__name">' + esc(item.label) + '</span>' +
-                '<span class="ui-badge ui-badge--muted">#' + esc(item.slot) + '</span>' +
-            '</div>' +
-            '<div class="locker-item__meta">' + esc(getLockerCategoryLabel(category)) + ' · ' + esc(item.stackable ? 'Stacklenebilir' : 'Tekil') + '</div>' +
-            '<div class="locker-item__actions">' +
-                button('Taşı', 'locker-move', { fromSide: section.side, slot: item.slot, focusSide: focusSide, toSide: toSide }, 'ghost') +
-                button('Ayır', 'locker-split-open', { fromSide: section.side, slot: item.slot }, 'ghost', !item.stackable || item.count <= 1) +
-            '</div>' +
-        '</button>';
+function showArcBarricadePlacement(data) {
+    data = data || {};
+    screenData.arcBarricadePlacement = {
+        visible: true,
+        title: data.title || 'ARC Barricade Kit',
+        controls: Array.isArray(data.controls) ? data.controls : []
+    };
+    renderArcHud();
 }
 
-function renderLockerPlaceholder(text) {
-    return '<div class="locker-placeholder">' + esc(text) + '</div>';
+function showArcProgress(data) {
+    data = data || {};
+    cancelArcProgressFrame();
+    screenData.arcProgress = {
+        visible: true,
+        id: Number(data.id || 0),
+        title: data.title || ARC_PROGRESS_DEFAULT_TITLE,
+        label: data.label || ARC_PROGRESS_DEFAULT_LABEL,
+        duration: clamp(Number(data.duration || 0), ARC_PROGRESS_MIN_DURATION, ARC_PROGRESS_MAX_DURATION),
+        canCancel: data.canCancel !== false,
+        startedAt: Date.now(),
+        completedNotified: false
+    };
+    renderArcHud();
+    tickArcProgress();
 }
 
-function resolveItemImage(item) {
-    const raw = safeString(item.image || (item.metadata && (item.metadata.imageurl || item.metadata.image)) || item.name);
-    if (!raw) return buildItemPlaceholder(item.label || item.name);
-    if (/^(https?:|data:|nui:|file:|\/|\.\/|\.\.\/)/i.test(raw) || raw.indexOf('cfx-nui-') !== -1) return raw;
-    let image = raw.replace(/^images\//i, '');
-    if (!/\.[a-z0-9]+$/i.test(image)) image += '.png';
-    return 'https://cfx-nui-ox_inventory/web/images/' + image.split('/').map(encodeURIComponent).join('/');
+function pushArcNotify(data) {
+    data = data || {};
+    var root = hudEls.arcNotifyStack;
+    var toast = document.createElement('div');
+    var notifyType = String(data.type || 'info').toLowerCase();
+    if (!ARC_NOTIFY_TYPES[notifyType]) {
+        notifyType = 'info';
+    }
+    hudEls.arcOverlayRoot.classList.remove('hidden');
+    hudEls.arcOverlayRoot.setAttribute('aria-hidden', 'false');
+    toast.className = 'arc-notify is-' + notifyType;
+    toast.innerHTML =
+        '<div class="arc-notify-title">' + esc(data.title || 'ARC Bildirimi') + '</div>' +
+        '<div class="arc-notify-message">' + esc(data.message || '') + '</div>';
+    root.appendChild(toast);
+
+    var duration = clamp(Number(data.duration || ARC_NOTIFY_DEFAULT_DURATION), ARC_NOTIFY_MIN_DURATION, ARC_NOTIFY_MAX_DURATION);
+    var timerId = setTimeout(function () {
+        arcNotifyTimers = arcNotifyTimers.filter(function (activeTimerId) {
+            return activeTimerId !== timerId;
+        });
+        toast.classList.add('is-leaving');
+        setTimeout(function () {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+            renderArcHud();
+        }, ARC_NOTIFY_EXIT_DURATION_MS);
+    }, duration);
+    arcNotifyTimers.push(timerId);
 }
 
-function buildItemPlaceholder(label) {
-    const initial = esc((safeString(label).trim().charAt(0) || '?').toUpperCase());
-    const svg = '' +
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">' +
-            '<rect width="96" height="96" rx="18" fill="#142744"/>' +
-            '<rect x="6" y="6" width="84" height="84" rx="16" fill="none" stroke="rgba(90,166,255,0.35)" stroke-width="2"/>' +
-            '<text x="48" y="58" text-anchor="middle" font-size="38" font-family="Inter, sans-serif" fill="#d8e7ff">' + initial + '</text>' +
-        '</svg>';
-    return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
+function clearArcBanner(skipRender) {
+    if (arcBannerTimer) {
+        clearTimeout(arcBannerTimer);
+        arcBannerTimer = null;
+    }
+    screenData.arcBanner = {
+        visible: false,
+        label: ARC_BANNER_DEFAULT_LABEL,
+        title: ARC_BANNER_DEFAULT_TITLE,
+        duration: ARC_BANNER_DEFAULT_DURATION,
+        transition: false
+    };
+    if (!skipRender) {
+        renderArcHud();
+    }
+}
+
+function showArcBanner(data) {
+    data = data || {};
+    clearArcBanner(true);
+    screenData.arcBanner = {
+        visible: true,
+        label: data.label || ARC_BANNER_DEFAULT_LABEL,
+        title: data.title || ARC_BANNER_DEFAULT_TITLE,
+        duration: clamp(Number(data.duration || ARC_BANNER_DEFAULT_DURATION), ARC_BANNER_MIN_DURATION, ARC_BANNER_MAX_DURATION),
+        transition: data.transition === true
+    };
+    renderArcHud();
+
+    arcBannerTimer = setTimeout(function () {
+        clearArcBanner();
+    }, screenData.arcBanner.duration);
 }
 
 function bindImageFallbacks(root) {
     if (!root) return;
-    root.querySelectorAll('img[data-fallback-src]').forEach(function (image) {
-        if (image.dataset.bound === '1') return;
-        image.dataset.bound = '1';
-        image.addEventListener('error', function () {
-            if (image.dataset.failed === '1') return;
-            image.dataset.failed = '1';
-            image.src = image.getAttribute('data-fallback-src') || '';
+    root.querySelectorAll('img[data-fallback-src]').forEach(function (img) {
+        if (img.dataset.fallbackBound === '1') return;
+        img.dataset.fallbackBound = '1';
+        img.addEventListener('error', function () {
+            if (img.dataset.fallbackApplied === '1') return;
+            img.dataset.fallbackApplied = '1';
+            img.src = img.getAttribute('data-fallback-src') || '';
         });
     });
 }
 
-function handleKeydown(event) {
-    if (event.key !== 'Escape') return;
-    if (state.confirmDialog) {
-        state.confirmDialog = null;
-        renderModal();
-        return;
+function setHudState(data) {
+    data = data || {};
+    refreshOperatorStatus(data.operatorCards);
+
+    hudEls.briefTitle.textContent = data.briefTitle || DEFAULT_HUD.briefTitle;
+    hudEls.briefText.textContent = data.briefText || DEFAULT_HUD.briefText;
+    if (data.briefExtractionPhase || data.briefExtractionObjective || data.briefExtractionCountdown) {
+        hudEls.briefExtraction.classList.remove('hidden');
+        hudEls.briefExtractionPhase.textContent = data.briefExtractionPhase || DEFAULT_HUD.briefExtractionPhase || 'Tahliye Hazır';
+        hudEls.briefExtractionObjective.textContent = data.briefExtractionObjective || DEFAULT_HUD.briefExtractionObjective || '';
+        hudEls.briefExtractionCountdown.textContent = data.briefExtractionCountdown || DEFAULT_HUD.briefExtractionCountdown || '';
+    } else {
+        hudEls.briefExtraction.classList.add('hidden');
+        hudEls.briefExtractionPhase.textContent = '';
+        hudEls.briefExtractionObjective.textContent = '';
+        hudEls.briefExtractionCountdown.textContent = '';
     }
-    if (state.craftDialog) {
-        state.craftDialog = null;
-        renderModal();
-        return;
-    }
-    if (state.arcLockers && state.arcLockers.splitDialog) {
-        state.arcLockers.splitDialog = null;
-        renderModal();
-        return;
-    }
-    closeMenu();
+    hudEls.briefTag.textContent = data.briefTag || DEFAULT_HUD.briefTag;
+    hudEls.briefTag.disabled = true;
+    hudEls.briefTag.className = 'pubg-ready-btn is-static';
+    hudEls.briefTag.removeAttribute('data-tip');
+    hudEls.briefProgress.style.width = clamp(data.progress || DEFAULT_HUD.progress, 0, 100) + '%';
 }
 
-function handleClick(event) {
-    const target = event.target.closest('[data-ui-action]');
-    if (!target) return;
-    const action = safeString(target.getAttribute('data-ui-action'));
-    const payload = parsePayload(target);
-    dispatchAction(action, payload);
+function setMeter(valueNode, barNode, value, suffix, overrideText) {
+    var text = overrideText || (value + (suffix || ''));
+    valueNode.textContent = text;
+    valueNode.setAttribute('aria-label', text);
+    barNode.style.width = value + '%';
 }
 
-function handleInput(event) {
-    const target = event.target;
-    if (target.hasAttribute('data-craft-search')) {
-        state.craftSearch = target.value || '';
-        renderCurrentView();
+function refreshOperatorStatus(cards) {
+    cards = cards || buildOperatorCards();
+    hudEls.statusTitle.textContent = 'OPERATÖR BİLGİSİ';
+    setStatusCard(hudEls.healthLabel, hudEls.healthValue, hudEls.healthBar, cards[0], '#a8d5e2');
+    setStatusCard(hudEls.radiationLabel, hudEls.radiationValue, hudEls.radiationBar, cards[1], '#ff4a4a');
+    setStatusCard(hudEls.inventoryLabel, hudEls.inventoryValue, hudEls.inventoryBar, cards[2], '#7aff7a');
+    setStatusCard(hudEls.signalLabel, hudEls.signalValue, hudEls.signalBar, cards[3], '#f2a900');
+}
+
+function setStatusCard(labelNode, valueNode, barNode, card, color) {
+    card = card || {};
+    labelNode.textContent = card.label || 'DURUM';
+    labelNode.style.color = color;
+    valueNode.textContent = card.value || '-';
+    valueNode.setAttribute('aria-label', card.value || '-');
+    barNode.style.width = clamp(card.valuePct || 18, 0, 100) + '%';
+    barNode.style.background = color;
+}
+
+function buildOperatorCards() {
+    var state = screenData.menuState || {};
+    var playerName = state.playerName || 'Bilinmeyen Operatif';
+    var currentStage = Number(state.currentStage || 1);
+    var upgradeLabel = state.upgradeLabel || 'Standart Paket';
+    var lobbyStatus = state.lobbyStatus || 'Solo';
+
+    return [
+        {
+            label: 'KARAKTER',
+            value: playerName,
+            valuePct: clamp(playerName.length * 7, 24, 100)
+        },
+        {
+            label: 'BÖLGE',
+            value: 'Bölüm ' + currentStage,
+            valuePct: clamp(currentStage * 18, 18, 100)
+        },
+        {
+            label: 'GELİŞTİRME',
+            value: upgradeLabel,
+            valuePct: upgradeLabel === 'Standart Paket' ? 36 : 82
+        },
+        {
+            label: 'TAKIM',
+            value: lobbyStatus,
+            valuePct: state.hasLobby ? (state.isLeader ? 88 : 74) : 28
+        }
+    ];
+}
+
+function formatSecondsClock(totalSeconds) {
+    totalSeconds = Math.floor(Math.max(0, Number(totalSeconds || 0)));
+    var minutes = Math.floor(totalSeconds / 60);
+    var seconds = totalSeconds % 60;
+    return String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+}
+
+function buildArcExtractionPanel(state) {
+    var extraction = state.arcExtraction || (state.arcSummary && state.arcSummary.extraction) || {};
+    if (!extraction || extraction.enabled !== true) return '';
+    var countdown = Number(extraction.countdown || extraction.availableIn || 0);
+    var readyWindow = Number(extraction.readyWindow || 0);
+    var manualDepartureEnabled = extraction.manualDepartureEnabled !== false;
+    var autoDepartureOnTimeout = extraction.autoDepartureOnTimeout !== false;
+    var departureMode = manualDepartureEnabled && autoDepartureOnTimeout
+        ? 'Manuel veya süre bitince bölgedekiler'
+        : manualDepartureEnabled
+            ? 'Sadece manuel kalkış'
+            : autoDepartureOnTimeout
+                ? 'Süre bitince bölgedekiler'
+                : 'Manuel/otomatik kalkış kapalı';
+    return '<div class="arc-extraction-panel">' +
+        '<div class="arc-extraction-row"><strong>' + esc(extraction.phaseLabel || 'Tahliye Hazır') + '</strong><span>' + esc(extraction.objective || 'Tahliye objective güncelleniyor.') + '</span></div>' +
+        '<div class="arc-extraction-row"><span>Unlock / Sayaç</span><span>' + esc(countdown > 0 ? formatSecondsClock(countdown) : 'Hazır') + '</span></div>' +
+        '<div class="arc-extraction-row"><span>Çağrı / Ready</span><span>' + esc(String(extraction.callDelay || 0)) + 's / ' + esc(String(readyWindow || 0)) + 's</span></div>' +
+        '<div class="arc-extraction-row"><span>Kalkış Modu</span><span>' + esc(departureMode) + '</span></div>' +
+    '</div>';
+}
+
+function screenMeter(label, value) {
+    return '<div class="card-meter"><span class="card-meter-label">' + esc(label) + '</span><div class="card-meter-bar"><span style="width:' + clamp(value, 8, 100) + '%"></span></div></div>';
+}
+
+function describeCount(count, singular, plural) {
+    return count + ' ' + (count === 1 ? singular : plural);
+}
+
+function showTooltip(text) {
+    if (!text) {
+        hideTooltip();
+        return;
+    }
+    tooltipEl.textContent = text;
+    tooltipEl.classList.remove('hidden');
+}
+
+function hideTooltip() {
+    tooltipEl.classList.add('hidden');
+}
+
+function playUiTone(kind) {
+    var AudioCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtor) return;
+    if (!audioCtx) {
+        try {
+            audioCtx = new AudioCtor();
+        } catch (err) {
+            console.debug('GS Survival UI audio init blocked:', err);
+            return;
+        }
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume().then(function () {
+            if (audioCtx.state === 'running') emitUiTone(kind);
+        }).catch(function (err) {
+            console.debug('GS Survival UI audio resume blocked:', err);
+        });
+        return;
+    }
+    if (audioCtx.state !== 'running') return;
+    emitUiTone(kind);
+}
+
+function emitUiTone(kind) {
+    var oscillator = audioCtx.createOscillator();
+    var gainNode = audioCtx.createGain();
+    oscillator.type = kind === 'alert' ? 'sawtooth' : 'triangle';
+    oscillator.frequency.setValueAtTime(kind === 'alert' ? 180 : 420, audioCtx.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(kind === 'alert' ? 110 : 620, audioCtx.currentTime + 0.08);
+    gainNode.gain.setValueAtTime(0.001, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.04, audioCtx.currentTime + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.11);
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.12);
+}
+
+function playMechanicalTone(profile) {
+    var AudioCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtor) return;
+    if (!audioCtx) {
+        try {
+            audioCtx = new AudioCtor();
+        } catch (err) {
+            console.debug('GS Survival mechanical audio init blocked:', err);
+            return;
+        }
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume().then(function () {
+            if (audioCtx.state === 'running') emitMechanicalTone(profile);
+        }).catch(function (err) {
+            console.debug('GS Survival mechanical audio resume blocked:', err);
+        });
+        return;
+    }
+    if (audioCtx.state !== 'running') return;
+    emitMechanicalTone(profile);
+}
+
+function emitMechanicalTone(profile) {
+    var start = audioCtx.currentTime;
+    var oscA = audioCtx.createOscillator();
+    var oscB = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    var filter = audioCtx.createBiquadFilter();
+    var isWorkshop = profile === 'workshop';
+
+    oscA.type = isWorkshop ? 'square' : 'triangle';
+    oscB.type = 'triangle';
+    oscA.frequency.setValueAtTime(isWorkshop ? 180 : 640, start);
+    oscB.frequency.setValueAtTime(isWorkshop ? 95 : 420, start);
+    oscA.frequency.exponentialRampToValueAtTime(isWorkshop ? 110 : 380, start + (isWorkshop ? 0.07 : 0.05));
+    oscB.frequency.exponentialRampToValueAtTime(isWorkshop ? 70 : 260, start + (isWorkshop ? 0.08 : 0.06));
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(isWorkshop ? 1450 : 2200, start);
+    gain.gain.setValueAtTime(0.001, start);
+    gain.gain.exponentialRampToValueAtTime(isWorkshop ? 0.07 : 0.05, start + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + (isWorkshop ? 0.13 : 0.09));
+
+    oscA.connect(filter);
+    oscB.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    oscA.start(start);
+    oscB.start(start + 0.003);
+    oscA.stop(start + (isWorkshop ? 0.14 : 0.11));
+    oscB.stop(start + (isWorkshop ? 0.12 : 0.08));
+}
+
+function updateMenuState(data) {
+    data = data || {};
+    var nextState = Object.assign({}, screenData.menuState, data);
+    screenData.menuState = nextState;
+    if (currentScreen === 'menu') {
+        // Extraction summary/objective updates affect multiple menu blocks, so re-render the
+        // full menu only when those fields change. Ready-only updates keep the lighter path.
+        if (data.arcExtraction || data.arcSummary) {
+            showMenu(screenData.menuState);
+            return;
+        }
+        setReadyButton(screenData.menuState);
+    }
+    refreshOperatorStatus();
+}
+
+function setReadyButton(state) {
+    state = state || {};
+    var button = hudEls.briefTag;
+    button.className = 'pubg-ready-btn';
+    button.disabled = true;
+
+    if (state.isMember) {
+        if (state.isReady) {
+            button.textContent = 'HAZIRLIĞI KALDIR';
+            button.disabled = false;
+            button.classList.add('is-pending');
+            button.setAttribute('data-tip', 'Hazır durumun aktif. İstersen tekrar basıp hazır durumunu kaldırabilirsin.');
+        } else {
+            button.textContent = 'HAZIR OL';
+            button.disabled = false;
+            button.classList.add('is-member');
+            button.setAttribute('data-tip', 'Lider operasyona başlamadan önce hazır durumunu onayla.');
+        }
         return;
     }
 
-    if (target.id === 'craft-quantity-range' || target.id === 'craft-quantity-input') {
-        syncCraftDialogAmount(target.value, target);
+    button.removeAttribute('data-tip');
+    if (state.isLeader) {
+        button.textContent = state.currentModeId === 'arc_pvp' ? 'BASKIN' : 'OPERASYON';
+        button.classList.add('is-leader', 'is-static');
         return;
     }
 
-    if (target.id === 'locker-split-range' || target.id === 'locker-split-input') {
-        syncLockerSplitAmount(target.value, target);
+    button.textContent = 'BEKLE';
+    button.classList.add('is-static');
+}
+
+function syncLobbyMembers(data) {
+    data = data || {};
+    if (data.members) screenData.members = data.members;
+    if (data.leaderId !== undefined) screenData.memberLeaderId = data.leaderId;
+    if (currentScreen === 'members') {
+        showMembers({
+            members: screenData.members,
+            leaderId: screenData.memberLeaderId
+        });
     }
 }
 
-function dispatchAction(action, payload) {
-    switch (action) {
-        case 'noop':
-            return;
-        case 'close-menu':
-            closeMenu();
-            return;
-        case 'go-back':
-            sendAction('goBack', {});
-            return;
-        case 'toggle-ready':
-            if (state.menuState.isMember) {
-                state.menuState.isReady = !state.menuState.isReady;
-                renderCurrentView();
-                sendAction('toggleReady', {});
-            }
-            return;
-        case 'open-market':
-            sendAction('openMarket', {});
-            return;
-        case 'open-craft':
-            redirectRemovedCraftToMenu();
-            return;
-        case 'open-arc-craft':
-            redirectRemovedCraftToMenu();
-            return;
-        case 'open-stages':
-            sendAction('openStages', payload);
-            return;
-        case 'start-arc':
-            sendAction('startArcPvP', {});
-            return;
-        case 'open-loadout-stash':
-            sendAction('openArcLoadoutStash', {});
-            return;
-        case 'open-main-stash':
-            sendAction('openArcMainStash', {});
-            return;
-        case 'open-members':
-            sendAction('openMembers', {});
-            return;
-        case 'open-active-lobbies':
-            sendAction('openActiveLobbies', {});
-            return;
-        case 'open-invite':
-            sendAction('openInvite', {});
-            return;
-        case 'show-create-lobby':
-            state.currentView = 'create-lobby';
-            renderCurrentView();
-            return;
-        case 'create-lobby':
-            state.menuState = Object.assign({}, state.menuState, {
-                hasLobby: true,
-                isLeader: true,
-                isMember: false,
-                isReady: false,
-                lobbyStatus: payload.isPublic === true ? 'Herkese Açık Lider' : 'Özel Lider'
-            });
-            state.currentView = 'menu';
-            renderCurrentView();
-            sendAction('createLobby', { isPublic: payload.isPublic === true });
-            return;
-        case 'request-disband':
-            openConfirmDialog('Lobiyi Dağıt', 'Lobiyi dağıtırsan tüm üyeler ekipten çıkarılır.', 'Lobiyi Dağıt', 'confirm-disband', payload, 'danger');
-            return;
-        case 'request-leave':
-            openConfirmDialog('Lobiden Ayrıl', 'Lobiden ayrılırsan solo moda dönersin.', 'Lobiden Ayrıl', 'confirm-leave', payload, 'danger');
-            return;
-        case 'confirm-disband':
-            state.confirmDialog = null;
-            renderModal();
-            sendAction('disbandLobby', {});
-            return;
-        case 'confirm-leave':
-            state.confirmDialog = null;
-            renderModal();
-            sendAction('leaveLobby', {});
-            return;
-        case 'buy-upgrade': {
-            const upgrade = state.upgrades[safeNumber(payload.index, -1)];
-            if (!upgrade) return;
-            openConfirmDialog('Satın Alma Onayı', (upgrade.label || 'Yükseltme') + ' için $' + formatCurrency(upgrade.price) + ' harcanacak.', 'Satın Al', 'confirm-buy-upgrade', { upgrade: upgrade }, 'primary');
-            return;
-        }
-        case 'confirm-buy-upgrade':
-            state.confirmDialog = null;
-            renderModal();
-            sendAction('buyUpgrade', payload.upgrade || {});
-            return;
-        case 'craft-category':
-            state.craftCategory = safeString(payload.category, 'all');
-            renderCurrentView();
-            return;
-        case 'craft-open':
-            openCraftDialog(payload.index);
-            return;
-        case 'craft-confirm':
-            confirmCraftDialog();
-            return;
-        case 'craft-cancel':
-            state.craftDialog = null;
-            renderModal();
-            return;
-        case 'select-stage': {
-            const stage = state.stages[safeNumber(payload.index, -1)];
-            if (!stage || stage.locked) return;
-            sendAction('selectStage', { stageId: stage.id, modeId: state.selectedModeId || MODE_ID_CLASSIC });
-            return;
-        }
-        case 'invite-player': {
-            const player = state.players[safeNumber(payload.index, -1)];
-            if (!player) return;
-            sendAction('invitePlayer', { playerId: player.id });
-            return;
-        }
-        case 'join-lobby-open': {
-            const lobby = state.lobbies[safeNumber(payload.index, -1)];
-            if (!lobby) return;
-            openConfirmDialog('Lobiye Katıl', safeString(lobby.leaderName, 'Bu lobi') + ' liderliğindeki lobiye katılmak istiyor musun?', 'Katıl', 'confirm-join-lobby', { leaderId: lobby.leaderId }, 'primary');
-            return;
-        }
-        case 'confirm-join-lobby':
-            state.confirmDialog = null;
-            renderModal();
-            sendAction('joinPublicLobby', { leaderId: payload.leaderId });
-            return;
-        case 'accept-invite':
-            sendAction('acceptInvite', { leaderId: state.inviteLeaderId });
-            return;
-        case 'deny-invite':
-            sendAction('denyInvite', {});
-            return;
-        case 'reconnect-decision':
-            sendAction('arcReconnectDecision', { accepted: payload.accepted === true });
-            return;
-        case 'refresh-lockers':
-            sendAction('refreshArcLockers', payload);
-            return;
-        case 'swap-locker-focus':
-            if (state.arcLockers) state.arcLockers.focusSide = payload.focusSide === 'loadout' ? 'loadout' : 'main';
-            renderCurrentView();
-            sendAction('swapArcLockerFocus', payload);
-            return;
-        case 'locker-category':
-            state.lockerCategory = safeString(payload.category, 'all');
-            renderCurrentView();
-            return;
-        case 'locker-move':
-            sendAction('moveArcLockerItem', {
-                fromSide: payload.fromSide,
-                slot: payload.slot,
-                focusSide: payload.focusSide || (state.arcLockers ? state.arcLockers.focusSide : 'main'),
-                toSide: payload.toSide,
-                targetSlot: payload.targetSlot,
-                requestedAmount: payload.requestedAmount
-            });
-            return;
-        case 'locker-split-open':
-            openLockerSplitDialog(payload.fromSide, payload.slot);
-            return;
-        case 'locker-split-confirm':
-            confirmLockerSplitDialog();
-            return;
-        case 'locker-split-cancel':
-            if (state.arcLockers) state.arcLockers.splitDialog = null;
-            renderModal();
-            return;
-        case 'confirm-cancel':
-            state.confirmDialog = null;
-            renderModal();
-            return;
-        default:
-            console.warn('[gs-survival-ui] Unknown UI action:', action, payload);
-    }
+function handleReadyButton() {
+    var state = screenData.menuState || {};
+    if (currentScreen !== 'menu' || !state.isMember) return;
+    playMechanicalTone('ready');
+    state.isReady = !state.isReady;
+    setReadyButton(state);
+    sendAction('toggleReady', {});
 }
 
-function openConfirmDialog(title, text, confirmLabel, confirmAction, payload, tone) {
-    state.confirmDialog = {
-        title: title,
-        text: text,
-        confirmLabel: confirmLabel,
-        confirmAction: confirmAction,
-        payload: payload || {},
-        tone: tone || 'primary'
+function startArcMode() {
+    playMechanicalTone('ready');
+    sendAction('startArcPvP', {});
+}
+
+function stageCardArt(stage, idx) {
+    var palettes = [
+        ['#20140c', '#53402b', '#98713a'],
+        ['#111b1b', '#224142', '#4f8b82'],
+        ['#1a1612', '#4e2f23', '#956650'],
+        ['#161820', '#33415e', '#7e91bf']
+    ];
+    var colors = palettes[idx % palettes.length];
+    var label = esc(stage.label || ('Bölge ' + (idx + 1)));
+    var svg = ''
+        + '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 460" preserveAspectRatio="none">'
+        + '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
+        + '<stop offset="0%" stop-color="' + colors[1] + '"/><stop offset="100%" stop-color="' + colors[0] + '"/>'
+        + '</linearGradient></defs>'
+        + '<rect width="800" height="460" fill="' + colors[0] + '"/>'
+        + '<rect width="800" height="460" fill="url(%23g)"/>'
+        + '<g fill="none" stroke="' + colors[2] + '" stroke-width="16" opacity="0.32">'
+        + '<path d="M40 360 L170 250 L325 295 L520 135 L760 185"/>'
+        + '<path d="M92 122 L238 156 L402 88 L610 120 L738 80"/>'
+        + '<path d="M160 418 L248 310 L438 352 L642 238"/>'
+        + '</g>'
+        + '<g fill="' + colors[2] + '" opacity="0.22">'
+        + '<circle cx="184" cy="128" r="46"/><circle cx="510" cy="182" r="70"/><circle cx="654" cy="300" r="54"/>'
+        + '</g>'
+        + '<rect width="800" height="460" fill="#060606" fill-opacity="0.46"/>'
+        + '<text x="46" y="410" font-size="56" font-family="Teko, Arial, sans-serif" fill="rgba(255,255,255,0.16)">' + label + '</text>'
+        + '</svg>';
+    return 'background-image:url("data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg) + '")';
+}
+
+function arcItemPlaceholder(label) {
+    var safeLabel = String(label || '').trim();
+    var text = esc((safeLabel ? safeLabel.charAt(0) : '?').toUpperCase());
+    var svg = ''
+        + '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">'
+        + '<defs><linearGradient id="arcItemBg" x1="0" y1="0" x2="1" y2="1">'
+        + '<stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111"/>'
+        + '</linearGradient></defs>'
+        + '<rect width="96" height="96" rx="18" fill="url(%23arcItemBg)"/>'
+        + '<rect x="7" y="7" width="82" height="82" rx="14" fill="none" stroke="rgba(242,169,0,0.35)" stroke-width="2"/>'
+        + '<text x="48" y="58" text-anchor="middle" font-size="38" font-family="Teko, Arial, sans-serif" fill="#f2a900">' + text + '</text>'
+        + '</svg>';
+    return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
+}
+
+function arcItemImageUrl(item) {
+    item = item || {};
+    var image = item.image || (item.metadata && (item.metadata.imageurl || item.metadata.image)) || item.name || '';
+    image = String(image || '').trim();
+
+    if (!image) return arcItemPlaceholder(item.label || item.name);
+    if (/^(https?:|data:|nui:|file:|\/|\.\/|\.\.\/)/i.test(image) || image.indexOf('cfx-nui-') !== -1) {
+        return image;
+    }
+
+    image = image.replace(/^images\//i, '');
+    if (!/\.[a-z0-9]+$/i.test(image)) image += '.png';
+
+    return 'https://cfx-nui-ox_inventory/web/images/' + image.split('/').map(encodeURIComponent).join('/');
+}
+
+function arcMovePayload(sectionSide, slot, focusSide) {
+    return '{fromSide:\'' + esc(sectionSide === 'loadout' ? 'loadout' : 'main') +
+        '\',slot:' + Number(slot || 0) +
+        ',focusSide:\'' + esc(focusSide === 'loadout' ? 'loadout' : 'main') + '\'}';
+}
+
+function getArcLockerSectionStats(section) {
+    section = section || {};
+    var items = Array.isArray(section.items) ? section.items : [];
+    var totalSlots = Number(section.slots || 0);
+    var totalItems = 0;
+
+    items.forEach(function (item) {
+        totalItems += Number((item && item.count) || 0);
+    });
+
+    return {
+        items: items,
+        totalSlots: totalSlots,
+        usedSlots: items.length,
+        freeSlots: Math.max(totalSlots - items.length, 0),
+        totalItems: totalItems
     };
-    renderModal();
 }
 
-function openCraftDialog(index) {
-    const recipe = state.recipes[safeNumber(index, -1)];
-    if (!recipe) return;
-    const maxCraftable = Math.max(0, safeNumber(recipe.maxCraftable, recipe.ready ? 1 : 0));
-    if (maxCraftable < 1) {
-        pushToast({
+function getArcLockerCategory(item) {
+    item = item || {};
+    var haystack = (String(item.name || '') + ' ' + String(item.label || '') + ' ' + String(item.description || '')).toLowerCase();
+    var keys = Object.keys(ARC_LOCKER_CATEGORY_RULES);
+
+    if (item.isWeapon) return 'weapon';
+
+    for (var i = 0; i < keys.length; i++) {
+        var categoryKey = keys[i];
+        var patterns = ARC_LOCKER_CATEGORY_RULES[categoryKey] || [];
+        for (var j = 0; j < patterns.length; j++) {
+            if (patterns[j].test(haystack)) {
+                return categoryKey;
+            }
+        }
+    }
+
+    return 'misc';
+}
+
+function getArcLockerCategoryMeta(categoryKey) {
+    for (var i = 0; i < ARC_LOCKER_CATEGORIES.length; i++) {
+        if (ARC_LOCKER_CATEGORIES[i].key === categoryKey) return ARC_LOCKER_CATEGORIES[i];
+    }
+    return ARC_LOCKER_CATEGORIES[0];
+}
+
+function getArcLockerActiveCategory() {
+    var lockers = screenData.arcLockers || {};
+    return lockers.activeCategory || 'all';
+}
+
+function setArcLockerCategory(categoryKey) {
+    var lockers = screenData.arcLockers || {};
+    lockers.activeCategory = getArcLockerCategoryMeta(categoryKey).key;
+    screenData.arcLockers = lockers;
+    if (currentScreen === 'arcLockers') {
+        showArcLockers(lockers);
+    }
+}
+
+function getArcLockerFilteredItems(section) {
+    section = section || {};
+    var items = Array.isArray(section.items) ? section.items : [];
+    var activeCategory = getArcLockerActiveCategory();
+
+    if (activeCategory === 'all') return items;
+    return items.filter(function (item) {
+        return getArcLockerCategory(item) === activeCategory;
+    });
+}
+
+function buildArcLockerCategoryCounts(items) {
+    var counts = { all: 0 };
+    ARC_LOCKER_CATEGORIES.forEach(function (category) {
+        counts[category.key] = counts[category.key] || 0;
+    });
+
+    (items || []).forEach(function (item) {
+        var categoryKey = getArcLockerCategory(item);
+        counts.all += 1;
+        counts[categoryKey] = (counts[categoryKey] || 0) + 1;
+    });
+
+    return counts;
+}
+
+function formatArcItemCount(count) {
+    var value = Number(count || 0) || 0;
+    function compactNumber(source, divisor, suffix) {
+        return (Math.round((source / divisor) * 10) / 10) + suffix;
+    }
+
+    if (value < 1000) return String(value);
+    if (value < 1000000) return compactNumber(value, 1000, 'k');
+    return compactNumber(value, 1000000, 'm');
+}
+
+function renderArcLockerCategoryRail(section) {
+    var items = Array.isArray(section && section.items) ? section.items : [];
+    var counts = buildArcLockerCategoryCounts(items);
+    var activeCategory = getArcLockerActiveCategory();
+    var html = '<div class="arc-locker-rail" aria-label="Item kategorileri">';
+
+    ARC_LOCKER_CATEGORIES.forEach(function (category) {
+        var count = Number(counts[category.key] || 0);
+        html += '<button class="arc-locker-rail-icon' + (activeCategory === category.key ? ' is-active' : '') + '" type="button" ' +
+            'onclick="setArcLockerCategory(\'' + esc(category.key) + '\')" ' +
+            'data-tip="' + esc(category.label + ' kategorisini filtrele (' + count + ' adet).') + '">' +
+                '<span class="arc-locker-rail-icon-glyph">' + category.icon + '</span>' +
+                '<span class="arc-locker-rail-icon-count">' + esc(String(count)) + '</span>' +
+                '<span class="arc-locker-rail-icon-label">' + esc(category.label) + '</span>' +
+        '</button>';
+    });
+
+    return html + '</div>';
+}
+
+function buildArcLockerMovePayload(fromSide, slot, focusSide, toSide, targetSlot) {
+    return {
+        fromSide: fromSide === 'loadout' ? 'loadout' : 'main',
+        slot: Number(slot || 0),
+        focusSide: focusSide === 'loadout' ? 'loadout' : 'main',
+        toSide: toSide == null ? null : (toSide === 'loadout' ? 'loadout' : 'main'),
+        targetSlot: targetSlot == null ? null : Number(targetSlot)
+    };
+}
+
+function getArcLockerSectionBySide(lockers, side) {
+    lockers = lockers || {};
+    side = side === 'loadout' ? 'loadout' : 'main';
+    return pickArcLockerSection(lockers.main, lockers.loadout, side);
+}
+
+function findArcLockerItem(lockers, side, slot) {
+    var section = getArcLockerSectionBySide(lockers, side);
+    var items = Array.isArray(section && section.items) ? section.items : [];
+    slot = Number(slot || 0);
+
+    for (var i = 0; i < items.length; i++) {
+        if (Number(items[i] && items[i].slot) === slot) {
+            return items[i];
+        }
+    }
+
+    return null;
+}
+
+function closeArcLockerSplitDialog(skipRender) {
+    if (!screenData.arcLockers) return;
+    delete screenData.arcLockers.splitDialog;
+    if (!skipRender && currentScreen === 'arcLockers') {
+        showArcLockers(screenData.arcLockers);
+    }
+}
+
+function openArcLockerSplitDialog(side, slot) {
+    if (currentScreen !== 'arcLockers' || !screenData.arcLockers) return;
+
+    var normalizedSide = side === 'loadout' ? 'loadout' : 'main';
+    var item = findArcLockerItem(screenData.arcLockers, normalizedSide, slot);
+    var itemCount = Number((item && item.count) || 0);
+    if (!item || itemCount <= 1 || item.isWeapon) {
+        pushArcNotify({
+            type: 'info',
+            title: 'Yığın Ayrılamıyor',
+            message: 'Sağ tıkla ayırma yalnızca stacklenebilen ve adedi 1\'den büyük eşyalar için kullanılabilir.',
+            duration: 3600
+        });
+        return;
+    }
+
+    var maxAmount = Math.max(itemCount - 1, 1);
+    screenData.arcLockers.splitDialog = {
+        fromSide: normalizedSide,
+        targetSide: normalizedSide === 'loadout' ? 'main' : 'loadout',
+        slot: Number(slot || 0),
+        itemName: item.label || item.name || 'Eşya',
+        totalCount: itemCount,
+        maxAmount: maxAmount,
+        amount: clamp(Math.round(itemCount * ARC_LOCKER_DEFAULT_SPLIT_RATIO), 1, maxAmount)
+    };
+    showArcLockers(screenData.arcLockers);
+}
+
+function normalizeArcLockerSplitAmount(rawValue, fallbackValue, maxAmount) {
+    return clamp(
+        Math.floor(Number((rawValue == null || rawValue === '') ? fallbackValue : rawValue)) || 1,
+        1,
+        Number(maxAmount || 1)
+    );
+}
+
+function syncArcLockerSplitInputs(source) {
+    var dialogState = screenData.arcLockers && screenData.arcLockers.splitDialog;
+    if (!dialogState) return;
+
+    var nextValue = normalizeArcLockerSplitAmount(source && source.value, dialogState.amount || 1, dialogState.maxAmount);
+    dialogState.amount = nextValue;
+
+    var rangeInput = document.getElementById('arc-split-amount-range');
+    var numberInput = document.getElementById('arc-split-amount-input');
+    var sourceCount = document.getElementById('arc-split-source-count');
+    var targetCount = document.getElementById('arc-split-target-count');
+
+    if (rangeInput && rangeInput !== source) rangeInput.value = String(nextValue);
+    if (numberInput && numberInput !== source) numberInput.value = String(nextValue);
+    if (sourceCount) sourceCount.textContent = 'Kaynakta kalacak: x' + String(Math.max(Number(dialogState.totalCount || 0) - nextValue, 0));
+    if (targetCount) targetCount.textContent = 'Taşınacak: x' + String(nextValue);
+}
+
+function confirmArcLockerSplitMove() {
+    var lockers = screenData.arcLockers || {};
+    var dialogState = lockers.splitDialog;
+    if (!dialogState) return;
+
+    var numberInput = document.getElementById('arc-split-amount-input');
+    var requestedAmount = normalizeArcLockerSplitAmount(numberInput && numberInput.value, dialogState.amount || 1, dialogState.maxAmount);
+    dialogState.amount = requestedAmount;
+    closeArcLockerSplitDialog(true);
+    sendAction('moveArcLockerItem', {
+        fromSide: dialogState.fromSide,
+        slot: dialogState.slot,
+        focusSide: lockers.focusSide === 'loadout' ? 'loadout' : 'main',
+        toSide: dialogState.targetSide,
+        targetSlot: null,
+        requestedAmount: requestedAmount
+    });
+}
+
+function getArcLockerDropPayloadFromTarget(targetEl) {
+    var source = arcLockerDragState;
+    if (!source || !targetEl || targetEl.nodeType !== 1) return null;
+
+    var itemTarget = targetEl.closest('.arc-item-card');
+    if (itemTarget) {
+        var targetSide = itemTarget.getAttribute('data-arc-side') === 'loadout' ? 'loadout' : 'main';
+        var targetSlot = Number(itemTarget.getAttribute('data-arc-slot') || 0);
+        if (!targetSlot || (targetSide === source.fromSide && targetSlot === source.slot)) return null;
+        return buildArcLockerMovePayload(source.fromSide, source.slot, source.focusSide, targetSide, targetSlot);
+    }
+
+    var zone = targetEl.closest('[data-arc-drop-side]');
+    if (!zone) return null;
+
+    var zoneSide = zone.getAttribute('data-arc-drop-side') === 'loadout' ? 'loadout' : 'main';
+    if (zoneSide === source.fromSide) return null;
+    return buildArcLockerMovePayload(source.fromSide, source.slot, source.focusSide, zoneSide, null);
+}
+
+function clearArcLockerDropTargets() {
+    document.querySelectorAll('.is-arc-drop-target').forEach(function (el) {
+        el.classList.remove('is-arc-drop-target');
+    });
+}
+
+function clearArcLockerDraggingState() {
+    document.querySelectorAll('.is-arc-dragging').forEach(function (el) {
+        el.classList.remove('is-arc-dragging');
+    });
+}
+
+function setArcLockerDragState(itemCard) {
+    if (!itemCard) return false;
+    arcLockerDragState = {
+        fromSide: itemCard.getAttribute('data-arc-side') === 'loadout' ? 'loadout' : 'main',
+        slot: Number(itemCard.getAttribute('data-arc-slot') || 0),
+        focusSide: (screenData.arcLockers && screenData.arcLockers.focusSide) === 'loadout' ? 'loadout' : 'main'
+    };
+    clearArcLockerDraggingState();
+    arcLockerDragSuppressUntil = Date.now() + ARC_LOCKER_DRAG_SUPPRESS_START_MS;
+    itemCard.classList.add('is-arc-dragging');
+    return true;
+}
+
+function setArcLockerDropHighlight(targetEl) {
+    var payload = getArcLockerDropPayloadFromTarget(targetEl);
+    clearArcLockerDropTargets();
+    if (!payload) return null;
+
+    var highlightTarget = targetEl.closest('.arc-item-card, [data-arc-drop-side]');
+    if (highlightTarget) {
+        highlightTarget.classList.add('is-arc-drop-target');
+    }
+    return payload;
+}
+
+function commitArcLockerDrop(targetEl) {
+    var payload = getArcLockerDropPayloadFromTarget(targetEl);
+    clearArcLockerDropTargets();
+    clearArcLockerDraggingState();
+    if (!payload) {
+        arcLockerDragState = null;
+        return null;
+    }
+
+    arcLockerDragSuppressUntil = Date.now() + ARC_LOCKER_DRAG_SUPPRESS_DROP_MS;
+    sendAction('moveArcLockerItem', payload);
+    arcLockerDragState = null;
+    return payload;
+}
+
+document.addEventListener('dragstart', function (event) {
+    var itemCard = event.target.closest('.arc-item-card');
+    if (!itemCard || currentScreen !== 'arcLockers') return;
+    event.preventDefault();
+    arcLockerNativeDragActive = false;
+    arcLockerPointerDragState = null;
+});
+
+document.addEventListener('dragover', function (event) {
+    if (!arcLockerDragState) return;
+    var payload = setArcLockerDropHighlight(event.target);
+    if (!payload) return;
+
+    event.preventDefault();
+});
+
+document.addEventListener('drop', function (event) {
+    if (!arcLockerDragState) return;
+    var payload = getArcLockerDropPayloadFromTarget(event.target);
+    if (!payload) {
+        clearArcLockerDropTargets();
+        clearArcLockerDraggingState();
+        arcLockerDragState = null;
+        arcLockerNativeDragActive = false;
+        return;
+    }
+
+    event.preventDefault();
+    arcLockerNativeDragActive = false;
+    commitArcLockerDrop(event.target);
+});
+
+document.addEventListener('dragend', function () {
+    clearArcLockerDropTargets();
+    clearArcLockerDraggingState();
+    arcLockerDragState = null;
+    arcLockerNativeDragActive = false;
+    arcLockerPointerDragState = null;
+    arcLockerDragSuppressUntil = Date.now() + ARC_LOCKER_DRAG_SUPPRESS_END_MS;
+});
+
+document.addEventListener('pointerdown', function (event) {
+    var itemCard = event.target.closest('.arc-item-card');
+    if (!itemCard || event.button !== 0) return;
+
+    arcLockerPointerDragState = {
+        itemCard: itemCard,
+        startX: event.clientX,
+        startY: event.clientY,
+        activated: false
+    };
+});
+
+document.addEventListener('pointermove', function (event) {
+    if (!arcLockerPointerDragState || arcLockerNativeDragActive) return;
+
+    if (!arcLockerPointerDragState.activated) {
+        var deltaX = event.clientX - arcLockerPointerDragState.startX;
+        var deltaY = event.clientY - arcLockerPointerDragState.startY;
+        var dragDistanceSquared = (deltaX * deltaX) + (deltaY * deltaY);
+        if (dragDistanceSquared < ARC_LOCKER_POINTER_DRAG_THRESHOLD_SQ) return;
+        if (!setArcLockerDragState(arcLockerPointerDragState.itemCard)) {
+            arcLockerPointerDragState = null;
+            return;
+        }
+        arcLockerPointerDragState.activated = true;
+    }
+
+    var pointerTarget = document.elementFromPoint(event.clientX, event.clientY);
+    if (!pointerTarget) {
+        clearArcLockerDropTargets();
+        return;
+    }
+    setArcLockerDropHighlight(pointerTarget);
+    event.preventDefault();
+});
+
+document.addEventListener('pointerup', function (event) {
+    if (!arcLockerPointerDragState) return;
+
+    var wasActivated = arcLockerPointerDragState.activated;
+    arcLockerPointerDragState = null;
+    if (!wasActivated || arcLockerNativeDragActive || !arcLockerDragState) return;
+
+    var candidateDropTarget = document.elementFromPoint(event.clientX, event.clientY);
+    if (!candidateDropTarget) {
+        clearArcLockerDropTargets();
+        clearArcLockerDraggingState();
+        arcLockerDragState = null;
+        return;
+    }
+    commitArcLockerDrop(candidateDropTarget);
+    event.preventDefault();
+});
+
+document.addEventListener('pointercancel', function () {
+    if (!arcLockerPointerDragState) return;
+
+    arcLockerPointerDragState = null;
+    clearArcLockerDropTargets();
+    clearArcLockerDraggingState();
+    arcLockerDragState = null;
+});
+
+document.addEventListener('contextmenu', function (event) {
+    var itemCard = event.target.closest('.arc-item-card');
+    if (!itemCard || currentScreen !== 'arcLockers') return;
+
+    event.preventDefault();
+    openArcLockerSplitDialog(itemCard.getAttribute('data-arc-side'), itemCard.getAttribute('data-arc-slot'));
+});
+
+function pickArcLockerSection(primary, secondary, side) {
+    if (primary && primary.side === side) return primary;
+    if (secondary && secondary.side === side) return secondary;
+    return primary || secondary || {};
+}
+
+function renderArcLockerSlotPlaceholder(label, extraClass) {
+    return '<div class="arc-slot-placeholder' + (extraClass ? ' ' + extraClass : '') + '">' +
+        '<span>' + esc(label || 'Boş') + '</span>' +
+    '</div>';
+}
+
+function renderArcLockerItem(item, section, focusSide, options) {
+    item = item || {};
+    section = section || {};
+    options = options || {};
+
+    var layout = options.layout || 'stash';
+    var moveTargetSide = section.side === 'loadout' ? 'main' : 'loadout';
+    var moveTargetLabel = moveTargetSide === 'loadout' ? 'Baskın Çantası' : 'Kalıcı Depo';
+    var imageUrl = arcItemImageUrl(item);
+    var fallbackUrl = arcItemPlaceholder(item.label || item.name);
+    var title = item.label || item.name || 'İsimsiz Eşya';
+    var category = getArcLockerCategory(item);
+    var categoryMeta = getArcLockerCategoryMeta(category);
+    var tip = (item.description || (title + ' • Yuva #' + (item.slot || 0))) +
+        ' • Sürükle-bırak ile stacklemeyi deneyebilir, tek tıkla ' + moveTargetLabel + ' tarafına aktarabilir veya sağ tıkla adedini ayırabilirsin.';
+    var layoutClass = layout === 'loadout' ? ' arc-item-card-loadout' : ' arc-item-card-stash';
+    var thumbClass = layout === 'loadout' ? ' arc-item-thumb-loadout' : ' arc-item-thumb-stash';
+    var metaHtml = layout === 'loadout'
+        ? '<div class="arc-item-meta arc-item-meta-loadout">' +
+            '<div class="arc-item-name">' + esc(title) + '</div>' +
+            '<div class="arc-item-slot">Yuva #' + esc(item.slot || 0) + ' • ' + esc(categoryMeta.label) + '</div>' +
+        '</div>'
+        : '<div class="arc-item-meta arc-item-meta-stash">' +
+            '<div class="arc-item-name">' + esc(title) + '</div>' +
+            '<div class="arc-item-code">' + esc(categoryMeta.label) + ' • Yuva #' + esc(item.slot || 0) + '</div>' +
+        '</div>';
+
+    return '<button class="arc-item-card' + layoutClass + (section.side === focusSide ? ' is-focused' : '') + '" type="button" ' +
+        'draggable="false" ' +
+        'onclick="sendAction(\'moveArcLockerItem\',' + arcMovePayload(section.side, item.slot, focusSide) + ')" ' +
+        'data-arc-side="' + esc(section.side || 'main') + '" ' +
+        'data-arc-slot="' + esc(item.slot || 0) + '" ' +
+        'data-arc-category="' + esc(category) + '" ' +
+        'data-arc-stackable="' + esc(!item.isWeapon ? 'true' : 'false') + '" ' +
+        'data-tip="' + esc(tip) + '">' +
+            '<div class="arc-item-thumb' + thumbClass + '">' +
+                '<img src="' + esc(imageUrl) + '" alt="' + esc(title) + '"' +
+                    ' data-fallback-src="' + esc(fallbackUrl) + '">' +
+                '<span class="arc-item-count">x' + esc(formatArcItemCount(item.count || 0)) + '</span>' +
+            '</div>' +
+            metaHtml +
+        '</button>';
+}
+
+function renderArcLockerSplitDialog(dialogState) {
+    if (!dialogState) return '';
+
+    var targetLabel = dialogState.targetSide === 'loadout' ? 'Baskın Çantası' : 'Kalıcı Depo';
+    return '<div class="arc-split-overlay" data-tip="Sağ tıkla bu yığından taşınacak miktarı seçersin.">' +
+        '<div class="dialog-card arc-split-dialog" role="dialog" aria-modal="true" aria-labelledby="arc-split-dialog-title" aria-describedby="arc-split-dialog-text">' +
+            '<div class="dialog-icon">&#9986;</div>' +
+            '<div id="arc-split-dialog-title" class="dialog-title">Yığını Ayır</div>' +
+            '<div id="arc-split-dialog-text" class="dialog-text">' + esc(dialogState.itemName) + ' yığınından kaç adet ' + esc(targetLabel) + ' tarafına taşınsın?</div>' +
+            '<div class="arc-split-amount-row">' +
+                '<input id="arc-split-amount-range" class="arc-split-range" type="range" min="1" max="' + esc(dialogState.maxAmount) + '" value="' + esc(dialogState.amount) + '" aria-label="Taşınacak miktar kaydırıcısı" oninput="syncArcLockerSplitInputs(this)">' +
+                '<input id="arc-split-amount-input" class="arc-split-input" type="number" min="1" max="' + esc(dialogState.maxAmount) + '" value="' + esc(dialogState.amount) + '" aria-label="Taşınacak miktar adedi" oninput="syncArcLockerSplitInputs(this)">' +
+            '</div>' +
+            '<div class="arc-split-counts">' +
+                '<span id="arc-split-source-count">Kaynakta kalacak: x' + esc(Math.max(dialogState.totalCount - dialogState.amount, 0)) + '</span>' +
+                '<span id="arc-split-target-count">Taşınacak: x' + esc(dialogState.amount) + '</span>' +
+            '</div>' +
+            '<div class="dialog-buttons">' +
+                '<button class="btn" type="button" onclick="closeArcLockerSplitDialog()">İptal</button>' +
+                '<button class="btn btn-primary" type="button" onclick="confirmArcLockerSplitMove()">Ayır ve Taşı</button>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
+}
+
+function renderArcLockerPreview(section) {
+    section = section || {};
+    var stats = getArcLockerSectionStats(section);
+    var item = stats.items[0];
+
+    if (!item) {
+        return '<div class="arc-loadout-preview is-empty">' +
+            '<div class="arc-loadout-preview-kicker">AKTİF SİLAH</div>' +
+            '<div class="arc-loadout-preview-title">Henüz hazırlanmadı</div>' +
+            '<div class="arc-loadout-preview-desc">Çantaya ilk eklediğin öğe burada büyük önizleme olarak görünür.</div>' +
+        '</div>';
+    }
+
+    var imageUrl = arcItemImageUrl(item);
+    var fallbackUrl = arcItemPlaceholder(item.label || item.name);
+    return '<div class="arc-loadout-preview">' +
+        '<div class="arc-loadout-preview-kicker">AKTİF ÖNİZLEME</div>' +
+        '<div class="arc-loadout-preview-title">' + esc(item.label || item.name || 'Eşya') + '</div>' +
+        '<div class="arc-loadout-preview-card">' +
+            '<img src="' + esc(imageUrl) + '" alt="' + esc(item.label || item.name || 'Eşya') + '"' +
+                ' data-fallback-src="' + esc(fallbackUrl) + '">' +
+        '</div>' +
+        '<div class="arc-loadout-preview-desc">Yuva #' + esc(item.slot || 0) + ' • x' + esc(item.count || 0) + ' adet hazır. Öğeyi tek tıkla taşıyabilir, sürükleyip başka bir stack üstüne bırakabilir veya sağ tıkla bölebilirsin.</div>' +
+    '</div>';
+}
+
+function renderArcMainLockerPanel(section, focusSide) {
+    section = section || {};
+    var stats = getArcLockerSectionStats(section);
+    var filteredItems = getArcLockerFilteredItems(section);
+    var activeCategory = getArcLockerCategoryMeta(getArcLockerActiveCategory());
+    var helperText = section.helperText || 'Burası kalıcı depon. İçindekiler baskın dışında da sende kalır.';
+    var sideLabel = section.side === focusSide ? 'AKTİF DEPO' : 'PASİF DEPO';
+    var html = '<section class="arc-locker-panel arc-locker-panel-stash' + (section.side === focusSide ? ' is-focused' : '') + '">' +
+        '<div class="arc-locker-panel-top">' +
+            '<div>' +
+                '<div class="arc-locker-panel-kicker">STASH</div>' +
+                '<div class="arc-locker-panel-title">' + esc(section.title || section.label || 'Kalıcı Depo') + '</div>' +
+                '<div class="arc-locker-panel-subtitle">' + esc(helperText) + '</div>' +
+            '</div>' +
+            '<div class="arc-locker-panel-badges">' +
+                '<span class="arc-locker-badge">' + esc(stats.usedSlots) + '/' + esc(stats.totalSlots || stats.usedSlots || 0) + '</span>' +
+                '<span class="arc-locker-badge arc-locker-badge-muted">' + esc(sideLabel) + '</span>' +
+            '</div>' +
+        '</div>' +
+        '<div class="arc-locker-stash-shell">' +
+            renderArcLockerCategoryRail(section) +
+            '<div class="arc-locker-stash-content">' +
+                '<div class="arc-locker-stash-toolbar">' +
+                    '<div class="arc-locker-pill">&#9776; ' + esc(activeCategory.label) + '</div>' +
+                    '<div class="arc-locker-pill">' + esc(stats.totalItems) + ' eşya</div>' +
+                    '<div class="arc-locker-pill">' + esc(filteredItems.length) + ' görünür slot</div>' +
+                    '<div class="arc-locker-pill">' + esc(stats.freeSlots) + ' boş yuva</div>' +
+                '</div>' +
+                '<div class="arc-locker-stash-grid" data-arc-drop-side="' + esc(section.side || 'main') + '">';
+
+    if (filteredItems.length) {
+        filteredItems.forEach(function (item) {
+            html += renderArcLockerItem(item, section, focusSide, { layout: 'stash' });
+        });
+    } else {
+        html += '<div class="arc-locker-stash-empty">' +
+            emptyState('&#128230;', activeCategory.key === 'all' ? 'Kalıcı depon şu anda boş.' : (activeCategory.label + ' kategorisinde eşya yok.')) +
+        '</div>';
+    }
+
+    html += '</div></div></div></section>';
+    return html;
+}
+
+function renderArcLoadoutPanel(section, focusSide) {
+    section = section || {};
+    var stats = getArcLockerSectionStats(section);
+    var helperText = section.helperText || 'Buraya koyduğun ekipman baskın girişinde üstüne verilir.';
+    var defaultBackpackSlots = 10;
+    var visibleBackpackSlots = Math.max(stats.items.length, Math.min(stats.totalSlots || defaultBackpackSlots, defaultBackpackSlots));
+    var placeholderCount = Math.max(visibleBackpackSlots - stats.items.length, 0);
+    var html = '<section class="arc-locker-panel arc-locker-panel-loadout' + (section.side === focusSide ? ' is-focused' : '') + '">' +
+        '<div class="arc-locker-panel-top arc-locker-panel-top-loadout">' +
+            '<div>' +
+                '<div class="arc-locker-panel-kicker">LOADOUT</div>' +
+                '<div class="arc-locker-panel-title">' + esc(section.title || section.label || 'Baskın Çantası') + '</div>' +
+                '<div class="arc-locker-panel-subtitle">' + esc(helperText) + '</div>' +
+            '</div>' +
+            '<div class="arc-locker-loadout-stats">' +
+                '<span class="arc-locker-badge">' + esc(stats.usedSlots) + '/' + esc(stats.totalSlots || stats.usedSlots || 0) + ' yuva</span>' +
+                '<span class="arc-locker-badge arc-locker-badge-muted">' + esc(stats.totalItems) + ' eşya</span>' +
+            '</div>' +
+        '</div>' +
+        '<div class="arc-loadout-layout">' +
+            '<div class="arc-loadout-column arc-loadout-column-preview">' +
+                renderArcLockerPreview(section) +
+            '</div>' +
+            '<div class="arc-loadout-column arc-loadout-column-main">' +
+                '<div class="arc-loadout-group arc-loadout-group-backpack">' +
+                    '<div class="arc-loadout-group-header"><span>BACKPACK</span><span>' + esc(stats.usedSlots) + '/' + esc(stats.totalSlots || stats.usedSlots || 0) + '</span></div>' +
+                    '<div class="arc-loadout-drop-helper">İtemi başka bir itemin üstüne bırakıp stacklemeyi dene. Sağ tık tam yığından parça ayırır; silahlar asla stacklenmez.</div>' +
+                    '<div class="arc-loadout-backpack-grid" data-arc-drop-side="' + esc(section.side || 'loadout') + '">';
+
+    stats.items.forEach(function (item) {
+        html += renderArcLockerItem(item, section, focusSide, { layout: 'loadout' });
+    });
+    for (var i = 0; i < placeholderCount; i++) {
+        html += renderArcLockerSlotPlaceholder('Boş');
+    }
+
+    html += '</div></div></div>' +
+        '</div>' +
+    '</section>';
+
+    return html;
+}
+
+function getArcLoadoutPresentation(state) {
+    state = state || {};
+    var loadoutState = state.arcLoadoutState || {};
+    var stacks = Number(state.arcLoadoutStacks || 0);
+
+    if (loadoutState.isReady) {
+        return {
+            badge: 'ÇANTA HAZIR x' + esc(String(stacks)),
+            title: 'Baskın çantası hazır',
+            detail: 'Buraya koyduğun ekipman baskına girerken üstüne verilecek.',
+            statusClass: 'ok'
+        };
+    }
+
+    if (loadoutState.usesFallback) {
+        return {
+            badge: 'ÇANTA BOŞ • YEDEK PAKET',
+            title: 'Baskın çantası boş',
+            detail: 'Hazır ekipmanın yoksa varsayılan başlangıç paketi verilecek.',
+            statusClass: 'warn'
+        };
+    }
+
+    return {
+        badge: 'ÇANTA BOŞ',
+        title: 'Baskın çantası boş',
+        detail: loadoutState.helperText || 'Bu baskın için önceden ekipman hazırlaman gerekiyor.',
+        statusClass: 'error'
+    };
+}
+
+function renderArcCheckChip(check) {
+    check = check || {};
+    return '<div class="arc-check-chip status-' + esc(check.status || 'ok') + '">' +
+        '<div class="arc-check-title">' + esc(check.title || 'Kontrol') + '</div>' +
+        '<div class="arc-check-detail">' + esc(check.detail || '') + '</div>' +
+    '</div>';
+}
+
+function renderArcPreflightSummary(state) {
+    state = state || {};
+    var summary = state.arcSummary || {};
+    var loadoutUi = getArcLoadoutPresentation(state);
+    var blockers = summary.blockers || [];
+    var hiddenCheckKeys = ['distance', 'inventory', 'extraction'];
+    var checks = (summary.checks || []).filter(function (check) {
+        return !check || hiddenCheckKeys.indexOf(check.key) === -1;
+    });
+    var html = '<div class="arc-preflight-card">' +
+        '<div class="arc-preflight-header">' +
+            '<div>' +
+                '<div class="section-title">&#128737; Baskın Kontrol Özeti</div>' +
+                '<div class="menu-item-desc">Baskına girmeden önce hangi hazırlıkların tamam, hangilerinin eksik olduğunu burada gör.</div>' +
+            '</div>' +
+        '</div>' +
+        '<div class="req-chips">' +
+            '<span class="req-chip"><span class="req-chip-amount">' + esc(loadoutUi.title) + '</span>çanta</span>' +
+            '<span class="req-chip"><span class="req-chip-amount">' + esc(summary.canDeploy ? 'Hazır' : 'Eksik Var') + '</span>baskın</span>' +
+            '<span class="req-chip"><span class="req-chip-amount">' + esc(state.disconnectPolicyLabel || 'Güvenli Dönüş') + '</span>kopma durumu</span>' +
+            '<span class="req-chip"><span class="req-chip-amount">' + esc(state.allowPersonalInventory ? 'Açık' : 'Kapalı') + '</span>TAB çantası</span>' +
+        '</div>' +
+        '<div class="arc-preflight-detail">' + esc(loadoutUi.detail) + '</div>';
+
+    if (checks.length) {
+        html += '<div class="arc-check-grid">';
+        checks.forEach(function (check) {
+            html += renderArcCheckChip(check);
+        });
+        html += '</div>';
+    }
+
+    if (blockers.length) {
+        html += '<div class="arc-blocker-list">';
+        blockers.forEach(function (blocker) {
+            html += '<div class="arc-blocker-item">&#9888; ' + esc(blocker) + '</div>';
+        });
+        html += '</div>';
+    } else {
+        html += '<div class="arc-blocker-list is-clear"><div class="arc-blocker-item">&#9989; Baskına girmek için kritik bir eksik görünmüyor.</div></div>';
+    }
+
+    return html + '</div>';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SCREENS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Main Menu ──────────────────────────────────────────────────────────────
+function showMenu(state) {
+    state = state || {};
+    currentScreen = 'menu';
+    screenData.menuState = state;
+    var arcLoadoutUi = getArcLoadoutPresentation(state);
+    var extractionHud = state.arcExtraction || (state.arcSummary && state.arcSummary.extraction) || {};
+    var arcLoadoutBadge = arcLoadoutUi.badge;
+    var arcMainBadge = 'KALICI x' + esc(String(state.arcMainStacks || 0));
+    var windowEyebrowLabel = 'Kontrol Penceresi';
+    setBreadcrumb('Operasyon Menüsü / Ana Ekran');
+    setHudState({
+        health: clamp(MAIN_MENU_BASE_HEALTH + ((state.userLevel || 1) * MAIN_MENU_HEALTH_PER_LEVEL), 0, 100),
+        radiation: state.isLeader ? 34 : state.isMember ? 42 : 18,
+        inventoryPct: state.hasLobby ? 66 : 50,
+        inventoryText: state.hasLobby ? '04/06' : '03/06',
+        signal: state.hasLobby ? 86 : 71,
+        signalText: state.hasLobby ? 'TAKIM' : 'TEK',
+        briefTitle: state.currentModeId === 'arc_pvp' ? 'ARC Baskın Hazırlığı' : 'Operasyon Hazır',
+        briefText: state.currentModeId === 'arc_pvp'
+            ? (state.currentModeLabel || 'ARC Baskını') + ' seçili. ' + arcLoadoutUi.detail + ' ' + (state.allowPersonalInventory ? 'Baskında TAB ile kişisel çantanı yönetebilirsin.' : 'Bu baskında kişisel çanta erişimi kapalı.')
+            : (state.currentModeLabel || 'Klasik Hayatta Kalma') + ' seçili. Takımını düzenle ve operasyona hazırlan.',
+        briefExtractionPhase: state.currentModeId === 'arc_pvp' && extractionHud.enabled === true ? (extractionHud.phaseLabel || 'Tahliye Hazır') : '',
+        briefExtractionObjective: state.currentModeId === 'arc_pvp' && extractionHud.enabled === true ? (extractionHud.objective || 'Tahliye fazı ARC baskınının final baskısını belirler.') : '',
+        briefExtractionCountdown: state.currentModeId === 'arc_pvp' && extractionHud.enabled === true
+            ? (extractionHud.countdown > 0 ? formatSecondsClock(extractionHud.countdown) : (extractionHud.availableIn > 0 ? formatSecondsClock(extractionHud.availableIn) : 'READY'))
+            : '',
+        briefTag: state.currentModeId === 'arc_pvp' ? 'ARC' : (state.isLeader ? 'LİDER' : state.isMember ? 'TAKIM' : 'TEK'),
+        progress: state.hasLobby ? 54 : 36,
+        slotsFilled: state.hasLobby ? 4 : 3
+    });
+
+    var html = '';
+    var teamHtml = '';
+
+    if (state.hasLobby) {
+        teamHtml += menuRow('&#128203;', 'Takım Telemetrisi', 'Lobideki oyuncuların anlık durumunu izle', '',
+            'sendAction(\'openMembers\',{})', '', 'Takımdaki oyuncuları, lider bilgisini ve hazır durumunu burada görürsün.');
+    }
+
+    teamHtml += menuRow('&#128065;', 'Aktif Lobiler', 'Sunucuda açık olan lobileri ve doluluklarını görüntüle', '',
+        'sendAction(\'openActiveLobbies\',{})', '', 'Açık lobilerin liderini, doluluk oranını ve hazır oyuncu sayısını burada görürsün.');
+
+    if (state.isLeader) {
+        teamHtml += menuRow('&#10133;', 'Yakındaki Oyuncuyu Davet Et', 'Yakındaki oyuncuyu takıma çağır', '',
+            'sendAction(\'openInvite\',{})', '', 'Yakındaki oyuncuları listeler ve takım daveti göndermeni sağlar.');
+        teamHtml += menuRow('&#128683;', 'Takımı Dağıt', 'Mevcut takımını tamamen kapat', '',
+            'sendAction(\'disbandLobby\',{})', 'danger', 'Lider olarak tüm üyeleri takımdan çıkarır ve lobi durumunu sıfırlar.');
+    } else if (state.isMember) {
+        teamHtml += menuRow('&#127939;', 'Takımdan Ayrıl', 'Takımı bırak ve tek başına devam et', '',
+            'sendAction(\'leaveLobby\',{})', 'danger', 'Mevcut takımdan ayrılır ve operasyonu solo sürdürürsün.');
+    } else {
+        teamHtml += menuRow('&#127968;', 'Lobi Kur', 'Önce kendi lobini oluştur, sonra oyuncu davet et', '',
+            'showCreateLobbySetup()', '', 'Lobini public veya private olarak kurabilir, ardından oyuncu davet edebilir ya da public açtıysan doğrudan katılım alabilirsin.');
+    }
+
+    html += '<div class="menu-hub-grid">' +
+        '<section class="menu-window menu-window-arc">' +
+            '<div class="menu-window-header">' +
+                '<div>' +
+                    '<div class="menu-window-eyebrow">' + windowEyebrowLabel + '</div>' +
+                    '<div class="menu-window-title">&#9876; Baskın Merkezi</div>' +
+            '</div>' +
+                '<div class="menu-window-note">' + esc(state.currentModeId === 'arc_pvp' ? 'Aktif mod' : 'Hazırlık') + '</div>' +
+            '</div>' +
+            '<div class="menu-window-desc">Baskın hazırlığını, çantayı, depoyu ve ARC craft akışını tek alanda yönet.</div>' +
+            renderArcPreflightSummary(state) +
+            menuRow('&#9876;', 'ARC Baskını', 'Baskın öncesi son kontrolleri gözden geçir ve operasyona başla',
+                '<span class="level-badge">' + arcLoadoutBadge + '</span>',
+                'startArcMode()', '', 'ARC baskınında giriş noktası tüm haritadan rastgele seçilir. ' + arcLoadoutUi.title + ': ' + arcLoadoutUi.detail + ' Baskın kontrol özetinde takımın hazır olup olmadığını anında görürsün.') +
+            menuRow('&#128737;', 'Baskın Çantası', 'Baskına girerken üstüne verilecek ekipmanı burada hazırla',
+                '<span class="level-badge">' + arcLoadoutBadge + '</span>',
+                'sendAction(\'openArcLoadoutStash\',{})', '', 'Baskın çantan hazırsa içindekiler girişte üstüne verilir. Çanta boşsa ' + (state.arcLoadoutState && state.arcLoadoutState.usesFallback ? 'varsayılan başlangıç paketi kullanılacak.' : 'hazırlığın eksik sayılacak.') + ' Bunu kalıcı deponla aynı ekranda yönetebilirsin.') +
+            menuRow('&#128296;', 'ARC Atölyesi', 'Kalıcı depodaki lootları baskın ekipmanına dönüştür',
+                '<span class="level-badge">' + arcMainBadge + '</span>',
+                'sendAction(\'openCraft\',{source:\'arc_main\'})', '', 'ARC ana depodaki malzemeleri kullanarak craft yaparsın. Üretilen eşya doğrudan aynı depoya geri düşer.') +
+            menuRow('&#128451;', 'Kalıcı Depo', 'Kalıcı deponu aç ve baskın için ayıracağın ekipmanı düzenle',
+                '<span class="level-badge">' + arcMainBadge + '</span>',
+                'sendAction(\'openArcMainStash\',{})', '', 'Kalıcı depo baskın dışında da sende kalır. Baskın çantası ise yalnızca girişte üstüne verilecek ekipmanı tutar.') +
+        '</section>' +
+        '<section class="menu-window menu-window-survival">' +
+            '<div class="menu-window-header">' +
+                '<div>' +
+                    '<div class="menu-window-eyebrow">' + windowEyebrowLabel + '</div>' +
+                    '<div class="menu-window-title">&#128737; Hayatta Kalma</div>' +
+                '</div>' +
+                '<div class="menu-window-note">Seviye ' + esc(String(state.userLevel || 1)) + '</div>' +
+            '</div>' +
+            '<div class="menu-window-desc">Dalga modu, market ve atölye ekranlarını sade bir akışta aç.</div>' +
+            menuRow('&#128737;', 'Klasik Hayatta Kalma', 'Dalga tabanlı hayatta kalma modunu başlat',
+                '<span class="level-badge">Seviye ' + esc(String(state.userLevel || 1)) + '</span>',
+                'sendAction(\'openStages\',{modeId:\'classic\'})', '', 'Bu modda bölgeyi seçip dalga dalga gelen düşmanlara karşı ayakta kalırsın.') +
+            menuRow('&#128722;', 'Market', 'Saha avantajlarını kredi ile satın al', '',
+                'sendAction(\'openMarket\',{})', '', 'Koruma, dayanıklılık ve destek güçlendirmelerini bu ekrandan alırsın.') +
+            menuRow('&#128296;', 'Atölye', 'Topladığın malzemelerle ekipmanları atölyede birleştir', '',
+                'sendAction(\'openCraft\',{})', '', 'Kaynakları kullanarak sahada işine yarayacak ekipmanları üretirsin.') +
+        '</section>' +
+    '</div>';
+
+    html += '<section class="menu-window menu-window-team menu-window-full">' +
+        '<div class="menu-window-header">' +
+            '<div>' +
+                '<div class="menu-window-eyebrow">' + windowEyebrowLabel + '</div>' +
+                '<div class="menu-window-title">&#128101; Takım Yönetimi</div>' +
+            '</div>' +
+            '<div class="menu-window-note">' + esc(state.hasLobby ? 'Takım aktif' : 'Solo') + '</div>' +
+        '</div>' +
+        '<div class="menu-window-desc">Lobi, davet ve takım durumlarını ayrı bir alanda yönet.</div>' +
+        teamHtml +
+    '</section>';
+
+    setContent(html);
+    setReadyButton(state);
+}
+
+function showArcLockers(data) {
+    data = data || {};
+    var previousData = screenData.arcLockers || {};
+    data.activeCategory = previousData.activeCategory || data.activeCategory || 'all';
+    screenData.arcLockers = data;
+
+    var focusSide = data.focusSide === 'loadout' ? 'loadout' : 'main';
+    var nextFocus = focusSide === 'loadout' ? 'main' : 'loadout';
+    var mainSection = pickArcLockerSection(data.focused, data.paired, 'main');
+    var loadoutSection = pickArcLockerSection(data.focused, data.paired, 'loadout');
+    var focusedLabel = focusSide === 'loadout'
+        ? (loadoutSection.label || loadoutSection.title || 'ARC Baskın Çantası')
+        : (mainSection.label || mainSection.title || 'ARC Kalıcı Depo');
+    var nextFocusLabel = nextFocus === 'loadout' ? 'Baskın Çantası' : 'Kalıcı Depo';
+    var html = backBtn();
+
+    setBreadcrumb('ARC Depo Yönetimi');
+    currentScreen = 'arcLockers';
+
+    html += '<section class="arc-locker-shell">' +
+        '<div class="arc-locker-notice" data-tip="Bu ekranda kişisel çantan açılmaz; iki ARC deposu arasında taşıma, stackleme ve sağ tıkla ayırma yaparsın.">' +
+            '<div class="arc-locker-notice-copy">' +
+                '<div class="arc-locker-panel-kicker">INVENTORY</div>' +
+                '<div class="menu-item-title">Odak: ' + esc(focusedLabel) + '</div>' +
+                '<div class="menu-item-desc">Kalıcı depo baskın dışında da sende kalır. Baskın çantası ise girişte üstüne verilecek ekipmanı tutar. ' + esc((data.transferSupport && data.transferSupport.helperText) || 'Sol tık sürükle-bırak ile stackleyebilir, sağ tık ile yığından parça ayırabilirsin.') + '</div>' +
+            '</div>' +
+            '<div class="arc-locker-toolbar">' +
+                actionBtn('Yenile', 'refreshArcLockers', { focusSide: focusSide }, 'İki ARC deposundaki listeyi yeniden yükle.') +
+                actionBtn(nextFocusLabel + ' Odağına Geç', 'swapArcLockerFocus', { focusSide: nextFocus }, 'Üstte görünen depo bölümünü değiştir.') +
+            '</div>' +
+        '</div>' +
+        '<div class="arc-locker-layout">' +
+            renderArcMainLockerPanel(mainSection, focusSide) +
+            renderArcLoadoutPanel(loadoutSection, focusSide) +
+        '</div>' +
+        renderArcLockerSplitDialog(data.splitDialog) +
+    '</section>';
+
+    setContent(html);
+}
+
+// ── Market ─────────────────────────────────────────────────────────────────
+function showMarket(data) {
+    data = data || {};
+    currentScreen = 'market';
+    screenData.upgrades = data.upgrades || [];
+    setBreadcrumb('Operasyon Menüsü / Market');
+    setHudState({
+        health: 82,
+        radiation: 27,
+        inventoryPct: 58,
+        inventoryText: '03/06',
+        signal: 90,
+        signalText: 'TEDARIK',
+        briefTitle: 'Saha Marketi',
+        briefText: 'Güçlendirmeleri satın al ve bir sonraki çatışma için avantaj kazan.',
+        briefTag: 'PAZAR',
+        progress: 68,
+        slotsFilled: 3
+    });
+
+    var html = backBtn();
+    html += '<div class="section-header"><div class="section-title">&#128722; Güçlendirmeler</div></div>';
+
+    if (screenData.upgrades.length === 0) {
+        html += emptyState('&#127978;', 'Satın alınabilir güçlendirme bulunamadı.');
+        setContent(html);
+        return;
+    }
+
+    for (var i = 0; i < screenData.upgrades.length; i++) {
+        var upg = screenData.upgrades[i];
+        var power = clamp(35 + (i * 14), 18, 96);
+        html += '<div class="card" data-tip="' + esc((upg.label || 'Yükseltme') + ': kredi kullanarak kalıcı saha desteği sağlar.') + '">' +
+            '<div class="card-header">' +
+                '<div class="card-title">' + esc(upg.label) + '</div>' +
+                '<div class="price-tag">$' + fmtNum(upg.price) + '</div>' +
+            '</div>' +
+            '<div class="card-desc">Satın alındığında takımına doğrudan saha avantajı sağlar.</div>' +
+            screenMeter('Etkililik', power) +
+            '<div class="card-footer"><span class="menu-item-badge price">Kredi</span>' +
+                '<button class="btn btn-primary" type="button" onclick="buyUpgrade(' + i + ')">&#128176; Satin Al</button>' +
+            '</div>' +
+        '</div>';
+    }
+
+    setContent(html);
+}
+
+function buyUpgrade(idx) {
+    sendAction('buyUpgrade', screenData.upgrades[idx]);
+}
+
+var ARC_CRAFT_CATEGORIES = [
+    { key: 'ammo', label: 'Mermi Craft Yeri', icon: '&#128165;', description: 'Şarjör ve baskın boyunca harcayacağın cephane paketleri burada hazırlanır.' },
+    { key: 'weapon', label: 'Silah Craft Yeri', icon: '&#128299;', description: 'Blueprint ve ağır parçaları birleştirerek operasyon silahlarını üret.' },
+    { key: 'health', label: 'Sağlık Eşyaları Craft Yeri', icon: '&#10010;', description: 'Bandaj, medikal kit ve hayatta kalma desteklerini ayrı bölümde takip et.' },
+    { key: 'material', label: 'Malzeme Craft Yeri', icon: '&#128736;', description: 'Tamir ve yardımcı saha ekipmanları için gereken parçaları burada yönet.' }
+];
+var CRAFT_READY_METER_VALUE = 94;
+var CRAFT_METER_BASE_VALUE = 36;
+var CRAFT_METER_INCREMENT = 9;
+var CRAFT_METER_MIN = 18;
+var CRAFT_METER_MAX = 82;
+
+function getCraftOwnedText(requirement, isArcCraft) {
+    var ownedAmount = Number((requirement && requirement.ownedAmount) || 0);
+    var neededAmount = Number((requirement && requirement.amount) || 0);
+    return (isArcCraft ? 'Depoda: ' : 'Sende: ') + ownedAmount + '/' + neededAmount;
+}
+
+function renderCraftRequirementList(recipe, isArcCraft) {
+    if (!recipe.requirements || recipe.requirements.length === 0) return '';
+
+    var reqs = '<div class="requirements"><div class="req-title">Gereken Parçalar</div><div class="req-chips">';
+    for (var j = 0; j < recipe.requirements.length; j++) {
+        var requirement = recipe.requirements[j] || {};
+        reqs += '<span class="req-chip' + (requirement.isMet ? ' is-met' : ' is-missing') + '">' +
+            '<span class="req-chip-main">' +
+                '<span class="req-chip-amount">x' + esc(String(requirement.amount || 0)) + '</span>' +
+                '<span class="req-chip-name">' + esc(requirement.itemLabel || requirement.item || 'Parça') + '</span>' +
+            '</span>' +
+            '<span class="req-chip-owned">' + esc(getCraftOwnedText(requirement, isArcCraft)) + '</span>' +
+        '</span>';
+    }
+
+    return reqs + '</div></div>';
+}
+
+function renderCraftCard(recipe, recipeIndex, isArcCraft) {
+    var meterValue = recipe.ready
+        ? CRAFT_READY_METER_VALUE
+        : clamp(CRAFT_METER_BASE_VALUE + (recipeIndex * CRAFT_METER_INCREMENT), CRAFT_METER_MIN, CRAFT_METER_MAX);
+    return '<div class="card" data-tip="' + esc((recipe.label || recipe.header || 'Tarif') + ': gerekli malzemeler tamamlandığında üretilebilir.') + '">' +
+        '<div class="card-header">' +
+            '<div class="card-title">' + esc(recipe.header || recipe.label) + '</div>' +
+            '<span class="menu-item-badge">x' + esc(String(recipe.amount || 0)) + '</span>' +
+        '</div>' +
+        (recipe.txt ? '<div class="card-desc">' + esc(recipe.txt) + '</div>' : '<div class="card-desc">Saha kullanımı için hızlıca hazırlanabilen ekipman paketi.</div>') +
+        screenMeter(recipe.ready ? 'Hazır' : 'Eksik Parça', meterValue) +
+        renderCraftRequirementList(recipe, isArcCraft) +
+        '<div class="card-footer"><span class="menu-item-badge' + (recipe.ready ? ' ok' : ' warn') + '">' + esc(recipe.ready ? 'HAZIR' : 'EKSİK') + '</span>' +
+            '<button class="btn btn-primary btn-craft-action" type="button" onclick="craftItem(' + recipeIndex + ')">&#9878; Üret / Birleştir</button>' +
+        '</div>' +
+    '</div>';
+}
+
+function renderArcCraftSections(recipes) {
+    var groups = {};
+    var html = '';
+
+    for (var i = 0; i < recipes.length; i++) {
+        var categoryKey = (recipes[i] && recipes[i].category) || 'material';
+        if (!groups[categoryKey]) groups[categoryKey] = [];
+        groups[categoryKey].push({ recipe: recipes[i], index: i });
+    }
+
+    for (var j = 0; j < ARC_CRAFT_CATEGORIES.length; j++) {
+        var category = ARC_CRAFT_CATEGORIES[j];
+        var entries = groups[category.key] || [];
+
+        html += '<div class="craft-category-block">' +
+            '<div class="craft-category-header">' +
+                '<div class="craft-category-title-wrap">' +
+                    '<div class="craft-category-kicker">ARC ATÖLYESİ</div>' +
+                    '<div class="craft-category-title">' + category.icon + ' ' + esc(category.label) + '</div>' +
+                '</div>' +
+                '<div class="craft-category-count">' + esc(String(entries.length)) + ' tarif</div>' +
+            '</div>' +
+            '<div class="craft-category-desc">' + esc(category.description) + '</div>';
+
+        if (entries.length === 0) {
+            html += '<div class="craft-category-empty">Bu bölüm için tanımlı tarif bulunmuyor.</div>';
+        } else {
+            for (var k = 0; k < entries.length; k++) {
+                html += renderCraftCard(entries[k].recipe, entries[k].index, true);
+            }
+        }
+
+        html += '</div>';
+    }
+
+    return html;
+}
+
+function closeCraftQuantityDialog(skipRender) {
+    screenData.craftDialog = null;
+    if (!skipRender) {
+        renderCraftScreen();
+    }
+}
+
+function normalizeCraftQuantity(rawValue, fallbackValue, maxAmount) {
+    if (Number(maxAmount || 0) < 1) return 0;
+    var nextRawValue = (rawValue == null || rawValue === '') ? fallbackValue : rawValue;
+    var parsedValue = Number(nextRawValue);
+    if (!isFinite(parsedValue)) {
+        parsedValue = Number(fallbackValue);
+    }
+    return clamp(
+        Math.floor(parsedValue || 1),
+        1,
+        Number(maxAmount || 1)
+    );
+}
+
+function syncCraftQuantityInputs(source) {
+    var dialogState = screenData.craftDialog;
+    if (!dialogState) return;
+
+    var nextValue = normalizeCraftQuantity(source && source.value, dialogState.amount || 1, dialogState.maxAmount);
+    dialogState.amount = nextValue;
+
+    var rangeInput = document.getElementById('craft-quantity-range');
+    var numberInput = document.getElementById('craft-quantity-input');
+    var craftCount = document.getElementById('craft-quantity-count');
+    var totalOutput = document.getElementById('craft-total-output');
+
+    if (rangeInput && rangeInput !== source) rangeInput.value = String(nextValue);
+    if (numberInput && numberInput !== source) numberInput.value = String(nextValue);
+    if (craftCount) craftCount.textContent = 'Üretim adedi: x' + String(nextValue);
+    if (totalOutput) totalOutput.textContent = 'Toplam çıktı: x' + String(nextValue * dialogState.outputAmount);
+}
+
+function renderCraftQuantityDialog(dialogState) {
+    if (!dialogState) return '';
+
+    var helperText = dialogState.maxAmount > 0
+        ? 'Bu tariften şu an en fazla ' + dialogState.maxAmount + ' kez üretebilirsin. Her üretimde x' + dialogState.outputAmount + ' gelir.'
+        : 'Bu tarif için yeterli malzemen yok. Gerekli parçaları tamamladıktan sonra üretim adedini seçebilirsin.';
+    var controlsHtml = dialogState.maxAmount > 0
+        ? '<div class="arc-split-amount-row">' +
+            '<input id="craft-quantity-range" class="arc-split-range" type="range" min="1" max="' + esc(dialogState.maxAmount) + '" value="' + esc(dialogState.amount) + '" aria-label="Üretim adedi kaydırıcısı" oninput="syncCraftQuantityInputs(this)">' +
+            '<input id="craft-quantity-input" class="arc-split-input" type="number" min="1" max="' + esc(dialogState.maxAmount) + '" value="' + esc(dialogState.amount) + '" aria-label="Üretim adedi" oninput="syncCraftQuantityInputs(this)">' +
+        '</div>' +
+        '<div class="arc-split-counts">' +
+            '<span id="craft-quantity-count">Üretim adedi: x' + esc(dialogState.amount) + '</span>' +
+            '<span id="craft-total-output">Toplam çıktı: x' + esc(dialogState.amount * dialogState.outputAmount) + '</span>' +
+        '</div>'
+        : '<div class="craft-quantity-empty">Maksimum üretim: x0</div>';
+
+    return '<div class="arc-split-overlay" data-tip="Kaç kez üreteceğini seçerek toplam çıktıyı anında görebilirsin." title="Kaç kez üreteceğini seçerek toplam çıktıyı anında görebilirsin.">' +
+        '<div class="dialog-card arc-split-dialog" role="dialog" aria-modal="true" aria-labelledby="craft-quantity-dialog-title" aria-describedby="craft-quantity-dialog-text">' +
+            '<div class="dialog-icon">&#128296;</div>' +
+            '<div id="craft-quantity-dialog-title" class="dialog-title">Üretim Miktarı</div>' +
+            '<div id="craft-quantity-dialog-text" class="dialog-text">' + esc(dialogState.recipeName) + ' için miktarı seç. ' + esc(helperText) + '</div>' +
+            controlsHtml +
+            '<div class="craft-quantity-max">Maksimum toplam çıktı: x' + esc(dialogState.maxAmount * dialogState.outputAmount) + '</div>' +
+            '<div class="dialog-buttons">' +
+                '<button class="btn" type="button" onclick="closeCraftQuantityDialog()">İptal</button>' +
+                '<button class="btn btn-primary" type="button"' + (dialogState.maxAmount > 0 ? ' onclick="confirmCraftItem()"' : ' disabled aria-disabled="true"') + '>Üretimi Başlat</button>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
+}
+
+function renderCraftScreen() {
+    var isArcCraft = screenData.craftSource.key === 'arc_main' || screenData.craftSource.key === 'arc_loadout';
+    setBreadcrumb(isArcCraft ? 'Operasyon Menüsü / ARC Atölyesi' : 'Operasyon Menüsü / Atölye');
+    setHudState({
+        health: 78,
+        radiation: 18,
+        inventoryPct: 74,
+        inventoryText: '05/06',
+        signal: 82,
+        signalText: 'ATÖLYE',
+        briefTitle: isArcCraft ? 'ARC Atölyesi Hazır' : 'Atölye Hazır',
+        briefText: isArcCraft
+            ? 'Kalıcı depodaki lootları kullan, operasyon öncesi ekipmanını craft et ve sonucu aynı depoda sakla.'
+            : 'Tarifleri incele, parçaları topla ve ekipmanını atölyede birleştir.',
+        briefTag: isArcCraft ? 'ARC' : 'ATÖLYE',
+        progress: 72,
+        slotsFilled: 5
+    });
+
+    var html = backBtn();
+    html += '<div class="section-header"><div class="section-title">&#128296; ' + esc(isArcCraft ? 'ARC Atölye Tarifleri' : 'Atölye Tarifleri') + '</div></div>';
+
+    if (screenData.craftSource.label) {
+        html += '<div class="arc-locker-notice" data-tip="' + esc(screenData.craftSource.helperText || 'Seçilen ARC deposundaki lootlar craft için kullanılacak.') + '">' +
+            '<div class="menu-item-icon">&#128451;</div>' +
+            '<div class="menu-item-content">' +
+                '<div class="menu-item-title">Malzeme Kaynağı: ' + esc(screenData.craftSource.label) + '</div>' +
+                '<div class="menu-item-desc">' + esc(screenData.craftSource.helperText || 'Üretilen eşya aynı depoya geri eklenir.') + '</div>' +
+            '</div>' +
+        '</div>';
+    }
+
+    if (screenData.recipes.length === 0) {
+        html += emptyState('&#128296;', 'Atölyede birleştirilebilecek tarif bulunamadı.');
+        setContent(html);
+        return;
+    }
+
+    if (isArcCraft) {
+        html += renderArcCraftSections(screenData.recipes);
+    } else {
+        for (var i = 0; i < screenData.recipes.length; i++) {
+            html += renderCraftCard(screenData.recipes[i], i, false);
+        }
+    }
+
+    html += renderCraftQuantityDialog(screenData.craftDialog);
+    setContent(html);
+}
+
+// ── Craft ──────────────────────────────────────────────────────────────────
+function showCraft(data) {
+    data = data || {};
+    currentScreen = 'craft';
+    screenData.recipes = data.recipes || [];
+    screenData.craftSource = {
+        key: data.sourceKey || '',
+        label: data.sourceLabel || '',
+        helperText: data.helperText || ''
+    };
+    screenData.craftDialog = null;
+    renderCraftScreen();
+}
+
+function craftItem(idx) {
+    var r = screenData.recipes[idx];
+    if (!r) return;
+    var maxCraftable = Math.max(Math.floor(Number(r.maxCraftable) || 0), 0);
+    screenData.craftDialog = {
+        recipeIndex: idx,
+        recipeName: r.label || r.header || 'Tarif',
+        amount: maxCraftable > 0 ? 1 : 0,
+        maxAmount: maxCraftable,
+        outputAmount: Math.max(Math.floor(Number(r.amount) || 0), 0)
+    };
+    playUiTone(maxCraftable > 0 ? 'confirm' : 'alert');
+    renderCraftScreen();
+}
+
+function confirmCraftItem() {
+    var dialogState = screenData.craftDialog;
+    if (!dialogState) return;
+
+    var r = screenData.recipes[dialogState.recipeIndex];
+    if (!r) {
+        closeCraftQuantityDialog();
+        return;
+    }
+
+    var numberInput = document.getElementById('craft-quantity-input');
+    var requestedAmount = normalizeCraftQuantity(numberInput && numberInput.value, dialogState.amount || 1, dialogState.maxAmount);
+    if (requestedAmount < 1) {
+        pushArcNotify({
             type: 'warning',
             title: 'Üretim Başlatılamadı',
             message: 'Bu tarif için önce gerekli parçaları tamamlaman gerekiyor.',
@@ -1734,457 +2243,417 @@ function openCraftDialog(index) {
         return;
     }
 
-    state.craftDialog = {
-        index: safeNumber(index, 0),
-        amount: clamp(Math.max(1, Math.round(maxCraftable * 0.5)), 1, maxCraftable),
-        maxAmount: maxCraftable,
-        outputAmount: Math.max(1, safeNumber(recipe.amount, 1)),
-        label: recipe.label || recipe.header || 'Tarif'
-    };
-    renderModal();
-}
-
-function syncCraftDialogAmount(rawValue, source) {
-    if (!state.craftDialog) return;
-    state.craftDialog.amount = clamp(Math.floor(safeNumber(rawValue, state.craftDialog.amount)), 1, state.craftDialog.maxAmount);
-    const range = document.getElementById('craft-quantity-range');
-    const input = document.getElementById('craft-quantity-input');
-    const count = document.getElementById('craft-quantity-count');
-    const total = document.getElementById('craft-total-output');
-    if (range && range !== source) range.value = String(state.craftDialog.amount);
-    if (input && input !== source) input.value = String(state.craftDialog.amount);
-    if (count) count.textContent = 'Üretim adedi: x' + state.craftDialog.amount;
-    if (total) total.textContent = 'Toplam çıktı: x' + (state.craftDialog.amount * state.craftDialog.outputAmount);
-}
-
-function confirmCraftDialog() {
-    if (!state.craftDialog) return;
-    const dialog = state.craftDialog;
-    const recipe = state.recipes[dialog.index];
-    if (!recipe) return;
-    state.craftDialog = null;
-    renderModal();
+    dialogState.amount = requestedAmount;
+    closeCraftQuantityDialog(true);
+    playMechanicalTone('workshop');
     sendAction('craftItem', {
-        item: recipe.item,
-        amount: recipe.amount,
-        label: recipe.label || recipe.header,
-        multiplier: dialog.amount,
-        stashId: recipe.stashId
+        item:         r.item,
+        amount:       r.amount,
+        label:        r.label || r.header,
+        multiplier:   requestedAmount,
+        stashId:      r.stashId
     });
 }
 
-function openLockerSplitDialog(side, slot) {
-    if (!state.arcLockers) return;
-    const item = findLockerItem(side, slot);
-    if (!item || item.count <= 1 || item.stackable === false || item.isWeapon) {
-        pushToast({
-            type: 'info',
-            title: 'Yığın Ayrılamıyor',
-            message: 'Sağ tıkla ayırma yalnızca stacklenebilen ve adedi 1’den büyük eşyalar için kullanılabilir.',
-            duration: 3600
-        });
+// ── Stages ─────────────────────────────────────────────────────────────────
+function showStages(data) {
+    data = data || {};
+    currentScreen = 'stages';
+    screenData.stages = data.stages || [];
+    screenData.selectedModeId = data.modeId || 'classic';
+    var menuState = screenData.menuState || {};
+    var isArcMode = screenData.selectedModeId === 'arc_pvp';
+    var operatorCards = isArcMode ? [
+        {
+            label: 'KARAKTER',
+            value: menuState.playerName || 'Bilinmeyen Operatif',
+            valuePct: clamp(((menuState.playerName || 'Bilinmeyen Operatif').length || 1) * 7, 24, 100)
+        },
+        {
+            label: 'MOD',
+            value: 'ARC Baskını',
+            valuePct: 100
+        },
+        {
+            label: 'YAPI',
+            value: 'Sabit Konfigürasyon',
+            valuePct: 100
+        },
+        {
+            label: 'TAKIM',
+            value: menuState.lobbyStatus || 'Solo',
+            valuePct: menuState.hasLobby ? (menuState.isLeader ? 88 : 74) : 28
+        }
+    ] : undefined;
+    setBreadcrumb(isArcMode ? 'ARC Menüsü / Baskın Başlat' : 'Operasyon Menüsü / Bölge Seçimi');
+    setHudState({
+        operatorCards: operatorCards,
+        health: 88,
+        radiation: 39,
+        inventoryPct: 62,
+        inventoryText: '04/06',
+        signal: 94,
+        signalText: 'HEDEF',
+        briefTitle: data.modeLabel || 'Bölge Seçimi',
+        briefText: isArcMode
+            ? 'ARC baskını sabit ayarlarla başlar. Takımın hazırsa operasyona hemen çıkabilirsin.'
+            : 'Zorluk katsayılarını incele ve takımına uygun bölgeyi seç.',
+        briefTag: isArcMode ? 'ARC' : 'BÖLGE',
+        progress: 81,
+        slotsFilled: 4
+    });
+
+    var html = backBtn();
+    html += '<div class="section-header"><div class="section-title">&#128205; ' + esc(data.modeLabel || 'Bölgeler') + '</div></div>';
+
+    if (screenData.stages.length === 0) {
+        html += emptyState('&#127757;', 'Seçilebilir bölge bulunamadı.');
+        setContent(html);
         return;
     }
 
-    const maxAmount = Math.max(1, item.count - 1);
-    state.arcLockers.splitDialog = {
-        fromSide: side === 'loadout' ? 'loadout' : 'main',
-        targetSide: side === 'loadout' ? 'main' : 'loadout',
-        slot: safeNumber(slot, 0),
-        itemName: item.label,
-        totalCount: item.count,
-        maxAmount: maxAmount,
-        amount: clamp(Math.round(maxAmount * 0.5), 1, maxAmount)
-    };
-    renderModal();
-}
+    html += '<div class="stage-grid">';
+    for (var i = 0; i < screenData.stages.length; i++) {
+        var s = screenData.stages[i];
+        var cardClass = 'stage-card' + (s.locked ? ' locked' : '');
+        var actionText = s.locked ? 'Kilitli' : (isArcMode ? 'Baskını Başlat' : 'Operasyonu Başlat');
+        var difficulty = isArcMode ? 'Sabit Konfigürasyon' : (s.multiplier >= 1.5 ? 'Yüksek Risk' : s.multiplier >= 1.2 ? 'Orta Risk' : 'Düşük Risk');
+        var tipText = s.locked
+            ? (s.label + ': bu bölge kilitli ve seçilemez.')
+            : (isArcMode
+                ? (s.label + ': sabit ARC ayarlarıyla hemen başlatılır.')
+                : (s.label + ': seçildiğinde operasyon x' + s.multiplier + ' zorluk çarpanı ile başlar.'));
 
-function syncLockerSplitAmount(rawValue, source) {
-    const dialog = state.arcLockers && state.arcLockers.splitDialog;
-    if (!dialog) return;
-    dialog.amount = clamp(Math.floor(safeNumber(rawValue, dialog.amount)), 1, dialog.maxAmount);
-    const range = document.getElementById('locker-split-range');
-    const input = document.getElementById('locker-split-input');
-    const sourceCount = document.getElementById('locker-split-source-count');
-    const targetCount = document.getElementById('locker-split-target-count');
-    if (range && range !== source) range.value = String(dialog.amount);
-    if (input && input !== source) input.value = String(dialog.amount);
-    if (sourceCount) sourceCount.textContent = 'Kaynakta kalacak: x' + Math.max(dialog.totalCount - dialog.amount, 0);
-    if (targetCount) targetCount.textContent = 'Taşınacak: x' + dialog.amount;
-}
-
-function confirmLockerSplitDialog() {
-    const dialog = state.arcLockers && state.arcLockers.splitDialog;
-    if (!dialog || !state.arcLockers) return;
-    state.arcLockers.splitDialog = null;
-    renderModal();
-    sendAction('moveArcLockerItem', {
-        fromSide: dialog.fromSide,
-        slot: dialog.slot,
-        focusSide: state.arcLockers.focusSide,
-        toSide: dialog.targetSide,
-        targetSlot: null,
-        requestedAmount: dialog.amount
-    });
-}
-
-function findLockerItem(side, slot) {
-    if (!state.arcLockers) return null;
-    const section = side === 'loadout' ? state.arcLockers.loadout : state.arcLockers.main;
-    return safeArray(section && section.items).find(function (item) {
-        return Number(item.slot) === Number(slot);
-    }) || null;
-}
-
-function renderModal() {
-    let html = '';
-    if (state.craftDialog) html = renderCraftDialog();
-    else if (state.arcLockers && state.arcLockers.splitDialog) html = renderLockerSplitDialog();
-    else if (state.confirmDialog) html = renderConfirmDialog();
-
-    ui.modalRoot.innerHTML = html;
-    ui.modalRoot.classList.toggle('hidden', !html);
-    ui.modalRoot.setAttribute('aria-hidden', html ? 'false' : 'true');
-}
-
-function renderConfirmDialog() {
-    const dialog = state.confirmDialog || {};
-    return '' +
-        '<article class="modal" role="dialog" aria-modal="true">' +
-            '<div class="modal__header">' +
-                '<div><p class="ui-overline">Onay</p><h3 class="modal__title">' + esc(dialog.title || 'Emin misin?') + '</h3></div>' +
-                '<span class="ui-badge ' + (dialog.tone === 'danger' ? 'ui-badge--danger' : 'ui-badge--primary') + '">Onay</span>' +
-            '</div>' +
-            '<div class="modal__content"><p class="modal__text">' + esc(dialog.text || '') + '</p></div>' +
-            '<div class="modal__actions">' +
-                button('Vazgeç', 'confirm-cancel', {}, 'ghost') +
-                button(dialog.confirmLabel || 'Onayla', dialog.confirmAction || 'noop', dialog.payload || {}, dialog.tone === 'danger' ? 'danger' : 'primary') +
-            '</div>' +
-        '</article>';
-}
-
-function renderCraftDialog() {
-    const dialog = state.craftDialog;
-    return '' +
-        '<article class="modal" role="dialog" aria-modal="true">' +
-            '<div class="modal__header">' +
-                '<div><p class="ui-overline">Üretim</p><h3 class="modal__title">' + esc(dialog.label) + '</h3></div>' +
-                '<span class="ui-badge ui-badge--primary">x' + esc(dialog.outputAmount) + ' çıktı</span>' +
-            '</div>' +
-            '<div class="modal__content">' +
-                '<p class="modal__text">Bu tariften şu an en fazla ' + esc(dialog.maxAmount) + ' kez üretebilirsin.</p>' +
-                '<div class="dialog-stats">' +
-                    '<div class="dialog-stats__item"><span class="status-grid__label">Maksimum</span><strong class="status-grid__value">x' + esc(dialog.maxAmount) + '</strong></div>' +
-                    '<div class="dialog-stats__item"><span class="status-grid__label">Toplam Çıktı</span><strong id="craft-total-output" class="status-grid__value">x' + esc(dialog.amount * dialog.outputAmount) + '</strong></div>' +
+        if (s.locked) {
+            html += '<div class="' + cardClass + '" style="' + stageCardArt(s, i) + '" data-tip="' + esc(tipText) + '">' +
+                '<div class="stage-card-inner">' +
+                    '<div class="stage-card-top"><span class="stage-chip locked">&#128274; Kilitli</span><span class="stage-chip">x' + s.multiplier + '</span></div>' +
+                    '<div><div class="stage-card-title">' + esc(s.label) + '</div><div class="stage-card-desc">Bu bölge henüz kullanıma açık değil.</div></div>' +
+                    '<div class="stage-card-footer"><span class="stage-chip muted">' + difficulty + '</span><span class="stage-action disabled">' + actionText + '</span></div>' +
                 '</div>' +
-                '<input id="craft-quantity-range" class="ui-range" type="range" min="1" max="' + escAttr(dialog.maxAmount) + '" value="' + escAttr(dialog.amount) + '">' +
-                '<input id="craft-quantity-input" class="ui-number" type="number" min="1" max="' + escAttr(dialog.maxAmount) + '" value="' + escAttr(dialog.amount) + '">' +
-                '<div id="craft-quantity-count" class="ui-card__text">Üretim adedi: x' + esc(dialog.amount) + '</div>' +
-            '</div>' +
-            '<div class="modal__actions">' +
-                button('İptal', 'craft-cancel', {}, 'ghost') +
-                button('Üretimi Başlat', 'craft-confirm', {}, 'primary') +
-            '</div>' +
-        '</article>';
-}
-
-function renderLockerSplitDialog() {
-    const dialog = state.arcLockers.splitDialog;
-    return '' +
-        '<article class="modal" role="dialog" aria-modal="true">' +
-            '<div class="modal__header">' +
-                '<div><p class="ui-overline">Yığın Ayır</p><h3 class="modal__title">' + esc(dialog.itemName) + '</h3></div>' +
-                '<span class="ui-badge ui-badge--warning">Split</span>' +
-            '</div>' +
-            '<div class="modal__content">' +
-                '<p class="modal__text">Bu yığından kaç adet ' + esc(dialog.targetSide === 'loadout' ? 'Baskın Çantası' : 'Kalıcı Depo') + ' tarafına taşınsın?</p>' +
-                '<div class="dialog-stats">' +
-                    '<div class="dialog-stats__item"><span class="status-grid__label">Toplam</span><strong class="status-grid__value">x' + esc(dialog.totalCount) + '</strong></div>' +
-                    '<div class="dialog-stats__item"><span class="status-grid__label">Taşınacak</span><strong id="locker-split-target-count" class="status-grid__value">x' + esc(dialog.amount) + '</strong></div>' +
-                    '<div class="dialog-stats__item"><span class="status-grid__label">Kaynakta Kalacak</span><strong id="locker-split-source-count" class="status-grid__value">x' + esc(Math.max(dialog.totalCount - dialog.amount, 0)) + '</strong></div>' +
+            '</div>';
+        } else {
+            var stageDesc = isArcMode
+                ? 'ARC baskını tek sabit kuralla çalışır; takım hazırsa operasyona çık.'
+                : 'Harita brifingini incele, takımın hazırsa operasyonu başlat.';
+            html += '<button class="' + cardClass + '" type="button" onclick="selectStage(' + i + ')" style="' + stageCardArt(s, i) + '" data-tip="' + esc(tipText) + '">' +
+                '<div class="stage-card-inner">' +
+                    '<div class="stage-card-top"><span class="stage-chip">&#128205; ' + (isArcMode ? 'ARC' : 'Harita') + '</span><span class="stage-chip">' + (isArcMode ? 'SABİT' : ('x' + s.multiplier)) + '</span></div>' +
+                    '<div><div class="stage-card-title">' + esc(s.label) + '</div><div class="stage-card-desc">' + stageDesc + '</div></div>' +
+                    '<div class="stage-card-footer"><span class="stage-chip muted">' + difficulty + '</span><span class="stage-action">' + actionText + '</span></div>' +
                 '</div>' +
-                '<input id="locker-split-range" class="ui-range" type="range" min="1" max="' + escAttr(dialog.maxAmount) + '" value="' + escAttr(dialog.amount) + '">' +
-                '<input id="locker-split-input" class="ui-number" type="number" min="1" max="' + escAttr(dialog.maxAmount) + '" value="' + escAttr(dialog.amount) + '">' +
-            '</div>' +
-            '<div class="modal__actions">' +
-                button('İptal', 'locker-split-cancel', {}, 'ghost') +
-                button('Ayır ve Taşı', 'locker-split-confirm', {}, 'primary') +
-            '</div>' +
-        '</article>';
-}
-
-function handleDragStart(event) {
-    const card = event.target.closest('.locker-item');
-    if (!card) return;
-    const payload = {
-        fromSide: card.getAttribute('data-locker-side'),
-        slot: Number(card.getAttribute('data-locker-slot')) || 0
-    };
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', JSON.stringify(payload));
-}
-
-function handleDragOver(event) {
-    const target = event.target.closest('[data-locker-drop-side], .locker-item');
-    if (!target) return;
-    event.preventDefault();
-    clearDropTargets();
-    target.classList.add('is-drop-target');
-}
-
-function handleDragLeave(event) {
-    const target = event.target.closest('.is-drop-target');
-    if (!target) return;
-    if (event.relatedTarget && target.contains(event.relatedTarget)) return;
-    target.classList.remove('is-drop-target');
-}
-
-function handleDrop(event) {
-    const targetItem = event.target.closest('.locker-item');
-    const targetPanel = event.target.closest('[data-locker-drop-side]');
-    if (!targetItem && !targetPanel) return;
-    event.preventDefault();
-    clearDropTargets();
-
-    const raw = event.dataTransfer.getData('text/plain');
-    if (!raw || !state.arcLockers) return;
-
-    let payload = null;
-    try {
-        payload = JSON.parse(raw);
-    } catch (error) {
-        console.warn('[gs-survival-ui] Invalid drag payload:', error);
-        return;
+            '</button>';
+        }
     }
+    html += '</div>';
 
-    if (!payload || !payload.fromSide || !payload.slot) return;
+    setContent(html);
+}
 
-    sendAction('moveArcLockerItem', {
-        fromSide: payload.fromSide,
-        slot: payload.slot,
-        focusSide: state.arcLockers.focusSide,
-        toSide: targetItem ? targetItem.getAttribute('data-locker-side') : targetPanel.getAttribute('data-locker-drop-side'),
-        targetSlot: targetItem ? Number(targetItem.getAttribute('data-locker-slot')) || null : null,
-        requestedAmount: null
+function selectStage(idx) {
+    sendAction('selectStage', {
+        stageId: screenData.stages[idx].id,
+        modeId: screenData.selectedModeId || 'classic'
     });
 }
 
-function handleContextMenu(event) {
-    const card = event.target.closest('.locker-item');
-    if (!card) return;
-    event.preventDefault();
-    openLockerSplitDialog(card.getAttribute('data-locker-side'), card.getAttribute('data-locker-slot'));
-}
-
-function clearDropTargets() {
-    document.querySelectorAll('.is-drop-target').forEach(function (element) {
-        element.classList.remove('is-drop-target');
+// ── Invite Players ─────────────────────────────────────────────────────────
+function showInvite(data) {
+    data = data || {};
+    currentScreen = 'invite';
+    screenData.players = data.players || [];
+    setBreadcrumb('Operasyon Menüsü / Davet');
+    setHudState({
+        health: 73,
+        radiation: 24,
+        inventoryPct: 48,
+        inventoryText: '03/06',
+        signal: 88,
+        signalText: 'TARAMA',
+        briefTitle: 'Yakındaki Oyuncular',
+        briefText: 'Yakındaki oyuncuları seçerek takım daveti gönder.',
+        briefTag: 'DAVET',
+        progress: 63,
+        slotsFilled: 3
     });
-}
 
-function splitArcLine(text) {
-    const value = safeString(text).trim();
-    const separator = value.indexOf(':');
-    if (separator === -1) return { label: 'ARC', value: value || '-' };
-    return {
-        label: value.slice(0, separator).trim() || 'ARC',
-        value: value.slice(separator + 1).trim() || '-'
-    };
-}
+    var html = backBtn();
+    html += '<div class="section-header"><div class="section-title">&#129309; Yakındaki Oyuncular</div></div>';
 
-function getTeamStatus(member) {
-    if (member && member.isSelf) return STRINGS.teamStatus.self;
-    if (member && member.isAlive === false) return STRINGS.teamStatus.down;
-    return STRINGS.teamStatus.online;
-}
-
-function renderOverlays() {
-    renderBanner();
-    renderProgress();
-    renderBarricade();
-    renderArcInfo();
-    renderArcTeam();
-    syncOverlayVisibility();
-}
-
-function renderBanner() {
-    const banner = state.arcBanner;
-    const visible = banner.visible === true && safeString(banner.title).trim().length > 0;
-    ui.banner.classList.toggle('hidden', !visible);
-    ui.bannerLabel.textContent = banner.label || STRINGS.banner.label;
-    ui.bannerTitle.textContent = banner.title || STRINGS.banner.title;
-}
-
-function renderProgress() {
-    const progress = state.arcProgress;
-    ui.progressCard.classList.toggle('hidden', progress.visible !== true);
-    ui.progressTitle.textContent = progress.title || STRINGS.progress.title;
-    ui.progressLabel.textContent = progress.label || STRINGS.progress.label;
-    ui.progressCancel.textContent = progress.canCancel === false ? STRINGS.progress.locked : STRINGS.progress.cancel;
-    updateProgressVisuals(Date.now());
-}
-
-function renderBarricade() {
-    const card = state.arcBarricadePlacement;
-    ui.barricadeCard.classList.toggle('hidden', card.visible !== true);
-    ui.barricadeTitle.textContent = card.title || STRINGS.barricade.title;
-    ui.barricadeControls.innerHTML = safeArray(card.controls).map(function (control) {
-        return '<div class="overlay-placement__control"><span>' + esc(control.key || '-') + '</span><strong>' + esc(control.action || '') + '</strong></div>';
-    }).join('');
-}
-
-function renderArcInfo() {
-    const hud = state.arcHud;
-    const lines = safeArray(hud.lines);
-    const hasPrompt = safeString(hud.prompt).trim().length > 0;
-    const visible = hud.enabled === true && hud.showInfo === true && (safeString(hud.title).trim() || safeString(hud.subtitle).trim() || lines.length > 0 || hasPrompt);
-    ui.infoPanel.classList.toggle('hidden', !visible);
-    ui.infoTitle.textContent = hud.title || 'ARC Operasyonu';
-    ui.infoSubtitle.textContent = hud.subtitle || 'Saha telemetrisi';
-    ui.infoLines.innerHTML = lines.map(function (line) {
-        const parsed = splitArcLine(line);
-        return '<div class="overlay-panel__line"><span>' + esc(parsed.label) + '</span><strong>' + esc(parsed.value) + '</strong></div>';
-    }).join('');
-    ui.infoPrompt.textContent = hud.prompt || '';
-    ui.infoPrompt.classList.toggle('hidden', !hasPrompt);
-}
-
-function renderArcTeam() {
-    const members = safeArray(state.arcHud.teamMembers);
-    const visible = state.arcHud.enabled === true && members.length > 0;
-    ui.teamPanel.classList.toggle('hidden', !visible);
-    ui.teamCount.textContent = describeCount(members.length, 'üye', 'üye').toUpperCase();
-    ui.teamMembers.innerHTML = members.map(function (member) {
-        const status = getTeamStatus(member);
-        const classes = ['overlay-team__member'];
-        if (status === STRINGS.teamStatus.self) classes.push('is-self');
-        if (status === STRINGS.teamStatus.down) classes.push('is-down');
-        return '<div class="' + classes.join(' ') + '"><span>' + esc(member.name || 'Bilinmeyen Operatör') + '</span><strong>' + esc(status.badge) + '</strong></div>';
-    }).join('');
-}
-
-function syncOverlayVisibility() {
-    const hasToasts = ui.notifyStack.children.length > 0;
-    const visible = !ui.banner.classList.contains('hidden') ||
-        !ui.progressCard.classList.contains('hidden') ||
-        !ui.barricadeCard.classList.contains('hidden') ||
-        !ui.infoPanel.classList.contains('hidden') ||
-        !ui.teamPanel.classList.contains('hidden') ||
-        hasToasts;
-    ui.overlayRoot.classList.toggle('hidden', !visible);
-    ui.overlayRoot.setAttribute('aria-hidden', visible ? 'false' : 'true');
-}
-
-function normalizeNotifyType(type) {
-    const value = safeString(type, 'info').toLowerCase();
-    return STRINGS.notifyTitle[value] ? value : 'info';
-}
-
-function pushToast(data) {
-    const type = normalizeNotifyType(data.type);
-    const title = safeString(data.title, STRINGS.notifyTitle[type]);
-    const message = safeString(data.message, '');
-    const toast = document.createElement('div');
-    toast.className = 'overlay-toast overlay-toast--' + type;
-    toast.innerHTML = '<div class="overlay-toast__title">' + esc(title) + '</div><div class="overlay-toast__message">' + esc(message) + '</div>';
-    ui.notifyStack.appendChild(toast);
-    syncOverlayVisibility();
-
-    const timeout = setTimeout(function () {
-        notifyTimers = notifyTimers.filter(function (id) {
-            return id !== timeout;
-        });
-        toast.classList.add('is-leaving');
-        setTimeout(function () {
-            if (toast.parentNode) toast.parentNode.removeChild(toast);
-            syncOverlayVisibility();
-        }, 300);
-    }, clamp(safeNumber(data.duration, LIMITS.notifyDefault), LIMITS.notifyMin, LIMITS.notifyMax));
-
-    notifyTimers.push(timeout);
-}
-
-function showBanner(data) {
-    clearBanner(true);
-    state.arcBanner = {
-        visible: true,
-        label: safeString(data.label, STRINGS.banner.label),
-        title: safeString(data.title, STRINGS.banner.title),
-        duration: clamp(safeNumber(data.duration, LIMITS.bannerDefault), LIMITS.bannerMin, LIMITS.bannerMax),
-        transition: data.transition === true
-    };
-    renderOverlays();
-    bannerTimer = setTimeout(function () {
-        clearBanner();
-    }, state.arcBanner.duration);
-}
-
-function clearBanner(skipRender) {
-    clearTimeout(bannerTimer);
-    bannerTimer = null;
-    state.arcBanner = getDefaultArcBannerState();
-    if (!skipRender) renderOverlays();
-}
-
-function showProgress(data) {
-    cancelAnimationFrame(progressFrame);
-    state.arcProgress = {
-        visible: true,
-        id: safeNumber(data.id, 0),
-        title: safeString(data.title, STRINGS.progress.title),
-        label: safeString(data.label, STRINGS.progress.label),
-        duration: clamp(safeNumber(data.duration, LIMITS.progressMin), LIMITS.progressMin, LIMITS.progressMax),
-        canCancel: data.canCancel !== false,
-        startedAt: Date.now(),
-        completedNotified: false
-    };
-    renderOverlays();
-    tickProgress();
-}
-
-function clearProgress() {
-    cancelAnimationFrame(progressFrame);
-    progressFrame = null;
-    state.arcProgress = getDefaultArcProgressState();
-    renderOverlays();
-}
-
-function updateProgressVisuals(now) {
-    const progress = state.arcProgress;
-    let percent = 0;
-    if (progress.visible === true && progress.duration > 0) {
-        percent = clamp(((now - progress.startedAt) / progress.duration) * 100, 0, 100);
-    }
-    ui.progressFill.style.width = percent + '%';
-    ui.progressPercent.textContent = Math.round(percent) + '%';
-}
-
-function tickProgress() {
-    cancelAnimationFrame(progressFrame);
-    updateProgressVisuals(Date.now());
-    if (state.arcProgress.visible !== true) return;
-    if ((Date.now() - state.arcProgress.startedAt) < state.arcProgress.duration) {
-        progressFrame = requestAnimationFrame(tickProgress);
+    if (screenData.players.length === 0) {
+        html += emptyState('&#128123;', 'Davet edilebilecek oyuncu bulunamadı.');
+        setContent(html);
         return;
     }
-    if (state.arcProgress.completedNotified !== true) {
-        state.arcProgress.completedNotified = true;
-        sendAction('arcProgressComplete', { id: state.arcProgress.id });
+
+    for (var i = 0; i < screenData.players.length; i++) {
+        var p = screenData.players[i];
+        html += '<div class="player-item" data-tip="' + esc(p.name + ' (ID ' + p.id + '): takım daveti gönderebilirsin.') + '">' +
+            '<div>' +
+                '<div class="player-name">&#127918; ' + esc(p.name) + '</div>' +
+                '<div class="player-id">ID: ' + p.id + ' · Yakında</div>' +
+            '</div>' +
+            '<button class="btn btn-primary" type="button" onclick="invitePlayer(' + i + ')">&#10133; Davet Et</button>' +
+        '</div>';
     }
+
+    setContent(html);
 }
 
-function clearArcHudState() {
-    state.arcHud = getDefaultArcHudState();
-    state.arcBarricadePlacement = getDefaultArcBarricadeState();
-    state.arcProgress = getDefaultArcProgressState();
-    clearBanner(true);
-    cancelAnimationFrame(progressFrame);
-    progressFrame = null;
-    notifyTimers.forEach(clearTimeout);
-    notifyTimers = [];
-    ui.notifyStack.innerHTML = '';
-    renderOverlays();
+function invitePlayer(idx) {
+    var p = screenData.players[idx];
+    sendAction('invitePlayer', { playerId: p.id, name: p.name });
 }
 
-renderCurrentView();
-renderOverlays();
+function showCreateLobbySetup() {
+    currentScreen = 'create-lobby';
+    setBreadcrumb('Operasyon Menüsü / Lobi Görünürlüğü');
+    setHudState({
+        briefTitle: 'Lobi Görünürlüğü',
+        briefText: 'Lobi türünü seç. Kurulum tamamlanınca ana ekrana dönersin.',
+        briefTag: 'TAKIM',
+        progress: 58,
+        slotsFilled: 3
+    });
+
+    setContent(
+        backBtn() +
+        '<section class="lobby-setup-shell">' +
+            '<div class="lobby-setup-hero">' +
+                '<div class="lobby-setup-kicker">TAKIM KURULUMU</div>' +
+                '<div class="lobby-setup-title">&#127968; Lobi Görünürlüğünü Seç</div>' +
+                '<div class="lobby-setup-text">Herkese açık lobi listede görünür ve isteyen oyuncular doğrudan katılabilir. Özel lobi ise sadece senin davet ettiklerin için açıktır.</div>' +
+                '<div class="lobby-setup-chips">' +
+                    '<span class="lobby-setup-chip">&#128101; En fazla ' + esc(String(MAX_LOBBY_SIZE)) + ' oyuncu</span>' +
+                    '<span class="lobby-setup-chip">&#9201; Seçimden sonra ana ekrana dönersin</span>' +
+                '</div>' +
+            '</div>' +
+            '<div class="lobby-visibility-grid">' +
+                '<button class="btn lobby-visibility-option is-public" type="button" onclick="createLobbyWithVisibility(true)">' +
+                    '<span class="lobby-visibility-badge">Önerilen</span>' +
+                    '<div class="lobby-visibility-icon">&#127758;</div>' +
+                    '<strong>Herkese Açık</strong>' +
+                    '<span>Aktif lobi listesinde görünür. Boş slot varsa oyuncular doğrudan takımına katılabilir.</span>' +
+                    '<div class="lobby-visibility-points">' +
+                        '<span>&#10003; Daha hızlı takım doldurma</span>' +
+                        '<span>&#10003; Liste üzerinden katılım açık</span>' +
+                        '<span>&#10003; Sonra yine oyuncu davet edebilirsin</span>' +
+                    '</div>' +
+                '</button>' +
+                '<button class="btn lobby-visibility-option is-private" type="button" onclick="createLobbyWithVisibility(false)">' +
+                    '<span class="lobby-visibility-badge">Kontrollü</span>' +
+                    '<div class="lobby-visibility-icon">&#128274;</div>' +
+                    '<strong>Özel</strong>' +
+                    '<span>Lobi listesinde görünmez. Yalnızca senin gönderdiğin daveti kabul eden oyuncular katılabilir.</span>' +
+                    '<div class="lobby-visibility-points">' +
+                        '<span>&#10003; Tamamen davet tabanlı</span>' +
+                        '<span>&#10003; Takımı kapalı tutar</span>' +
+                        '<span>&#10003; Kontrollü grup kurulumuna uygun</span>' +
+                    '</div>' +
+                '</button>' +
+            '</div>' +
+        '</section>'
+    );
+}
+
+function createLobbyWithVisibility(isPublic) {
+    var optimisticState = Object.assign({}, screenData.menuState, {
+        hasLobby: true,
+        isLeader: true,
+        isMember: false,
+        isReady: false,
+        lobbyStatus: (isPublic === true ? 'Herkese Açık' : 'Özel') + ' Lider'
+    });
+    screenData.menuState = optimisticState;
+    showMenu(optimisticState);
+    sendAction('createLobby', { isPublic: isPublic === true });
+}
+
+// ── Active Lobbies ───────────────────────────────────────────────────────────
+function showActiveLobbies(data) {
+    data = data || {};
+    currentScreen = 'active-lobbies';
+    screenData.lobbies = data.lobbies || [];
+    setBreadcrumb('Operasyon Menüsü / Aktif Lobiler');
+    setHudState({
+        health: 80,
+        radiation: 22,
+        inventoryPct: 60,
+        inventoryText: describeCount(screenData.lobbies.length, 'lobi', 'lobi'),
+        signal: 93,
+        signalText: 'TAKIP',
+        briefTitle: 'Açık Lobi İzleme',
+        briefText: 'Sunucudaki aktif lobileri, liderlerini ve doluluk durumlarını takip et.',
+        briefTag: 'LOBİLER',
+        progress: 70,
+        slotsFilled: clamp(screenData.lobbies.length, 1, 6)
+    });
+
+    var html = backBtn();
+    html += '<div class="section-header"><div class="section-title">&#128101; Aktif Lobiler</div></div>';
+
+    if (screenData.lobbies.length === 0) {
+        html += emptyState('&#127968;', 'Şu anda görüntülenecek aktif lobi yok.');
+        setContent(html);
+        return;
+    }
+
+    for (var i = 0; i < screenData.lobbies.length; i++) {
+        var lobby = screenData.lobbies[i];
+        var maxPlayers = Number(lobby.maxPlayers || MAX_LOBBY_SIZE);
+        var badge = lobby.isOwnLobby ? 'Senin Lobin' : (lobby.isJoinedLobby ? 'Bağlı Olduğun Lobi' : 'Açık Lobi');
+        var badgeClass = lobby.isOwnLobby ? 'self' : (lobby.isJoinedLobby ? 'joined' : '');
+        var visibilityText = lobby.isPublic ? 'Herkese Açık' : 'Özel';
+        var joinAction = lobby.canJoin
+            ? '<button class="btn btn-primary" type="button" onclick="joinPublicLobby(' + i + ')">&#10133; Lobiye Katıl</button>'
+            : '';
+        html += '<div class="card" data-tip="' + esc((lobby.leaderName || 'Bilinmeyen lider') + ': aktif lobi durumu ve doluluk özeti.') + '">' +
+            '<div class="card-header">' +
+                '<div class="card-title">' + esc(lobby.leaderName || 'Bilinmeyen Lider') + '</div>' +
+                '<span class="menu-item-badge ' + badgeClass + '">' + esc(badge) + '</span>' +
+            '</div>' +
+            '<div class="card-desc">Lider ID: ' + esc(lobby.leaderId) + ' · Hazır oyuncular: ' + esc(lobby.readyCount) + '</div>' +
+            screenMeter('Doluluk', clamp((Number(lobby.playerCount || 1) / maxPlayers) * 100, 12, 100)) +
+            '<div class="req-chips">' +
+                '<span class="req-chip"><span class="req-chip-amount">' + esc(visibilityText) + '</span>görünürlük</span>' +
+                '<span class="req-chip"><span class="req-chip-amount">' + esc(lobby.playerCount) + '/' + esc(maxPlayers) + '</span>oyuncu</span>' +
+                '<span class="req-chip"><span class="req-chip-amount">' + esc(lobby.memberCount) + '</span>üye</span>' +
+                '<span class="req-chip"><span class="req-chip-amount">' + esc(lobby.readyCount) + '</span>hazır</span>' +
+            '</div>' +
+            (joinAction ? '<div class="card-footer">' + joinAction + '</div>' : '') +
+        '</div>';
+    }
+
+    setContent(html);
+}
+
+// ── Lobby Members ──────────────────────────────────────────────────────────
+function showMembers(data) {
+    data = data || {};
+    currentScreen = 'members';
+    screenData.members  = data.members  || [];
+    screenData.memberLeaderId = data.leaderId;
+    var leaderId = screenData.memberLeaderId;
+    setBreadcrumb('Operasyon Menüsü / Takım');
+    setHudState({
+        health: 91,
+        radiation: 26,
+        inventoryPct: 66,
+        inventoryText: describeCount(screenData.members.length, 'uye', 'uye'),
+        signal: 92,
+        signalText: 'FORMASYON',
+        briefTitle: 'Takım Durumu',
+        briefText: 'Takımdaki oyuncuları ve lider bilgisini buradan kontrol et.',
+        briefTag: 'TAKIM',
+        progress: 74,
+        slotsFilled: clamp(screenData.members.length, 1, 6)
+    });
+
+    var html = backBtn();
+    html += '<div class="section-header"><div class="section-title">&#128101; Takım Oyuncuları</div></div>';
+
+    if (screenData.members.length === 0) {
+        html += emptyState('&#127964;', 'Takımda görüntülenecek oyuncu kalmadı.');
+        setContent(html);
+        return;
+    }
+
+    for (var i = 0; i < screenData.members.length; i++) {
+        var m = screenData.members[i];
+        var leaderBadge = (m.id === leaderId) ? '<span class="leader-badge">Lider</span>' : '';
+        var statusClass = m.isLeader ? 'leader' : (m.isReady ? 'ready' : 'waiting');
+        var statusText = m.isLeader ? 'Lider' : (m.isReady ? 'Hazır' : 'Bekleniyor');
+        html += '<div class="player-item" data-tip="' + esc(m.name + ': takım üyesi ' + (m.id === leaderId ? 've lider' : 'olarak listeleniyor') + '.') + '">' +
+            '<div>' +
+                '<div class="player-name">&#127894; ' + esc(m.name) + leaderBadge + '</div>' +
+                '<div class="player-id">ID: ' + m.id + ' · <span class="member-status ' + statusClass + '">' + statusText + '</span></div>' +
+            '</div>' +
+        '</div>';
+    }
+
+    setContent(html);
+}
+
+// ── Receive Invite ─────────────────────────────────────────────────────────
+function showReceiveInvite(data) {
+    data = data || {};
+    currentScreen = 'invite-received';
+    screenData.inviteLeaderId = data.leaderId;
+    setBreadcrumb('Operasyon Menüsü / Gelen Davet');
+    setHudState({
+        health: 76,
+        radiation: 31,
+        inventoryPct: 54,
+        inventoryText: '03/06',
+        signal: 96,
+        signalText: 'DAVET',
+        briefTitle: 'Takım Daveti Alındı',
+        briefText: 'Başka bir lider seni takımına çağırıyor. Daveti kabul edebilir veya reddedebilirsin.',
+        briefTag: 'UYARI',
+        progress: 88,
+        slotsFilled: 3
+    });
+
+    setContent(
+        '<div class="dialog-card" data-tip="Başka bir liderin takım daveti. Kabul ettiğinde o takıma katılırsın.">' +
+            '<div class="dialog-icon">&#128233;</div>' +
+            '<div class="dialog-title">Takım Daveti</div>' +
+            '<div class="dialog-text">Bir takım lideri seni ekibine çağırıyor.<br>Katılmak istiyor musun?</div>' +
+            '<div class="dialog-buttons">' +
+                '<button class="btn btn-primary" type="button" onclick="acceptInvite()">&#9989; Katil</button>' +
+                '<button class="btn btn-danger" type="button" onclick="denyInvite()">&#10060; Reddet</button>' +
+            '</div>' +
+        '</div>'
+    );
+}
+
+function acceptInvite() {
+    sendAction('acceptInvite', { leaderId: screenData.inviteLeaderId });
+}
+
+function joinPublicLobby(idx) {
+    var lobby = screenData.lobbies[idx];
+    if (!lobby) return;
+    sendAction('joinPublicLobby', { leaderId: lobby.leaderId });
+}
+
+function denyInvite() {
+    sendAction('denyInvite', {});
+}
+
+function showReconnectPrompt(data) {
+    data = data || {};
+    currentScreen = 'arc-reconnect';
+    screenData.reconnectPrompt = data;
+    setBreadcrumb('ARC Bağlantı / Geri Katılım');
+    setHudState({
+        operatorCards: buildOperatorCards(),
+        briefTitle: 'ARC Geri Katılım Onayı',
+        briefText: 'Bağlantın koptu. Uygunsa aynı baskına son düştüğün noktadan geri dönebilirsin.',
+        briefTag: 'UYARI',
+        progress: 91,
+        slotsFilled: 4
+    });
+
+    var extractionText = '';
+    if (data.extraction && data.extraction.phaseLabel) {
+        extractionText = '<div class="dialog-text"><strong>Son tahliye fazı:</strong> ' + esc(data.extraction.phaseLabel) + '</div>';
+    }
+
+    setContent(
+        '<div class="dialog-card" data-tip="Evet dersen uygunluk hâlâ geçerliyse aynı ARC baskınına geri katılırsın. Hayır dersen güvenli dönüş uygulanır.">' +
+            '<div class="dialog-icon">&#128257;</div>' +
+            '<div class="dialog-title">' + esc(data.title || 'Oyuna geri katılmak ister misin?') + '</div>' +
+            '<div class="dialog-text">' + esc(data.message || 'Bağlantın koptu. Aynı baskına geri katılmak ister misin?') + '</div>' +
+            extractionText +
+            '<div class="dialog-buttons">' +
+                '<button class="btn btn-primary" type="button" onclick="submitArcReconnectDecision(true)">&#9989; Evet, Katıl</button>' +
+                '<button class="btn btn-danger" type="button" onclick="submitArcReconnectDecision(false)">&#10060; Hayır</button>' +
+            '</div>' +
+        '</div>'
+    );
+}
+
+function submitArcReconnectDecision(accepted) {
+    sendAction('arcReconnectDecision', { accepted: accepted === true });
+}
