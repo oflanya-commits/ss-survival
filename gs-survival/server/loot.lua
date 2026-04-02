@@ -300,9 +300,11 @@ RegisterNetEvent('gs-survival:server:handleArcDeath', function(reason)
     local deathItems = exports.ox_inventory:GetInventoryItems(src)
 
     for _, playerId in ipairs(groupMembers[bucketId] or {}) do
-        TriggerClientEvent('gs-survival:client:playSignalFlare', playerId, {
-            coords = Vector3ToTable(deathCoords)
-        })
+        if GetPlayerRoutingBucket(playerId) == bucketId then
+            TriggerClientEvent('gs-survival:client:playSignalFlare', playerId, {
+                coords = Vector3ToTable(deathCoords)
+            })
+        end
     end
 
     if deathItems and next(deathItems) then

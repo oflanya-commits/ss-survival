@@ -248,7 +248,11 @@ var arcLockerPointerDragState = null;
 window.addEventListener('message', function (event) {
     var d = event.data;
     switch (d.type) {
-        case 'openMenu':      showMenu(d.data);         showApp(); break;
+        case 'openMenu':
+            screenData.menuView = getDefaultMenuView(d.data);
+            showMenu(d.data);
+            showApp();
+            break;
         case 'openMarket':    showMarket(d.data);                  break;
         case 'openCraft':     showCraft(d.data); showApp();        break;
         case 'openStages':    showStages(d.data);                  break;
@@ -415,7 +419,10 @@ function fmtNum(n) {
 
 function setContent(html) {
     hideTooltip();
-    contentEl.innerHTML = html;
+    contentEl.classList.remove('is-animating');
+    contentEl.innerHTML = html || '';
+    void contentEl.offsetWidth;
+    contentEl.classList.add('is-animating');
     bindImageFallbacks(contentEl);
 }
 
@@ -939,7 +946,7 @@ function getMenuPanelDefinition(panelKey) {
 
 /**
  * Returns the first panel key for the given sidebar section.
- * Used during menu initialization and section switching to keep the content area populated.
+ * Used when a section needs an explicit default panel selected programmatically.
  * @param {string|null} sectionKey
  * @returns {string|null} First panel key, or null when the section is missing or has no panels.
  */
@@ -958,7 +965,7 @@ function getDefaultMenuView(state) {
     var defaultSection = MENU_NAV_ITEMS.length > 0 ? MENU_NAV_ITEMS[0] : null;
     return {
         section: defaultSection ? defaultSection.key : null,
-        panel: getSectionDefaultPanel(defaultSection ? defaultSection.key : null)
+        panel: null
     };
 }
 
@@ -984,10 +991,8 @@ function syncMenuView(state) {
             return panel.key === panelKey;
         });
         if (!hasPanel) {
-            panelKey = getSectionDefaultPanel(activeSection.key);
+            panelKey = null;
         }
-    } else {
-        panelKey = getSectionDefaultPanel(activeSection.key);
     }
 
     screenData.menuView = {
@@ -1011,7 +1016,7 @@ function selectMenuSection(sectionKey) {
     var item = getNavItemBySection(sectionKey);
     screenData.menuView = {
         section: item.key,
-        panel: getSectionDefaultPanel(item.key)
+        panel: null
     };
     if (currentScreen === 'menu') {
         showMenu(screenData.menuState);
@@ -1302,8 +1307,8 @@ function getMenuSection(sectionKey) {
 
 /**
  * Normalizes menu view state before render.
- * Invalid or missing selections fall back to the section default, and panels handled by
- * getDirectPanelAction resume that section default instead of leaving the main menu blank.
+ * Invalid selections fall back to the default section, while an empty panel selection keeps
+ * the center area blank until the user explicitly opens a menu card.
  * @param {object} state
  * @param {{section?: string|null, panel?: string|null}} view
  * @returns {{section: string|null, panel: string|null}}
@@ -1316,16 +1321,14 @@ function getRenderableMenuView(state, view) {
 
     var section = getMenuSection(view.section) || getMenuSection(fallback.section);
     var sectionKey = section ? section.key : null;
-    var panelKey = view.panel || getSectionDefaultPanel(sectionKey);
-
-    // Some sidebar items open a separate NUI screen, so returning to the menu should resume
-    // the section's default panel instead of leaving the main content area empty.
-    if (getDirectPanelAction(panelKey)) {
-        panelKey = getSectionDefaultPanel(sectionKey);
-    }
-
-    if (!panelKey) {
-        return fallback;
+    var panelKey = view.panel || null;
+    if (panelKey) {
+        var hasPanel = ((section && section.panels) || []).some(function (panel) {
+            return panel.key === panelKey;
+        });
+        if (!hasPanel || getDirectPanelAction(panelKey)) {
+            panelKey = null;
+        }
     }
 
     return {
@@ -2355,7 +2358,7 @@ function showMenu(state) {
         slotsFilled: state.hasLobby ? 4 : 3,
         hideMissionBrief: true
     });
-    setContent(renderMenuPanel(state, view));
+    setContent(view.panel ? renderMenuPanel(state, view) : '');
 }
 
 function showArcLockers(data) {
