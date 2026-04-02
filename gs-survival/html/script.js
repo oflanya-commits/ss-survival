@@ -15,6 +15,15 @@ const STRINGS = {
         locked: 'KİLİTLİ',
         active: 'AKTİF'
     },
+    readyDock: {
+        waiting: 'Bekleniyor',
+        teamTitle: 'Takım Hazırlığı',
+        lobbyTitle: 'Lobi Durumu',
+        readyText: 'Hazır durumundasın. Liderin maçı başlatmasını bekleyebilirsin.',
+        waitingText: 'Takım eşleşmesi için hazır olup liderine sinyal gönderebilirsin.',
+        leaderText: 'Takımın hazır durumunu bu alandan hızlıca takip edebilirsin.',
+        soloText: 'Hazır sistemi için önce bir lobiye katılman gerekiyor.'
+    },
     notifyTitle: {
         info: 'Bilgilendirme',
         success: 'Başarılı',
@@ -704,7 +713,7 @@ function renderReadyDock(sidebar) {
 
     const menu = state.menuState || {};
     const hasInteractiveReady = menu.isMember === true && safeString(sidebar.action) === 'toggle-ready';
-    const actionLabel = safeString(sidebar.actionLabel, 'Bekleniyor');
+    const actionLabel = safeString(sidebar.actionLabel, STRINGS.readyDock.waiting);
     const readyBadge = menu.isReady === true
         ? { text: STRINGS.badge.ready, className: 'ui-badge ui-badge--success' }
         : (hasInteractiveReady
@@ -712,10 +721,10 @@ function renderReadyDock(sidebar) {
             : { text: safeString(sidebar.tag, STRINGS.badge.solo), className: 'ui-badge ui-badge--muted' });
 
     ui.bottomDock.classList.toggle('hidden', false);
-    ui.dockReadyTitle.textContent = hasInteractiveReady ? 'Takım Hazırlığı' : 'Lobi Durumu';
+    ui.dockReadyTitle.textContent = hasInteractiveReady ? STRINGS.readyDock.teamTitle : STRINGS.readyDock.lobbyTitle;
     ui.dockReadyText.textContent = hasInteractiveReady
-        ? (menu.isReady === true ? 'Hazır durumundasın. Liderin maçı başlatmasını bekleyebilirsin.' : 'Takım eşleşmesi için hazır olup liderine sinyal gönderebilirsin.')
-        : (menu.isLeader === true ? 'Takımın hazır durumunu bu alandan hızlıca takip edebilirsin.' : 'Hazır sistemi için önce bir lobiye katılman gerekiyor.');
+        ? (menu.isReady === true ? STRINGS.readyDock.readyText : STRINGS.readyDock.waitingText)
+        : (menu.isLeader === true ? STRINGS.readyDock.leaderText : STRINGS.readyDock.soloText);
     ui.dockReadyBadge.className = readyBadge.className;
     ui.dockReadyBadge.textContent = readyBadge.text;
     ui.dockReadyAction.textContent = actionLabel;
