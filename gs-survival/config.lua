@@ -300,6 +300,10 @@ Config.Npc = {
     Label = "Operasyon Menüsü"
 }
 
+Config.MenuPreview = {
+    Coords = vector4(2386.85, 3063.76, 48.15, 270.0)
+}
+
 -- Oyun modu seçim menüsünde listelenecek modlar.
 -- id: Sistem içi benzersiz mod anahtarı
 -- label: Oyuncuya gösterilecek isim

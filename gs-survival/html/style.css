@@ -929,9 +929,15 @@ body {
 
 .pubg-info-rail {
     display: flex;
+    flex-direction: column;
     align-items: flex-start;
     justify-content: flex-end;
     min-width: 0;
+    gap: 16px;
+}
+
+.pubg-info-rail > * {
+    width: 100%;
 }
 
 /* Status Strip (Crafter Pass Style) */
@@ -962,6 +968,74 @@ body {
 .status-card .status-value { font-family: var(--font-head); font-size: 1.1rem; color: #fff; white-space: nowrap; }
 .status-card .status-bar { width: 100%; height: 6px; background: rgba(255,255,255,0.1); margin-top: 5px; border-radius: 3px; }
 .status-card .status-bar span { display: block; height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+
+.lobby-members-panel.hidden {
+    display: none;
+}
+
+.lobby-members-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.lobby-member-card {
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+}
+
+.lobby-member-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.lobby-member-name {
+    font-family: var(--font-head);
+    font-size: 1.05rem;
+    color: #fff;
+}
+
+.lobby-member-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.lobby-member-badge.is-leader {
+    background: rgba(168, 213, 226, 0.12);
+    border-color: rgba(168, 213, 226, 0.28);
+    color: #dff6ff;
+}
+
+.lobby-member-badge.is-ready {
+    background: rgba(122, 255, 122, 0.12);
+    border-color: rgba(122, 255, 122, 0.28);
+    color: #dfffe1;
+}
+
+.lobby-member-badge.is-waiting {
+    background: rgba(242, 169, 0, 0.12);
+    border-color: rgba(242, 169, 0, 0.28);
+    color: #ffe9bb;
+}
+
+.lobby-member-meta {
+    margin-top: 6px;
+    color: rgba(255,255,255,0.58);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+}
 
 /* Mission Brief (Matchmaking/Ready Panel) */
 .pubg-matchmaking-panel {
