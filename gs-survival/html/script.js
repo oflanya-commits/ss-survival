@@ -936,8 +936,17 @@ function getMenuPanelDefinition(panelKey) {
     return MENU_NAV_ITEMS[0].panels[0];
 }
 
+function getSectionDefaultPanel(sectionKey) {
+    var item = getNavItemBySection(sectionKey);
+    return item && item.panels && item.panels[0] ? item.panels[0].key : null;
+}
+
 function getDefaultMenuView(state) {
-    return { section: null, panel: null };
+    var defaultSection = MENU_NAV_ITEMS[0] || {};
+    return {
+        section: defaultSection.key || null,
+        panel: getSectionDefaultPanel(defaultSection.key)
+    };
 }
 
 function syncMenuView(state) {
@@ -962,8 +971,10 @@ function syncMenuView(state) {
             return panel.key === panelKey;
         });
         if (!hasPanel) {
-            panelKey = null;
+            panelKey = getSectionDefaultPanel(activeSection.key);
         }
+    } else {
+        panelKey = getSectionDefaultPanel(activeSection.key);
     }
 
     screenData.menuView = {
@@ -987,7 +998,7 @@ function selectMenuSection(sectionKey) {
     var item = getNavItemBySection(sectionKey);
     screenData.menuView = {
         section: item.key,
-        panel: null
+        panel: getSectionDefaultPanel(item.key)
     };
     if (currentScreen === 'menu') {
         showMenu(screenData.menuState);
@@ -1272,7 +1283,7 @@ function hasActiveMenuSelection(view) {
 
 function renderMenuPanel(state, view) {
     if (!hasActiveMenuSelection(view)) {
-        return '';
+        return renderMenuPanel(state, getDefaultMenuView(state));
     }
 
     switch (view.panel) {
@@ -1283,13 +1294,19 @@ function renderMenuPanel(state, view) {
         case 'arcDepot':
         case 'survivalMarket':
         case 'survivalWorkshop':
-            return renderMenuLanding(state, view);
+            return renderMenuPanel(state, {
+                section: view.section,
+                panel: getSectionDefaultPanel(view.section)
+            });
         case 'survivalRaid':
             return renderSurvivalRaidPanel(state);
         case 'lobbySettings':
             return renderLobbySettingsPanel(state);
         default:
-            return renderMenuLanding(state, view);
+            return renderMenuPanel(state, {
+                section: view.section,
+                panel: getSectionDefaultPanel(view.section)
+            });
     }
 }
 
@@ -2120,8 +2137,8 @@ function renderArcLoadoutPanel(section, focusSide) {
     section = section || {};
     var stats = getArcLockerSectionStats(section);
     var helperText = section.helperText || 'Buraya koyduğun ekipman baskın girişinde üstüne verilir.';
-    var defaultBackpackSlots = 10;
-    var visibleBackpackSlots = Math.max(stats.items.length, Math.min(stats.totalSlots || defaultBackpackSlots, defaultBackpackSlots));
+    var defaultBackpackSlots = 24;
+    var visibleBackpackSlots = Math.max(stats.items.length, stats.totalSlots || defaultBackpackSlots);
     var placeholderCount = Math.max(visibleBackpackSlots - stats.items.length, 0);
     var html = '<section class="arc-locker-panel arc-locker-panel-loadout' + (section.side === focusSide ? ' is-focused' : '') + '">' +
         '<div class="arc-locker-panel-top arc-locker-panel-top-loadout">' +
