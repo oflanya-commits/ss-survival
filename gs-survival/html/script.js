@@ -1065,7 +1065,7 @@ function renderArcRaidPanel(state) {
         '<div class="menu-choice-grid">' +
             renderChoiceCard({
                 selected: true,
-                onclick: '',
+                onclick: 'return false;',
                 kicker: 'ARC',
                 chip: 'RASTGELE',
                 title: 'Otomatik Baskın Bölgesi',
