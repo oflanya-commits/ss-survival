@@ -1435,12 +1435,8 @@ function handleReadyButton() {
     playMechanicalTone('ready');
     state.isReady = !state.isReady;
     setReadyButton(state);
+    showMenu(state);
     sendAction('toggleReady', {});
-}
-
-function startArcMode() {
-    playMechanicalTone('ready');
-    sendAction('startArcPvP', {});
 }
 
 function stageCardArt(stage, idx) {
