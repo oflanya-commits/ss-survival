@@ -86,14 +86,19 @@ local menuStateCacheKey = nil
 local isMenuOpen = false
 local menuPreviewCam = nil
 local menuPreviewState = nil
-local MENU_PREVIEW_PED_Z_OFFSET = -1.0
-local MENU_PREVIEW_PED_FORWARD_OFFSET = -0.55
-local MENU_PREVIEW_PED_RIGHT_OFFSET = 1.55
-local MENU_PREVIEW_HEADING_OFFSET = 160.0
-local MENU_PREVIEW_CAM_FORWARD_OFFSET = 2.15
-local MENU_PREVIEW_CAM_HEIGHT_OFFSET = 0.72
+local menuPreviewPeds = {}
+local menuPreviewStarting = false
+local MENU_PREVIEW_COORDS = (Config.MenuPreview and Config.MenuPreview.Coords) or vector4(2386.85, 3063.76, 48.15, 270.0)
+local MENU_PREVIEW_CAM_FORWARD_OFFSET = 2.85
+local MENU_PREVIEW_CAM_HEIGHT_OFFSET = 0.95
 local MENU_PREVIEW_LOOK_AT_HEIGHT_OFFSET = 0.78
-local MENU_PREVIEW_FOV = 30.0
+local MENU_PREVIEW_FOV = 32.0
+-- Oyuncunun kendisi merkezde durur; bu offsetler sadece en fazla 3 lobi üyesinin yanlara dizilmesi içindir.
+local MENU_PREVIEW_MEMBER_OFFSETS = {
+    { forward = 0.0, right = 1.35 },
+    { forward = 0.0, right = -1.35 },
+    { forward = 0.0, right = 2.7 }
+}
 local ARC_OVERLAY_INFO_REFRESH_INTERVAL_MS = 1000
 -- Minimap coordinates use normalized screen anchors; clipType 0 restores the default square minimap,
 -- while clipType 1 forces the ARC minimap into the top-right rounded layout.
@@ -121,16 +126,17 @@ local CanStartMenuPreview
 -- [NUI YARDIMCI FONKSİYONLAR]
 local function OpenNUI(data)
     isMenuOpen = true
-    StartMenuPreview()
-    SendNUIMessage(data)
-    SetNuiFocus(true, true)
+    StartMenuPreview(data, function()
+        SendNUIMessage(data)
+        SetNuiFocus(true, true)
+    end)
 end
 
 local function CloseNUI()
     isMenuOpen = false
-    StopMenuPreview()
     SendNUIMessage({ type = 'closeMenu' })
     SetNuiFocus(false, false)
+    StopMenuPreview()
 end
 
 local function OffsetCoordsFromHeading(baseCoords, heading, forward, right, up)
@@ -147,46 +153,202 @@ local function OffsetCoordsFromHeading(baseCoords, heading, forward, right, up)
     )
 end
 
-StartMenuPreview = function()
+local function ClearMenuPreviewPeds()
+    for _, ped in ipairs(menuPreviewPeds) do
+        if ped and DoesEntityExist(ped) then
+            DeleteEntity(ped)
+        end
+    end
+    menuPreviewPeds = {}
+end
+
+local function CaptureMenuPreviewAppearance(serverId)
+    local targetServerId = tonumber(serverId)
+    if not targetServerId then
+        return nil
+    end
+
+    local playerIndex = GetPlayerFromServerId(targetServerId)
+    if playerIndex < 0 then
+        return nil
+    end
+
+    local sourcePed = GetPlayerPed(playerIndex)
+
+    if not sourcePed or sourcePed == 0 or not DoesEntityExist(sourcePed) then
+        return nil
+    end
+
+    local appearance = {
+        model = GetEntityModel(sourcePed),
+        components = {},
+        props = {}
+    }
+
+    for componentId = 0, 11 do
+        appearance.components[#appearance.components + 1] = {
+            componentId = componentId,
+            drawable = GetPedDrawableVariation(sourcePed, componentId),
+            texture = GetPedTextureVariation(sourcePed, componentId),
+            palette = GetPedPaletteVariation(sourcePed, componentId)
+        }
+    end
+
+    for propId = 0, 7 do
+        appearance.props[#appearance.props + 1] = {
+            propId = propId,
+            index = GetPedPropIndex(sourcePed, propId),
+            texture = GetPedPropTextureIndex(sourcePed, propId)
+        }
+    end
+
+    return appearance
+end
+
+local function ApplyMenuPreviewAppearance(targetPed, appearance)
+    if not targetPed or targetPed == 0 or not DoesEntityExist(targetPed) or type(appearance) ~= 'table' then
+        return
+    end
+
+    for _, component in ipairs(appearance.components or {}) do
+        SetPedComponentVariation(
+            targetPed,
+            component.componentId or 0,
+            component.drawable or 0,
+            component.texture or 0,
+            component.palette or 0
+        )
+    end
+
+    for _, prop in ipairs(appearance.props or {}) do
+        if (prop.index or -1) >= 0 then
+            SetPedPropIndex(targetPed, prop.propId or 0, prop.index or 0, prop.texture or 0, true)
+        else
+            ClearPedProp(targetPed, prop.propId or 0)
+        end
+    end
+end
+
+local function BuildMenuPreviewLineup(lobbyMembers)
+    local myServerId = GetPlayerServerId(PlayerId())
+    local lineup = {}
+
+    for _, member in ipairs(type(lobbyMembers) == 'table' and lobbyMembers or {}) do
+        if tonumber(member.id) ~= tonumber(myServerId) then
+            if #lineup >= #MENU_PREVIEW_MEMBER_OFFSETS then
+                break
+            end
+
+            local appearance = CaptureMenuPreviewAppearance(member.id)
+            if appearance then
+                lineup[#lineup + 1] = appearance
+            end
+        end
+    end
+
+    return lineup
+end
+
+local function SpawnMenuPreviewPeds(baseCoords, heading, lineup)
+    ClearMenuPreviewPeds()
+
+    for index, appearance in ipairs(lineup or {}) do
+        local offset = MENU_PREVIEW_MEMBER_OFFSETS[index]
+        if offset and appearance and appearance.model then
+            RequestModel(appearance.model)
+            while not HasModelLoaded(appearance.model) do
+                Wait(0)
+            end
+
+            local pedCoords = OffsetCoordsFromHeading(baseCoords, heading, offset.forward or 0.0, offset.right or 0.0, 0.0)
+            local previewPed = CreatePed(4, appearance.model, pedCoords.x, pedCoords.y, pedCoords.z, heading, false, true)
+            SetEntityAsMissionEntity(previewPed, true, true)
+            SetEntityInvincible(previewPed, true)
+            FreezeEntityPosition(previewPed, true)
+            SetBlockingOfNonTemporaryEvents(previewPed, true)
+            ClearPedTasksImmediately(previewPed)
+            TaskStandStill(previewPed, -1)
+            ApplyMenuPreviewAppearance(previewPed, appearance)
+            menuPreviewPeds[#menuPreviewPeds + 1] = previewPed
+            SetModelAsNoLongerNeeded(appearance.model)
+        end
+    end
+end
+
+StartMenuPreview = function(menuPayload, onReady)
     if not CanStartMenuPreview() then
+        if onReady then
+            onReady()
+        end
         return
     end
 
     local ped = PlayerPedId()
     if not ped or ped == 0 or not DoesEntityExist(ped) then
+        if onReady then
+            onReady()
+        end
         return
     end
 
-    local npcCoords = Config.Npc.Coords
-    local previewAnchor = vector3(npcCoords.x, npcCoords.y, npcCoords.z + MENU_PREVIEW_PED_Z_OFFSET)
-    local previewCoords = OffsetCoordsFromHeading(previewAnchor, npcCoords.w, MENU_PREVIEW_PED_FORWARD_OFFSET, MENU_PREVIEW_PED_RIGHT_OFFSET, 0.0)
-    local previewHeading = (npcCoords.w + MENU_PREVIEW_HEADING_OFFSET) % 360.0
+    menuPreviewStarting = true
+    local previewCoords = vector3(MENU_PREVIEW_COORDS.x, MENU_PREVIEW_COORDS.y, MENU_PREVIEW_COORDS.z)
+    local previewHeading = tonumber(MENU_PREVIEW_COORDS.w) or 0.0
     local camCoords = OffsetCoordsFromHeading(previewCoords, previewHeading, MENU_PREVIEW_CAM_FORWARD_OFFSET, 0.0, MENU_PREVIEW_CAM_HEIGHT_OFFSET)
-
+    local menuPayloadData = type(menuPayload) == 'table' and type(menuPayload.data) == 'table' and menuPayload.data or nil
+    local lineup = BuildMenuPreviewLineup(menuPayloadData and menuPayloadData.lobbyMembers)
     menuPreviewState = {
         coords = GetEntityCoords(ped),
         heading = GetEntityHeading(ped),
         wasFrozen = IsEntityPositionFrozen(ped)
     }
 
-    SetEntityCoords(ped, previewCoords.x, previewCoords.y, previewCoords.z, false, false, false, false)
-    SetEntityHeading(ped, previewHeading)
-    ClearPedTasksImmediately(ped)
-    TaskStandStill(ped, -1)
-    FreezeEntityPosition(ped, true)
-    SetFocusEntity(ped)
+    QBCore.Functions.TriggerCallback('gs-survival:server:enterMenuPreview', function(result)
+        menuPreviewStarting = false
+        if not menuPreviewState then
+            if onReady then
+                onReady()
+            end
+            return
+        end
 
-    if not menuPreviewCam then
-        menuPreviewCam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
-    end
+        menuPreviewState.originalBucket = result and result.originalBucket or 0
+        menuPreviewState.previewBucket = result and result.bucketId or 0
 
-    SetCamCoord(menuPreviewCam, camCoords.x, camCoords.y, camCoords.z)
-    PointCamAtCoord(menuPreviewCam, previewCoords.x, previewCoords.y, previewCoords.z + MENU_PREVIEW_LOOK_AT_HEIGHT_OFFSET)
-    SetCamFov(menuPreviewCam, MENU_PREVIEW_FOV)
-    RenderScriptCams(true, false, 0, true, true)
+        DoScreenFadeOut(250)
+        while not IsScreenFadedOut() do
+            Wait(0)
+        end
+
+        RequestCollisionAtCoord(previewCoords.x, previewCoords.y, previewCoords.z)
+        SetFocusPosAndVel(previewCoords.x, previewCoords.y, previewCoords.z, 0.0, 0.0, 0.0)
+        SetEntityCoords(ped, previewCoords.x, previewCoords.y, previewCoords.z, false, false, false, false)
+        SetEntityHeading(ped, previewHeading)
+        ClearPedTasksImmediately(ped)
+        TaskStandStill(ped, -1)
+        FreezeEntityPosition(ped, true)
+
+        SpawnMenuPreviewPeds(previewCoords, previewHeading, lineup)
+
+        if not menuPreviewCam then
+            menuPreviewCam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+        end
+
+        SetCamCoord(menuPreviewCam, camCoords.x, camCoords.y, camCoords.z)
+        PointCamAtCoord(menuPreviewCam, previewCoords.x, previewCoords.y, previewCoords.z + MENU_PREVIEW_LOOK_AT_HEIGHT_OFFSET)
+        SetCamFov(menuPreviewCam, MENU_PREVIEW_FOV)
+        RenderScriptCams(true, false, 0, true, true)
+        DoScreenFadeIn(250)
+
+        if onReady then
+            onReady()
+        end
+    end)
 end
 
 StopMenuPreview = function()
+    ClearMenuPreviewPeds()
+
     if menuPreviewCam then
         RenderScriptCams(false, false, 0, true, true)
         DestroyCam(menuPreviewCam, true)
@@ -197,23 +359,36 @@ StopMenuPreview = function()
         return
     end
 
+    local previewState = menuPreviewState
     local ped = PlayerPedId()
+    menuPreviewState = nil
+
     if ped and ped ~= 0 and DoesEntityExist(ped) then
-        ClearPedTasksImmediately(ped)
-        SetEntityCoords(ped, menuPreviewState.coords.x, menuPreviewState.coords.y, menuPreviewState.coords.z, false, false, false, false)
-        SetEntityHeading(ped, menuPreviewState.heading)
-        FreezeEntityPosition(ped, menuPreviewState.wasFrozen == true)
-        SetFocusEntity(ped)
+        DoScreenFadeOut(250)
+        while not IsScreenFadedOut() do
+            Wait(0)
+        end
     end
 
-    menuPreviewState = nil
+    QBCore.Functions.TriggerCallback('gs-survival:server:exitMenuPreview', function()
+        if ped and ped ~= 0 and DoesEntityExist(ped) then
+            ClearPedTasksImmediately(ped)
+            ClearFocus()
+            SetEntityCoords(ped, previewState.coords.x, previewState.coords.y, previewState.coords.z, false, false, false, false)
+            SetEntityHeading(ped, previewState.heading)
+            FreezeEntityPosition(ped, previewState.wasFrozen == true)
+        end
+
+        DoScreenFadeIn(250)
+    end, previewState.originalBucket or 0)
 end
 
 CanStartMenuPreview = function()
     return menuPreviewState == nil
+        and menuPreviewStarting ~= true
         and isSurvivalActive ~= true
-        and Config.Npc ~= nil
-        and Config.Npc.Coords ~= nil
+        and Config.MenuPreview ~= nil
+        and Config.MenuPreview.Coords ~= nil
 end
 
 local function RefreshMinimapLayout()
@@ -1936,7 +2111,7 @@ local function BuildSurvivalStageMenuOptions(userLevel)
     return options
 end
 
-local function BuildMenuState(userLevel, PlayerData, arcPrepState, arcSummary)
+local function BuildMenuState(userLevel, PlayerData, arcPrepState, arcSummary, lobbyMembers)
     local gameMode = Config.GameModes and Config.GameModes[currentModeId] or (Config.GameModes and Config.GameModes.classic)
     local lobbyStatus = "Tek Başına"
     arcSummary = arcSummary or {}
@@ -1963,11 +2138,12 @@ local function BuildMenuState(userLevel, PlayerData, arcPrepState, arcSummary)
          arcLoadoutItems = arcPrepState and arcPrepState.loadoutItems or 0,
          arcLoadoutReady = arcPrepState and arcPrepState.loadoutReady == true or false,
          arcLoadoutState = arcPrepState and arcPrepState.loadoutState or {},
-         arcSummary = arcSummary,
-         arcExtraction = BuildArcExtractionHudState(),
-          arcDeploymentZones = BuildArcDeploymentMenuOptions(),
-          survivalStages = BuildSurvivalStageMenuOptions(userLevel),
-          allowPersonalInventory = arcSummary.allowPersonalInventory ~= false,
+          arcSummary = arcSummary,
+          arcExtraction = BuildArcExtractionHudState(),
+          lobbyMembers = type(lobbyMembers) == 'table' and lobbyMembers or {},
+           arcDeploymentZones = BuildArcDeploymentMenuOptions(),
+           survivalStages = BuildSurvivalStageMenuOptions(userLevel),
+           allowPersonalInventory = arcSummary.allowPersonalInventory ~= false,
           disconnectPolicy = arcSummary.disconnectPolicy,
           disconnectPolicyLabel = arcSummary.disconnectPolicyLabel,
           disconnectPolicyDescription = arcSummary.disconnectPolicyDescription
@@ -1995,7 +2171,8 @@ local function DispatchMenuState(openMenu, forceUpdate)
         QBCore.Functions.TriggerCallback('gs-survival:server:getArcMenuState', function(arcState)
             local arcPrepState = arcState and arcState.prep or {}
             local arcSummary = arcState and arcState.summary or {}
-            local menuState = BuildMenuState(userLevel, PlayerData, arcPrepState, arcSummary)
+            local lobbyMembers = arcState and arcState.lobbyMembers or {}
+            local menuState = BuildMenuState(userLevel, PlayerData, arcPrepState, arcSummary, lobbyMembers)
             local nextCacheKey = BuildMenuStateCacheKey(menuState)
             local payload = {
                 type = openMenu and 'openMenu' or 'updateMenuState',

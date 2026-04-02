@@ -99,69 +99,10 @@ body {
 #app {
     width: 100%; height: 100%; position: absolute; top: 0; left: 0;
     display: flex; flex-direction: column;
-    opacity: 0; transition: opacity 0.3s ease; pointer-events: none;
+    opacity: 1; pointer-events: none;
 }
-#app.is-visible { opacity: 1; pointer-events: auto; }
+#app.is-visible { pointer-events: auto; }
 #app.hidden { display: none; }
-
-#app.is-visible #overlay {
-    animation: ui-overlay-fade 0.28s ease-out both;
-}
-
-#app.is-visible .pubg-top-nav {
-    animation: ui-fade-down 0.34s ease-out both;
-}
-
-#app.is-visible #status-strip,
-#app.is-visible #mission-brief,
-#app.is-visible .menu-sidebar-panel,
-#app.is-visible .menu-popup,
-#app.is-visible .menu-window,
-#app.is-visible .card,
-#app.is-visible .arc-preflight-card,
-#app.is-visible .stage-card {
-    animation: ui-fade-up 0.38s ease-out both;
-}
-
-#app.is-visible #status-strip {
-    animation-delay: 0.04s;
-}
-
-#app.is-visible #mission-brief {
-    animation-delay: 0.1s;
-}
-
-#app.is-visible .menu-sidebar-panel {
-    animation-delay: 0.06s;
-}
-
-#app.is-visible .menu-popup {
-    animation-delay: 0.12s;
-}
-
-#app.is-visible .menu-window:nth-child(1),
-#app.is-visible .card:nth-child(1),
-#app.is-visible .stage-card:nth-child(1) {
-    animation-delay: 0.06s;
-}
-
-#app.is-visible .menu-window:nth-child(2),
-#app.is-visible .card:nth-child(2),
-#app.is-visible .stage-card:nth-child(2) {
-    animation-delay: 0.12s;
-}
-
-#app.is-visible .menu-window:nth-child(3),
-#app.is-visible .card:nth-child(3),
-#app.is-visible .stage-card:nth-child(3) {
-    animation-delay: 0.18s;
-}
-
-#app.is-visible .menu-window:nth-child(4),
-#app.is-visible .card:nth-child(4),
-#app.is-visible .stage-card:nth-child(4) {
-    animation-delay: 0.24s;
-}
 
 .arc-overlay-root {
     position: fixed;
@@ -801,10 +742,7 @@ body {
 
 #overlay {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background:
-        radial-gradient(circle at 30% 30%, rgba(82, 89, 102, 0.16) 0%, rgba(12, 13, 17, 0) 40%),
-        radial-gradient(circle at 70% 70%, rgba(46, 52, 64, 0.16) 0%, rgba(10, 10, 10, 0) 36%),
-        linear-gradient(180deg, rgba(8, 9, 12, 0.6), rgba(8, 9, 12, 0.86));
+    background: transparent;
     z-index: 1; pointer-events: none;
 }
 
@@ -991,9 +929,15 @@ body {
 
 .pubg-info-rail {
     display: flex;
+    flex-direction: column;
     align-items: flex-start;
     justify-content: flex-end;
     min-width: 0;
+    gap: 16px;
+}
+
+.pubg-info-rail > * {
+    width: 100%;
 }
 
 /* Status Strip (Crafter Pass Style) */
@@ -1024,6 +968,74 @@ body {
 .status-card .status-value { font-family: var(--font-head); font-size: 1.1rem; color: #fff; white-space: nowrap; }
 .status-card .status-bar { width: 100%; height: 6px; background: rgba(255,255,255,0.1); margin-top: 5px; border-radius: 3px; }
 .status-card .status-bar span { display: block; height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+
+.lobby-members-panel.hidden {
+    display: none;
+}
+
+.lobby-members-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.lobby-member-card {
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+}
+
+.lobby-member-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.lobby-member-name {
+    font-family: var(--font-head);
+    font-size: 1.05rem;
+    color: #fff;
+}
+
+.lobby-member-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.lobby-member-badge.is-leader {
+    background: rgba(168, 213, 226, 0.12);
+    border-color: rgba(168, 213, 226, 0.28);
+    color: #dff6ff;
+}
+
+.lobby-member-badge.is-ready {
+    background: rgba(122, 255, 122, 0.12);
+    border-color: rgba(122, 255, 122, 0.28);
+    color: #dfffe1;
+}
+
+.lobby-member-badge.is-waiting {
+    background: rgba(242, 169, 0, 0.12);
+    border-color: rgba(242, 169, 0, 0.28);
+    color: #ffe9bb;
+}
+
+.lobby-member-meta {
+    margin-top: 6px;
+    color: rgba(255,255,255,0.58);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+}
 
 /* Mission Brief (Matchmaking/Ready Panel) */
 .pubg-matchmaking-panel {

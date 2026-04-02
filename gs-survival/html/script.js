@@ -128,6 +128,8 @@ var hudEls = {
     signalLabel: document.getElementById('hud-signal-label'),
     signalValue: document.getElementById('hud-signal-value'),
     signalBar: document.getElementById('hud-signal-bar'),
+    lobbyMembersPanel: document.getElementById('lobby-members-panel'),
+    lobbyMembersList: document.getElementById('lobby-members-list'),
     missionBrief: document.getElementById('mission-brief'),
     briefTitle: document.getElementById('brief-title'),
     briefText: document.getElementById('brief-text'),
@@ -160,7 +162,6 @@ var hudEls = {
     arcBarricadePlacementTitle: document.getElementById('arc-barricade-placement-title'),
     arcBarricadePlacementControls: document.getElementById('arc-barricade-placement-controls')
 };
-var hideTimer = null;
 var audioCtx = null;
 var currentScreen = 'menu';
 var arcNotifyTimers = [];
@@ -332,7 +333,6 @@ document.addEventListener('mouseleave', function () {
 
 // ─── Visibility ───────────────────────────────────────────────────────────
 function showApp() {
-    clearTimeout(hideTimer);
     appEl.classList.remove('hidden');
     appEl.setAttribute('aria-hidden', 'false');
     requestAnimationFrame(function () {
@@ -344,9 +344,7 @@ function hideApp() {
     appEl.classList.remove('is-visible');
     appEl.setAttribute('aria-hidden', 'true');
     hideTooltip();
-    hideTimer = setTimeout(function () {
-        appEl.classList.add('hidden');
-    }, 280);
+    appEl.classList.add('hidden');
 }
 
 // ─── Close menu (tell Lua to release focus) ───────────────────────────────
@@ -391,7 +389,7 @@ function menuRow(icon, title, desc, badgeHtml, onclickJs, extraClass, tipText) {
 }
 
 function backBtn() {
-    return '<button class="btn btn-back" type="button" onclick="sendAction(\'goBack\',{})" data-tip="Ana ekrana geri dön.">&#8592; Ana Menüye Dön</button>';
+    return '<button class="btn btn-back" type="button" onclick="goBackToMainMenu()" data-tip="Ana ekrana geri dön.">&#8592; Ana Menüye Dön</button>';
 }
 
 function actionBtn(label, action, data, tipText, extraClass) {
@@ -418,6 +416,12 @@ function setContent(html) {
     hideTooltip();
     contentEl.innerHTML = html;
     bindImageFallbacks(contentEl);
+}
+
+function goBackToMainMenu() {
+    screenData.menuView = getDefaultMenuView(screenData.menuState);
+    showMenu(screenData.menuState);
+    sendAction('goBack', {});
 }
 
 function clamp(value, min, max) {
@@ -752,7 +756,13 @@ function bindImageFallbacks(root) {
 
 function setHudState(data) {
     data = data || {};
+    var fallbackLobbyMembers = (screenData.menuState && screenData.menuState.lobbyMembers) || [];
+    var nextLobbyMembers = Array.isArray(data.lobbyMembers) ? data.lobbyMembers : fallbackLobbyMembers;
+    var shouldShowLobbyMembers = data.showLobbyMembers !== undefined
+        ? data.showLobbyMembers
+        : ((screenData.menuState && screenData.menuState.hasLobby) === true);
     refreshOperatorStatus(data.operatorCards);
+    renderLobbyMembersPanel(nextLobbyMembers, shouldShowLobbyMembers);
     hudEls.missionBrief.classList.toggle('hidden', data.hideMissionBrief === true);
 
     hudEls.briefTitle.textContent = data.briefTitle || DEFAULT_HUD.briefTitle;
@@ -830,6 +840,34 @@ function buildOperatorCards() {
             valuePct: state.hasLobby ? (state.isLeader ? 88 : 74) : 28
         }
     ];
+}
+
+function getLobbyMemberStatusText(member) {
+    if (member && member.isLeader) return 'Lider';
+    return member && member.isReady ? 'Hazır' : 'Hazır Değil';
+}
+
+function renderLobbyMembersPanel(members, shouldShow) {
+    if (!hudEls.lobbyMembersPanel || !hudEls.lobbyMembersList) return;
+
+    if (shouldShow !== true || !Array.isArray(members) || members.length === 0) {
+        hudEls.lobbyMembersPanel.classList.add('hidden');
+        hudEls.lobbyMembersList.innerHTML = '';
+        return;
+    }
+
+    hudEls.lobbyMembersPanel.classList.remove('hidden');
+    hudEls.lobbyMembersList.innerHTML = members.slice(0, MAX_LOBBY_SIZE).map(function (member) {
+        member = member || {};
+        var statusText = getLobbyMemberStatusText(member);
+        return '<div class="lobby-member-card">' +
+            '<div class="lobby-member-row">' +
+                '<div class="lobby-member-name">' + esc(member.name || ('Oyuncu #' + String(member.id || '?'))) + '</div>' +
+                '<div class="lobby-member-badge' + (member.isLeader ? ' is-leader' : (member.isReady ? ' is-ready' : ' is-waiting')) + '">' + esc(statusText) + '</div>' +
+            '</div>' +
+            '<div class="lobby-member-meta">ID: ' + esc(String(member.id || '-')) + '</div>' +
+        '</div>';
+    }).join('');
 }
 
 function formatSecondsClock(totalSeconds) {
@@ -1228,7 +1266,15 @@ function renderLobbySettingsPanel(state) {
     });
 }
 
+function hasActiveMenuSelection(view) {
+    return !!(view && (view.section || view.panel));
+}
+
 function renderMenuPanel(state, view) {
+    if (!hasActiveMenuSelection(view)) {
+        return '';
+    }
+
     switch (view.panel) {
         case 'arcRaid':
             return renderArcRaidPanel(state);
@@ -1417,11 +1463,15 @@ function syncLobbyMembers(data) {
     data = data || {};
     if (data.members) screenData.members = data.members;
     if (data.leaderId !== undefined) screenData.memberLeaderId = data.leaderId;
+    if (data.members) screenData.menuState.lobbyMembers = data.members;
     if (currentScreen === 'members') {
         showMembers({
             members: screenData.members,
             leaderId: screenData.memberLeaderId
         });
+    }
+    if (currentScreen === 'menu') {
+        renderLobbyMembersPanel(screenData.menuState.lobbyMembers || [], screenData.menuState.hasLobby === true);
     }
 }
 
@@ -2233,6 +2283,8 @@ function showMenu(state) {
     setBreadcrumb(panel ? ('Operasyon Menüsü / ' + (panel.label || 'Ana Menü')) : 'Operasyon Menüsü');
     setHudState({
         operatorCards: operatorCards,
+        showLobbyMembers: state.hasLobby === true,
+        lobbyMembers: state.lobbyMembers || [],
         health: clamp(MAIN_MENU_BASE_HEALTH + ((state.userLevel || 1) * MAIN_MENU_HEALTH_PER_LEVEL), 0, 100),
         radiation: view.section === 'arc' ? 41 : state.isLeader ? 34 : state.isMember ? 42 : 18,
         inventoryPct: view.section === 'arc' ? (state.arcLoadoutReady ? 82 : 46) : state.hasLobby ? 66 : 50,

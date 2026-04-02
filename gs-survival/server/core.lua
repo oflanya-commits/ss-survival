@@ -29,6 +29,7 @@ local arcRaidPlayerProfiles = {}
 local arcPlayerBucketIndex = {}
 local arcPendingReconnectCounts = {}
 local bucketWaveState = {}
+local menuPreviewBuckets = {}
 local nextBucketId = 10000
 local nextArcBarricadeId = 1
 local FinalizeArcMatch

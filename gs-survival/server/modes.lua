@@ -471,10 +471,60 @@ end)
 QBCore.Functions.CreateCallback('gs-survival:server:getArcMenuState', function(source, cb)
     local Player = QBCore.Functions.GetPlayer(source)
     local prepState = BuildArcPrepState(Player)
+    local leaderId = nil
+    if activeLobbies[source] then
+        leaderId = source
+    else
+        leaderId = ServerHelpers.FindLobbyLeaderByMember(source)
+    end
     cb({
         prep = prepState,
-        summary = BuildArcUiSummaryState(source, prepState)
+        summary = BuildArcUiSummaryState(source, prepState),
+        lobbyMembers = leaderId and BuildLobbyMemberList(leaderId) or {}
     })
+end)
+
+QBCore.Functions.CreateCallback('gs-survival:server:enterMenuPreview', function(source, cb)
+    local currentBucket = tonumber(GetPlayerRoutingBucket(source)) or 0
+    local activePreview = menuPreviewBuckets[source]
+
+    if activePreview and activePreview.bucketId then
+        cb({
+            bucketId = activePreview.bucketId,
+            originalBucket = activePreview.originalBucket or 0
+        })
+        return
+    end
+
+    local previewBucket = GenerateBucketId()
+    menuPreviewBuckets[source] = {
+        bucketId = previewBucket,
+        originalBucket = currentBucket
+    }
+    groupMembers[previewBucket] = { source }
+    bucketModes[previewBucket] = 'menu_preview'
+    SetPlayerRoutingBucket(source, previewBucket)
+
+    cb({
+        bucketId = previewBucket,
+        originalBucket = currentBucket
+    })
+end)
+
+QBCore.Functions.CreateCallback('gs-survival:server:exitMenuPreview', function(source, cb, originalBucket)
+    local previewState = menuPreviewBuckets[source]
+    local targetBucket = tonumber(originalBucket) or (previewState and previewState.originalBucket) or 0
+
+    SetPlayerRoutingBucket(source, targetBucket)
+
+    if previewState and previewState.bucketId then
+        CleanBucketEntities(previewState.bucketId)
+        groupMembers[previewState.bucketId] = nil
+        bucketModes[previewState.bucketId] = nil
+    end
+
+    menuPreviewBuckets[source] = nil
+    cb(true)
 end)
 
 QBCore.Functions.CreateCallback('gs-survival:server:getArcLockerState', function(source, cb, focusSide)
