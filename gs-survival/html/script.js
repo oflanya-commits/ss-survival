@@ -194,10 +194,6 @@ let bannerTimer = null;
 let progressFrame = null;
 let notifyTimers = [];
 
-function isPopupPanelView(viewKey) {
-    return viewKey !== 'menu';
-}
-
 function shouldShowHubPanel(viewKey) {
     return safeString(viewKey).length > 0;
 }
