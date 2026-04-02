@@ -977,8 +977,10 @@ function renderPopupStat(label, value, desc) {
 
 function renderChoiceCard(options) {
     options = options || {};
-    var cls = 'menu-choice-card' + (options.selected ? ' is-selected' : '');
-    return '<button class="' + cls + '" type="button" onclick="' + (options.onclick || '') + '"' +
+    var cls = 'menu-choice-card' + (options.selected ? ' is-selected' : '') + (options.disabled ? ' is-disabled' : '');
+    return '<button class="' + cls + '" type="button"' +
+        (options.disabled ? ' disabled' : '') +
+        (!options.disabled && options.onclick ? ' onclick="' + options.onclick + '"' : '') +
         (options.tip ? ' data-tip="' + esc(options.tip) + '"' : '') + '>' +
         '<div class="menu-choice-top">' +
             '<span class="menu-choice-chip">' + esc(options.kicker || 'SEÇİM') + '</span>' +
@@ -1065,7 +1067,7 @@ function renderArcRaidPanel(state) {
         '<div class="menu-choice-grid">' +
             renderChoiceCard({
                 selected: true,
-                onclick: 'return false;',
+                disabled: true,
                 kicker: 'ARC',
                 chip: 'RASTGELE',
                 title: 'Otomatik Baskın Bölgesi',

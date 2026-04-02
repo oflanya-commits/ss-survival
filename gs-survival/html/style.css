@@ -1250,6 +1250,13 @@ body {
     box-shadow: 0 16px 34px rgba(0,0,0,0.16);
 }
 
+.menu-choice-card.is-disabled,
+.menu-choice-card.is-disabled:hover {
+    cursor: default;
+    transform: none;
+    box-shadow: none;
+}
+
 .menu-choice-card.is-selected {
     border-color: rgba(193, 199, 208, 0.56);
     background: linear-gradient(180deg, rgba(193, 199, 208, 0.18), rgba(48, 54, 64, 0.3));
