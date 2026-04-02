@@ -21,6 +21,8 @@
     --radius-lg: 28px;
     --radius-xl: 36px;
     --transition: 180ms ease;
+    --left-rail-width: 220px;
+    --right-rail-width: 320px;
 }
 
 * {
@@ -314,7 +316,7 @@ img {
 .app__body {
     min-height: 0;
     display: grid;
-    grid-template-columns: 220px minmax(0, 1fr) 320px;
+    grid-template-columns: var(--left-rail-width) minmax(0, 1fr) var(--right-rail-width);
     gap: 20px;
     flex: 1;
 }
@@ -1246,8 +1248,13 @@ img {
 }
 
 @media (max-width: 1440px) {
+    :root {
+        --left-rail-width: 200px;
+        --right-rail-width: 300px;
+    }
+
     .app__body {
-        grid-template-columns: 200px minmax(0, 1fr) 300px;
+        grid-template-columns: var(--left-rail-width) minmax(0, 1fr) var(--right-rail-width);
     }
 }
 

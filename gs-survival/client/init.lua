@@ -86,6 +86,14 @@ local menuStateCacheKey = nil
 local isMenuOpen = false
 local menuPreviewCam = nil
 local menuPreviewState = nil
+local MENU_PREVIEW_PED_Z_OFFSET = -1.0
+local MENU_PREVIEW_PED_FORWARD_OFFSET = -0.55
+local MENU_PREVIEW_PED_RIGHT_OFFSET = 1.55
+local MENU_PREVIEW_HEADING_OFFSET = 160.0
+local MENU_PREVIEW_CAM_FORWARD_OFFSET = 2.15
+local MENU_PREVIEW_CAM_HEIGHT_OFFSET = 0.72
+local MENU_PREVIEW_LOOK_AT_HEIGHT_OFFSET = 0.78
+local MENU_PREVIEW_FOV = 30.0
 local ARC_OVERLAY_INFO_REFRESH_INTERVAL_MS = 1000
 -- Minimap coordinates use normalized screen anchors; clipType 0 restores the default square minimap,
 -- while clipType 1 forces the ARC minimap into the top-right rounded layout.
@@ -135,7 +143,7 @@ local function OffsetCoordsFromHeading(baseCoords, heading, forward, right, up)
 end
 
 function StartMenuPreview()
-    if menuPreviewState or isSurvivalActive or not Config.Npc or not Config.Npc.Coords then
+    if not CanStartMenuPreview() then
         return
     end
 
@@ -145,10 +153,10 @@ function StartMenuPreview()
     end
 
     local npcCoords = Config.Npc.Coords
-    local previewAnchor = vector3(npcCoords.x, npcCoords.y, npcCoords.z - 1.0)
-    local previewCoords = OffsetCoordsFromHeading(previewAnchor, npcCoords.w, -0.55, 1.55, 0.0)
-    local previewHeading = (npcCoords.w + 160.0) % 360.0
-    local camCoords = OffsetCoordsFromHeading(previewCoords, previewHeading, 2.15, 0.0, 0.72)
+    local previewAnchor = vector3(npcCoords.x, npcCoords.y, npcCoords.z + MENU_PREVIEW_PED_Z_OFFSET)
+    local previewCoords = OffsetCoordsFromHeading(previewAnchor, npcCoords.w, MENU_PREVIEW_PED_FORWARD_OFFSET, MENU_PREVIEW_PED_RIGHT_OFFSET, 0.0)
+    local previewHeading = (npcCoords.w + MENU_PREVIEW_HEADING_OFFSET) % 360.0
+    local camCoords = OffsetCoordsFromHeading(previewCoords, previewHeading, MENU_PREVIEW_CAM_FORWARD_OFFSET, 0.0, MENU_PREVIEW_CAM_HEIGHT_OFFSET)
 
     menuPreviewState = {
         coords = GetEntityCoords(ped),
@@ -168,8 +176,8 @@ function StartMenuPreview()
     end
 
     SetCamCoord(menuPreviewCam, camCoords.x, camCoords.y, camCoords.z)
-    PointCamAtCoord(menuPreviewCam, previewCoords.x, previewCoords.y, previewCoords.z + 0.78)
-    SetCamFov(menuPreviewCam, 30.0)
+    PointCamAtCoord(menuPreviewCam, previewCoords.x, previewCoords.y, previewCoords.z + MENU_PREVIEW_LOOK_AT_HEIGHT_OFFSET)
+    SetCamFov(menuPreviewCam, MENU_PREVIEW_FOV)
     RenderScriptCams(true, false, 0, true, true)
 end
 
@@ -194,6 +202,13 @@ function StopMenuPreview()
     end
 
     menuPreviewState = nil
+end
+
+function CanStartMenuPreview()
+    return menuPreviewState == nil
+        and isSurvivalActive ~= true
+        and Config.Npc ~= nil
+        and Config.Npc.Coords ~= nil
 end
 
 local function RefreshMinimapLayout()

@@ -177,7 +177,7 @@ let bannerTimer = null;
 let progressFrame = null;
 let notifyTimers = [];
 
-function isPopupView(viewKey) {
+function shouldShowPopup(viewKey) {
     return viewKey !== 'menu';
 }
 
@@ -573,15 +573,15 @@ function renderCurrentView() {
     const renderer = viewRenderers[state.currentView] || renderMenuView;
     const view = renderer();
     ui.app.dataset.view = state.currentView;
-    ui.app.dataset.popupOpen = isPopupView(state.currentView) ? '1' : '0';
+    ui.app.dataset.popupOpen = shouldShowPopup(state.currentView) ? '1' : '0';
     ui.screenTitle.textContent = view.title || STRINGS.app.title;
     ui.screenSubtitle.textContent = view.subtitle || STRINGS.app.subtitle;
     ui.breadcrumb.textContent = view.breadcrumb || STRINGS.app.breadcrumb;
     if (ui.hubPanel) {
-        ui.hubPanel.classList.toggle('is-open', isPopupView(state.currentView));
+        ui.hubPanel.classList.toggle('is-open', shouldShowPopup(state.currentView));
     }
     if (ui.topbarBack) {
-        ui.topbarBack.classList.toggle('hidden', !isPopupView(state.currentView));
+        ui.topbarBack.classList.toggle('hidden', !shouldShowPopup(state.currentView));
     }
     renderSidebar(view.sidebar || buildDefaultSidebar());
     renderShellChrome(view);
