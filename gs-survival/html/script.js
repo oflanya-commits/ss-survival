@@ -215,11 +215,7 @@ const messageHandlers = {
             sourceLabel: safeString(data && data.sourceLabel),
             helperText: safeString(data && data.helperText)
         };
-        state.currentView = 'menu';
-        state.craftDialog = null;
-        closeDialogs();
-        showApp();
-        renderCurrentView();
+        redirectRemovedCraftToMenu();
     },
     openStages(data) {
         state.stages = safeArray(data && data.stages);
@@ -576,6 +572,14 @@ function closeDialogs(keepLockerSplit) {
     state.craftDialog = null;
     if (!keepLockerSplit && state.arcLockers) state.arcLockers.splitDialog = null;
     renderModal();
+}
+
+function redirectRemovedCraftToMenu() {
+    state.currentView = 'menu';
+    state.craftDialog = null;
+    closeDialogs();
+    showApp();
+    renderCurrentView();
 }
 
 function renderCurrentView() {
@@ -1539,8 +1543,10 @@ function dispatchAction(action, payload) {
             sendAction('openMarket', {});
             return;
         case 'open-craft':
+            redirectRemovedCraftToMenu();
             return;
         case 'open-arc-craft':
+            redirectRemovedCraftToMenu();
             return;
         case 'open-stages':
             sendAction('openStages', payload);
