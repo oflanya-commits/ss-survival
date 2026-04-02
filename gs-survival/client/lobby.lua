@@ -86,20 +86,12 @@ RegisterNetEvent('gs-survival:client:stageMenu', function(data)
     local gameMode = Config.GameModes and Config.GameModes[currentModeId] or Config.GameModes.classic
     local stages = {}
     if currentModeId == 'arc_pvp' then
-        local deploymentZones = (Config.ArcPvP and Config.ArcPvP.DeploymentZones) or {}
-        for zoneId, zoneData in pairs(deploymentZones) do
-            if type(zoneId) == 'number' and zoneData then
-                table.insert(stages, {
-                    id = zoneId,
-                    label = zoneData.label or ((gameMode and gameMode.label) or "ARC Baskını"),
-                    multiplier = 1.0,
-                    locked = false
-                })
-            end
-        end
-        table.sort(stages, function(a, b)
-            return (tonumber(a.id) or 0) < (tonumber(b.id) or 0)
-        end)
+        table.insert(stages, {
+            id = 0,
+            label = "Rastgele Konuşlandırma",
+            multiplier = 1.0,
+            locked = false
+        })
     else
         for stageId, stageData in ipairs(GetModeStages(currentModeId)) do
             table.insert(stages, {

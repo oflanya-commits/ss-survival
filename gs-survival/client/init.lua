@@ -251,7 +251,7 @@ local function SendArcNotify(message, notifyType, duration, title)
             title = title or 'ARC Bildirimi',
             message = message,
             type = notifyType or 'info',
-            duration = duration or 4500
+            duration = duration or 7000
         }
     })
 end
@@ -1988,7 +1988,7 @@ local function BuildMenuStateCacheKey(menuState)
     return tostring(menuState.userLevel or '') .. ':' .. tostring(menuState.currentModeId or '') .. ':' .. tostring(menuState.lobbyStatus or '')
 end
 
-local function DispatchMenuState(openMenu)
+local function DispatchMenuState(openMenu, forceUpdate)
     QBCore.Functions.GetPlayerData(function(PlayerData)
         local survivalMetadata = GetSurvivalMetadata()
         local userLevel = PlayerData.metadata[survivalMetadata.level or "survival_level"] or 1
@@ -2005,7 +2005,7 @@ local function DispatchMenuState(openMenu)
             if openMenu then
                 menuStateCacheKey = nextCacheKey
                 OpenNUI(payload)
-            elseif isMenuOpen and nextCacheKey ~= menuStateCacheKey then
+            elseif isMenuOpen and (forceUpdate == true or nextCacheKey ~= menuStateCacheKey) then
                 menuStateCacheKey = nextCacheKey
                 SendNUIMessage(payload)
             end
@@ -2014,7 +2014,7 @@ local function DispatchMenuState(openMenu)
 end
 
 local function RefreshMainMenu()
-    DispatchMenuState(true)
+    DispatchMenuState(not isMenuOpen, true)
 end
 
 local function BuildArcCraftSourceContext(sourceKey)

@@ -20,9 +20,9 @@ var ARC_TEAM_STATUS = {
         badge: 'ONLINE'
     }
 };
-var ARC_NOTIFY_DEFAULT_DURATION = 4500;
-var ARC_NOTIFY_MIN_DURATION = 1200;
-var ARC_NOTIFY_MAX_DURATION = 15000;
+var ARC_NOTIFY_DEFAULT_DURATION = 7000;
+var ARC_NOTIFY_MIN_DURATION = 4500;
+var ARC_NOTIFY_MAX_DURATION = 18000;
 var ARC_NOTIFY_EXIT_DURATION_MS = 300;
 var ARC_BARRICADE_DEFAULT_BOTTOM_OFFSET = 34;
 var ARC_BARRICADE_TEAM_PANEL_GAP = 18;
@@ -899,25 +899,38 @@ function getMenuPanelDefinition(panelKey) {
 }
 
 function getDefaultMenuView(state) {
-    if (state && state.currentModeId === 'arc_pvp') {
-        return { section: 'arc', panel: 'arcRaid' };
-    }
-    return { section: 'survival', panel: 'survivalRaid' };
+    return { section: null, panel: null };
 }
 
 function syncMenuView(state) {
     var fallback = getDefaultMenuView(state);
     var view = screenData.menuView || fallback;
-    var activeSection = getNavItemBySection(view.section);
-    var hasPanel = (activeSection.panels || []).some(function (panel) {
-        return panel.key === view.panel;
-    });
-    if (!hasPanel) {
-        view.panel = activeSection.panels[0].key;
+    if (!view.section) {
+        screenData.menuView = fallback;
+        return screenData.menuView;
     }
+
+    var activeSection = MENU_NAV_ITEMS.find(function (item) {
+        return item.key === view.section;
+    });
+    if (!activeSection) {
+        screenData.menuView = fallback;
+        return screenData.menuView;
+    }
+
+    var panelKey = view.panel || null;
+    if (panelKey) {
+        var hasPanel = (activeSection.panels || []).some(function (panel) {
+            return panel.key === panelKey;
+        });
+        if (!hasPanel) {
+            panelKey = null;
+        }
+    }
+
     screenData.menuView = {
         section: activeSection.key,
-        panel: view.panel
+        panel: panelKey
     };
     return screenData.menuView;
 }
@@ -936,14 +949,41 @@ function selectMenuSection(sectionKey) {
     var item = getNavItemBySection(sectionKey);
     screenData.menuView = {
         section: item.key,
-        panel: item.panels[0].key
+        panel: null
     };
     if (currentScreen === 'menu') {
         showMenu(screenData.menuState);
     }
 }
 
+function getDirectPanelAction(panelKey) {
+    switch (panelKey) {
+        case 'arcLoadout':
+            return { action: 'openArcLoadoutStash', data: {} };
+        case 'arcWorkshop':
+            return { action: 'openCraft', data: { source: 'arc_main' } };
+        case 'arcDepot':
+            return { action: 'openArcMainStash', data: {} };
+        case 'survivalMarket':
+            return { action: 'openMarket', data: {} };
+        case 'survivalWorkshop':
+            return { action: 'openCraft', data: {} };
+        default:
+            return null;
+    }
+}
+
 function selectMenuPanel(sectionKey, panelKey) {
+    var directAction = getDirectPanelAction(panelKey);
+    if (directAction) {
+        screenData.menuView = {
+            section: sectionKey,
+            panel: null
+        };
+        sendAction(directAction.action, directAction.data);
+        return;
+    }
+
     screenData.menuView = {
         section: sectionKey,
         panel: panelKey
@@ -977,8 +1017,10 @@ function renderPopupStat(label, value, desc) {
 
 function renderChoiceCard(options) {
     options = options || {};
-    var cls = 'menu-choice-card' + (options.selected ? ' is-selected' : '');
-    return '<button class="' + cls + '" type="button" onclick="' + (options.onclick || '') + '"' +
+    var cls = 'menu-choice-card' + (options.selected ? ' is-selected' : '') + (options.disabled ? ' is-disabled' : '');
+    return '<button class="' + cls + '" type="button"' +
+        (options.disabled ? ' disabled' : '') +
+        (!options.disabled && options.onclick ? ' onclick="' + options.onclick + '"' : '') +
         (options.tip ? ' data-tip="' + esc(options.tip) + '"' : '') + '>' +
         '<div class="menu-choice-top">' +
             '<span class="menu-choice-chip">' + esc(options.kicker || 'SEÇİM') + '</span>' +
@@ -1039,38 +1081,35 @@ function renderMenuPopupFrame(config) {
 }
 
 function renderMenuPopupFooter(primaryLabel, primaryAction, footerCopy, disabled) {
+    var statusClass = disabled ? ' is-unavailable is-static' : ' is-available';
     return '<div class="menu-popup-footer">' +
         '<div class="menu-popup-actions">' +
-            '<button class="pubg-ready-btn menu-popup-start' + (disabled ? ' is-static' : '') + '" type="button" ' +
+            '<button class="pubg-ready-btn menu-popup-start' + statusClass + '" type="button" ' +
                 (disabled ? 'disabled' : '') + ' onclick="' + primaryAction + '">' + esc(primaryLabel) + '</button>' +
         '</div>' +
         '<div class="menu-popup-footer-copy">' + esc(footerCopy || '') + '</div>' +
     '</div>';
 }
 
+function renderMenuLanding(state, view) {
+    var sectionLabel = view.section ? getNavItemBySection(view.section).label : 'Operasyon';
+    return renderMenuPopupFrame({
+        kicker: 'BEKLEME',
+        title: 'Soldan Bir Menü Seç',
+        desc: 'Menü ilk açıldığında içerik otomatik yüklenmez. Soldaki başlıklardan bölüm seçip ilgili ekranı kendin açarsın.',
+        note: '<strong>' + esc(sectionLabel) + '</strong><br>İçerik seçimi bekleniyor.',
+        body: '<div class="menu-popup-grid">' +
+            renderPopupStat('Karakter', state.playerName || 'Bilinmeyen Operatif', 'Ön izleme açık kalır.') +
+            renderPopupStat('Takım', state.lobbyStatus || 'Tek Başına', 'Hazırlık ve lobby bilgileri soldan yönetilir.') +
+            renderPopupStat('Mod', state.currentModeLabel || 'Klasik Hayatta Kalma', 'ARC ve survival akışları soldaki menüden açılır.') +
+        '</div>'
+    });
+}
+
 function renderArcRaidPanel(state) {
-    var selectedZoneId = screenData.menuSelections.arcZoneId;
-    var zones = state.arcDeploymentZones || [];
-    var selectedZone = zones.find(function (zone) { return zone.id === selectedZoneId; }) || zones[0];
     var summary = state.arcSummary || {};
     var loadoutUi = getArcLoadoutPresentation(state);
     var canDeploy = summary.canDeploy !== false;
-    var stageCards = zones.map(function (zone) {
-        return renderChoiceCard({
-            selected: zone.id === (selectedZone && selectedZone.id),
-            onclick: 'selectArcZone(' + Number(zone.id) + ')',
-            kicker: zone.regionLabel || 'ARC',
-            chip: zone.lootLabel || 'BASKIN',
-            title: zone.label,
-            desc: zone.description || 'Bölgeyi seçtikten sonra sol alttaki butonla baskını başlat.',
-            meta: [
-                'Loot: ' + (zone.lootNodeCount || 0),
-                'Giriş: ' + (zone.insertionCount || 0),
-                'Tahliye: ' + (zone.extractionLabel || 'Hazır')
-            ],
-            tip: zone.label + ' seçimi baskının konuşlandırma bölgesini belirler.'
-        });
-    }).join('');
 
     var body = '<div class="menu-popup-grid">' +
             renderPopupStat('Lider Yetkisi', state.isLeader ? 'Aktif' : 'Lider Gerekli', state.isLeader ? 'Operasyonu sen başlatabilirsin.' : 'Başlatma sadece lobi liderinde.') +
@@ -1080,16 +1119,31 @@ function renderArcRaidPanel(state) {
         '</div>' +
         renderArcPreflightSummary(state) +
         buildArcExtractionPanel(state) +
-        '<div class="section-header"><div class="section-title">&#9876; Baskın Bölgesi Seç</div></div>' +
-        '<div class="menu-choice-grid">' + stageCards + '</div>';
+        '<div class="section-header"><div class="section-title">&#127920; Rastgele Konuşlandırma</div></div>' +
+        '<div class="menu-choice-grid">' +
+            renderChoiceCard({
+                selected: true,
+                disabled: true,
+                kicker: 'ARC',
+                chip: 'RASTGELE',
+                title: 'Otomatik Baskın Bölgesi',
+                desc: 'ARC baskını başladığında sistem seni uygun deployment bölgesine otomatik ve rastgele yerleştirecek.',
+                meta: [
+                    'Konuşlandırma: Rastgele',
+                    'Giriş Noktası: Otomatik',
+                    'Tahliye: Operasyona göre'
+                ],
+                tip: 'ARC baskınında manuel bölge seçimi kapalıdır.'
+            }) +
+        '</div>';
 
     return renderMenuPopupFrame({
         kicker: 'ARC MODU',
         title: 'ARC Baskınını Başlat',
-        desc: 'Baskın merkezi artık tek pencerede. Bölgeyi seç, hazırlık özetini kontrol et ve sol alttan operasyona çık.',
-        note: selectedZone ? ('<strong>' + esc(selectedZone.label) + '</strong><br>' + esc(selectedZone.regionLabel || 'ARC Bölgesi')) : 'Bölge seçimi bekleniyor.',
+        desc: 'Baskın merkezi artık tek pencerede. Hazırlık özetini kontrol et; operasyon başlayınca sistem seni rastgele uygun bir ARC bölgesine bırakır.',
+        note: '<strong>Rastgele Bölge</strong><br>Konuşlandırma sunucu tarafından otomatik belirlenir.',
         body: body,
-        footer: renderMenuPopupFooter('ARC BASKININI BAŞLAT', 'startArcModeFromMenu()', canDeploy ? 'Seçilen bölge: ' + ((selectedZone && selectedZone.label) || 'Yok') : 'Kritik ARC hazırlıkları tamamlanmadan başlatılamaz.', !selectedZone || !canDeploy)
+        footer: renderMenuPopupFooter('ARC BASKININI BAŞLAT', 'startArcModeFromMenu()', canDeploy ? 'Baskın başladığında rastgele deployment bölgesi seçilecek.' : 'Kritik ARC hazırlıkları tamamlanmadan başlatılamaz.', !canDeploy)
     });
 }
 
@@ -1179,80 +1233,22 @@ function renderMenuPanel(state, view) {
         case 'arcRaid':
             return renderArcRaidPanel(state);
         case 'arcLoadout':
-            return renderArcActionPanel(
-                'Baskın Çantası',
-                'Baskına girişte üstüne verilecek ekipmanı burada yönetirsin.',
-                [
-                    renderPopupStat('Hazır Durum', state.arcLoadoutReady ? 'Hazır' : 'Boş', state.arcLoadoutReady ? 'Çanta baskına hazır.' : 'Hazırlık eksik olabilir.'),
-                    renderPopupStat('Stack', String(state.arcLoadoutStacks || 0), 'Toplam farklı yığın sayısı.'),
-                    renderPopupStat('Eşya', String(state.arcLoadoutItems || 0), 'Toplam item adedi.')
-                ],
-                'BASKIN ÇANTASINI AÇ',
-                'sendAction(\'openArcLoadoutStash\',{})',
-                'Çanta ekranı açıldığında yükleme ekipmanını doğrudan düzenlersin.'
-            );
         case 'arcWorkshop':
-            return renderArcActionPanel(
-                'ARC Atölyesi',
-                'Kalıcı depodan beslenen ARC craft akışını burada başlatırsın.',
-                [
-                    renderPopupStat('Depo Stack', String(state.arcMainStacks || 0), 'Kalıcı depodaki stack adedi.'),
-                    renderPopupStat('Depo Eşya', String(state.arcMainItems || 0), 'Kalıcı depodaki toplam eşya.'),
-                    renderPopupStat('Craft Kaynağı', 'ARC Ana Depo', 'Üretilen eşyalar aynı depoya geri düşer.')
-                ],
-                'ARC ATÖLYESİNİ AÇ',
-                'sendAction(\'openCraft\',{source:\'arc_main\'})',
-                'Atölye büyük pencere olarak açılır ve kalıcı depo malzemelerini kullanır.'
-            );
         case 'arcDepot':
-            return renderArcActionPanel(
-                'Kalıcı Depo',
-                'Baskın dışında da sende kalan tüm ARC lootlarını bu depoda saklarsın.',
-                [
-                    renderPopupStat('Stack', String(state.arcMainStacks || 0), 'Kalıcı saklanan stack sayısı.'),
-                    renderPopupStat('Eşya', String(state.arcMainItems || 0), 'Kalıcı depodaki toplam içerik.'),
-                    renderPopupStat('Bağlantı', state.disconnectPolicyLabel || 'Güvenli', 'Kopma politikası bu depoyu da etkiler.')
-                ],
-                'KALICI DEPOYU AÇ',
-                'sendAction(\'openArcMainStash\',{})',
-                'Depo yöneticisi açıldığında kalıcı depo ile baskın çantasını birlikte görebilirsin.'
-            );
+        case 'survivalMarket':
+        case 'survivalWorkshop':
+            return renderMenuLanding(state, view);
         case 'survivalRaid':
             return renderSurvivalRaidPanel(state);
-        case 'survivalMarket':
-            return renderArcActionPanel(
-                'Market',
-                'Hayatta kalma operasyonuna girmeden önce güçlendirmeleri incele.',
-                [
-                    renderPopupStat('Seviye', String(state.userLevel || 1), 'Açık haritalar seviyene göre artar.'),
-                    renderPopupStat('Paket', state.upgradeLabel || 'Standart Paket', 'Satın aldığın avantajlar burada görünür.'),
-                    renderPopupStat('Takım', state.lobbyStatus || 'Tek Başına', 'Market ekranı takım açıkken de erişilebilir.')
-                ],
-                'MARKETİ AÇ',
-                'sendAction(\'openMarket\',{})',
-                'Market ekranı büyük pencere olarak açılır.'
-            );
-        case 'survivalWorkshop':
-            return renderArcActionPanel(
-                'Atölye',
-                'Topladığın kaynaklarla hayatta kalma ekipmanını üret.',
-                [
-                    renderPopupStat('Kaynak Akışı', 'Genel Çanta', 'Craft normal kaynaklarını kullanır.'),
-                    renderPopupStat('Hazırlık', state.isReady ? 'Hazır' : 'Beklemede', 'Takımla giriyorsan hazır durumunu ayrıca kontrol et.'),
-                    renderPopupStat('Operatif', state.playerName || 'Bilinmeyen', 'Karakter ön izlemesi açık kalır.')
-                ],
-                'ATÖLYEYİ AÇ',
-                'sendAction(\'openCraft\',{})',
-                'Atölye ekranı ayrı büyük pencere olarak açılır.'
-            );
-        default:
+        case 'lobbySettings':
             return renderLobbySettingsPanel(state);
+        default:
+            return renderMenuLanding(state, view);
     }
 }
 
 function startArcModeFromMenu() {
-    if (!screenData.menuSelections.arcZoneId) return;
-    sendAction('startArcPvP', { stageId: screenData.menuSelections.arcZoneId });
+    sendAction('startArcPvP', {});
 }
 
 function startSurvivalModeFromMenu() {
@@ -2208,7 +2204,7 @@ function showMenu(state) {
     screenData.menuState = state;
     ensureMenuSelections(state);
     var view = syncMenuView(state);
-    var panel = getMenuPanelDefinition(view.panel);
+    var panel = view.panel ? getMenuPanelDefinition(view.panel) : null;
     var isArcPanel = view.section === 'arc';
     var operatorCards = isArcPanel ? [
         {
@@ -2234,7 +2230,7 @@ function showMenu(state) {
     ] : buildOperatorCards();
     setMainNavigationVisible(true);
     renderMenuSidebar(buildSidebarHtml(state, view));
-    setBreadcrumb('Operasyon Menüsü / ' + (panel.label || 'Ana Menü'));
+    setBreadcrumb(panel ? ('Operasyon Menüsü / ' + (panel.label || 'Ana Menü')) : 'Operasyon Menüsü');
     setHudState({
         operatorCards: operatorCards,
         health: clamp(MAIN_MENU_BASE_HEALTH + ((state.userLevel || 1) * MAIN_MENU_HEALTH_PER_LEVEL), 0, 100),
@@ -2245,8 +2241,8 @@ function showMenu(state) {
             : (state.hasLobby ? '04/06' : '03/06'),
         signal: state.hasLobby ? 86 : 71,
         signalText: state.hasLobby ? 'TAKIM' : 'TEK',
-        briefTitle: panel.label || 'Operasyon Hazır',
-        briefText: panel.desc || 'Sol menüden seç, açılan pencereden yönet.',
+        briefTitle: panel ? (panel.label || 'Operasyon Hazır') : 'Hazırlık Ekranı',
+        briefText: panel ? (panel.desc || 'Sol menüden seç, açılan pencereden yönet.') : 'İçerik otomatik açılmaz; soldaki menüden ekran seç.',
         briefTag: view.section === 'arc' ? 'ARC' : view.section === 'survival' ? 'SURV' : 'LOBİ',
         progress: state.hasLobby ? 54 : 36,
         slotsFilled: state.hasLobby ? 4 : 3,
@@ -2387,6 +2383,8 @@ function renderCraftRequirementList(recipe, isArcCraft) {
 }
 
 function renderCraftCard(recipe, recipeIndex, isArcCraft) {
+    var maxCraftable = Math.max(Math.floor(Number(recipe.maxCraftable) || 0), 0);
+    var canCraft = recipe.ready === true && maxCraftable > 0;
     var meterValue = recipe.ready
         ? CRAFT_READY_METER_VALUE
         : clamp(CRAFT_METER_BASE_VALUE + (recipeIndex * CRAFT_METER_INCREMENT), CRAFT_METER_MIN, CRAFT_METER_MAX);
@@ -2399,7 +2397,9 @@ function renderCraftCard(recipe, recipeIndex, isArcCraft) {
         screenMeter(recipe.ready ? 'Hazır' : 'Eksik Parça', meterValue) +
         renderCraftRequirementList(recipe, isArcCraft) +
         '<div class="card-footer"><span class="menu-item-badge' + (recipe.ready ? ' ok' : ' warn') + '">' + esc(recipe.ready ? 'HAZIR' : 'EKSİK') + '</span>' +
-            '<button class="btn btn-primary btn-craft-action" type="button" onclick="craftItem(' + recipeIndex + ')">&#9878; Üret / Birleştir</button>' +
+            '<button class="btn ' + (canCraft ? 'btn-primary' : 'btn-danger') + ' btn-craft-action" type="button"' +
+                (canCraft ? ' onclick="craftItem(' + recipeIndex + ')"' : ' disabled aria-disabled="true"') +
+            '>&#9878; Üret / Birleştir</button>' +
         '</div>' +
     '</div>';
 }
@@ -2582,6 +2582,7 @@ function craftItem(idx) {
     var r = screenData.recipes[idx];
     if (!r) return;
     var maxCraftable = Math.max(Math.floor(Number(r.maxCraftable) || 0), 0);
+    if (r.ready !== true || maxCraftable < 1) return;
     screenData.craftDialog = {
         recipeIndex: idx,
         recipeName: r.label || r.header || 'Tarif',
@@ -2685,6 +2686,20 @@ function showStages(data) {
         return;
     }
 
+    if (isArcMode) {
+        html += '<div class="stage-grid">' +
+            '<button class="stage-card" type="button" onclick="selectStage(0)" data-tip="ARC baskınında bölge seçimi kapalıdır; operasyon başladığında uygun deployment bölgesi rastgele belirlenir.">' +
+                '<div class="stage-card-inner">' +
+                    '<div class="stage-card-top"><span class="stage-chip">&#127920; ARC</span><span class="stage-chip">RASTGELE</span></div>' +
+                    '<div><div class="stage-card-title">Rastgele Konuşlandırma</div><div class="stage-card-desc">ARC baskını sabit kurallarla başlar ve sistem seni uygun bir baskın bölgesine otomatik yerleştirir.</div></div>' +
+                    '<div class="stage-card-footer"><span class="stage-chip muted">Otomatik Seçim</span><span class="stage-action">Baskını Başlat</span></div>' +
+                '</div>' +
+            '</button>' +
+        '</div>';
+        setContent(html);
+        return;
+    }
+
     html += '<div class="stage-grid">';
     for (var i = 0; i < screenData.stages.length; i++) {
         var s = screenData.stages[i];
@@ -2724,6 +2739,11 @@ function showStages(data) {
 }
 
 function selectStage(idx) {
+    if ((screenData.selectedModeId || 'classic') === 'arc_pvp') {
+        sendAction('startArcPvP', {});
+        return;
+    }
+
     sendAction('selectStage', {
         stageId: screenData.stages[idx].id,
         modeId: screenData.selectedModeId || 'classic'

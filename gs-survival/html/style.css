@@ -855,6 +855,10 @@ body {
     display: none !important;
 }
 
+#menu-sidebar-shell.hidden + .pubg-workspace {
+    grid-column: 1 / 3;
+}
+
 #menu-sidebar {
     height: 100%;
 }
@@ -1108,6 +1112,24 @@ body {
     box-shadow: inset 0 0 0 1px rgba(193, 199, 208, 0.18);
 }
 
+.pubg-ready-btn.menu-popup-start.is-available {
+    background: linear-gradient(to bottom, rgba(72, 191, 116, 0.96), rgba(24, 111, 61, 0.98));
+    border-color: rgba(118, 255, 166, 0.5);
+    color: #f5fff7;
+}
+
+.pubg-ready-btn.menu-popup-start.is-available:hover {
+    filter: brightness(1.06);
+}
+
+.pubg-ready-btn.menu-popup-start.is-unavailable,
+.pubg-ready-btn.menu-popup-start[disabled].is-unavailable {
+    background: linear-gradient(to bottom, rgba(220, 76, 76, 0.96), rgba(128, 24, 24, 0.98));
+    border-color: rgba(255, 128, 128, 0.44);
+    color: #fff4f4;
+    opacity: 1;
+}
+
 /* RIGHT PANEL (Dynamic JS Content) */
 .pubg-right-panel {
     flex: 1; min-height: 0; overflow-y: auto; padding-right: 8px;
@@ -1244,6 +1266,13 @@ body {
     transform: translateY(-3px);
     border-color: rgba(193, 199, 208, 0.34);
     box-shadow: 0 16px 34px rgba(0,0,0,0.16);
+}
+
+.menu-choice-card.is-disabled,
+.menu-choice-card.is-disabled:hover {
+    cursor: default;
+    transform: none;
+    box-shadow: none;
 }
 
 .menu-choice-card.is-selected {
