@@ -939,6 +939,7 @@ function getMenuPanelDefinition(panelKey) {
 
 /**
  * Returns the first panel key for the given sidebar section.
+ * Used during menu initialization and section switching to keep the content area populated.
  * @param {string|null} sectionKey
  * @returns {string|null} First panel key, or null when the section is missing or has no panels.
  */
@@ -1293,6 +1294,12 @@ function hasActiveMenuSelection(view) {
     return !!(view && (view.section || view.panel));
 }
 
+function getMenuSection(sectionKey) {
+    return MENU_NAV_ITEMS.find(function (item) {
+        return item.key === sectionKey;
+    }) || null;
+}
+
 /**
  * Normalizes menu view state before render.
  * Invalid or missing selections fall back to the section default, and panels handled by
@@ -1307,7 +1314,8 @@ function getRenderableMenuView(state, view) {
         return fallback;
     }
 
-    var sectionKey = view.section || fallback.section;
+    var section = getMenuSection(view.section) || getMenuSection(fallback.section);
+    var sectionKey = section ? section.key : null;
     var panelKey = view.panel || getSectionDefaultPanel(sectionKey);
 
     // Some sidebar items open a separate NUI screen, so returning to the menu should resume
