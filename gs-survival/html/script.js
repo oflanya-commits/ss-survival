@@ -1281,32 +1281,41 @@ function hasActiveMenuSelection(view) {
     return !!(view && (view.section || view.panel));
 }
 
-function renderMenuPanel(state, view) {
+function getRenderableMenuView(state, view) {
+    var fallback = getDefaultMenuView(state);
     if (!hasActiveMenuSelection(view)) {
-        return renderMenuPanel(state, getDefaultMenuView(state));
+        return fallback;
     }
+
+    var sectionKey = view.section || fallback.section;
+    var panelKey = view.panel || getSectionDefaultPanel(sectionKey);
+
+    if (panelKey === 'arcLoadout' || panelKey === 'arcWorkshop' || panelKey === 'arcDepot' || panelKey === 'survivalMarket' || panelKey === 'survivalWorkshop') {
+        panelKey = getSectionDefaultPanel(sectionKey);
+    }
+
+    if (!panelKey) {
+        return fallback;
+    }
+
+    return {
+        section: sectionKey,
+        panel: panelKey
+    };
+}
+
+function renderMenuPanel(state, view) {
+    view = getRenderableMenuView(state, view);
 
     switch (view.panel) {
         case 'arcRaid':
             return renderArcRaidPanel(state);
-        case 'arcLoadout':
-        case 'arcWorkshop':
-        case 'arcDepot':
-        case 'survivalMarket':
-        case 'survivalWorkshop':
-            return renderMenuPanel(state, {
-                section: view.section,
-                panel: getSectionDefaultPanel(view.section)
-            });
         case 'survivalRaid':
             return renderSurvivalRaidPanel(state);
         case 'lobbySettings':
             return renderLobbySettingsPanel(state);
         default:
-            return renderMenuPanel(state, {
-                section: view.section,
-                panel: getSectionDefaultPanel(view.section)
-            });
+            return '';
     }
 }
 
