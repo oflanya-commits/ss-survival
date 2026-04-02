@@ -1071,7 +1071,7 @@ function renderArcRaidPanel(state) {
                 kicker: 'ARC',
                 chip: 'RASTGELE',
                 title: 'Otomatik Baskın Bölgesi',
-                desc: 'ARC baskını başladığında sistem uygun deployment bölgesini otomatik ve rastgele seçecek.',
+                desc: 'ARC baskını başladığında sistem seni uygun deployment bölgesine otomatik ve rastgele yerleştirecek.',
                 meta: [
                     'Konuşlandırma: Rastgele',
                     'Giriş Noktası: Otomatik',
