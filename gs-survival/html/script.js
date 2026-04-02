@@ -344,9 +344,7 @@ function hideApp() {
     appEl.classList.remove('is-visible');
     appEl.setAttribute('aria-hidden', 'true');
     hideTooltip();
-    hideTimer = setTimeout(function () {
-        appEl.classList.add('hidden');
-    }, 280);
+    appEl.classList.add('hidden');
 }
 
 // ─── Close menu (tell Lua to release focus) ───────────────────────────────
@@ -391,7 +389,7 @@ function menuRow(icon, title, desc, badgeHtml, onclickJs, extraClass, tipText) {
 }
 
 function backBtn() {
-    return '<button class="btn btn-back" type="button" onclick="sendAction(\'goBack\',{})" data-tip="Ana ekrana geri dön.">&#8592; Ana Menüye Dön</button>';
+    return '<button class="btn btn-back" type="button" onclick="goBackToMainMenu()" data-tip="Ana ekrana geri dön.">&#8592; Ana Menüye Dön</button>';
 }
 
 function actionBtn(label, action, data, tipText, extraClass) {
@@ -418,6 +416,13 @@ function setContent(html) {
     hideTooltip();
     contentEl.innerHTML = html;
     bindImageFallbacks(contentEl);
+}
+
+function goBackToMainMenu() {
+    screenData.menuView = getDefaultMenuView(screenData.menuState);
+    showMenu(screenData.menuState);
+    showApp();
+    sendAction('goBack', {});
 }
 
 function clamp(value, min, max) {
@@ -1229,6 +1234,10 @@ function renderLobbySettingsPanel(state) {
 }
 
 function renderMenuPanel(state, view) {
+    if (!view.section && !view.panel) {
+        return '';
+    }
+
     switch (view.panel) {
         case 'arcRaid':
             return renderArcRaidPanel(state);

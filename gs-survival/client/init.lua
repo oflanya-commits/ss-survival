@@ -121,14 +121,12 @@ local CanStartMenuPreview
 -- [NUI YARDIMCI FONKSİYONLAR]
 local function OpenNUI(data)
     isMenuOpen = true
-    StartMenuPreview()
     SendNUIMessage(data)
     SetNuiFocus(true, true)
 end
 
 local function CloseNUI()
     isMenuOpen = false
-    StopMenuPreview()
     SendNUIMessage({ type = 'closeMenu' })
     SetNuiFocus(false, false)
 end
