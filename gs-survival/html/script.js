@@ -942,8 +942,10 @@ function getSectionDefaultPanel(sectionKey) {
         return null;
     }
     var item = getNavItemBySection(sectionKey);
-    var panels = item && Array.isArray(item.panels) ? item.panels : [];
-    return panels.length > 0 && panels[0] ? panels[0].key : null;
+    if (!item || !Array.isArray(item.panels)) {
+        return null;
+    }
+    return item.panels.length > 0 ? item.panels[0].key : null;
 }
 
 function getDefaultMenuView(state) {
