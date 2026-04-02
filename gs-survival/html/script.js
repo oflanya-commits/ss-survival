@@ -92,6 +92,39 @@ const LIMITS = {
 const MODE_ID_CLASSIC = 'classic';
 const MODE_ID_RANKED = 'arc_pvp';
 
+const MENU_METRICS = {
+    lobbyProgress: {
+        leader: 92,
+        readyMember: 84,
+        memberWaiting: 58,
+        solo: 26
+    },
+    levelProgress: {
+        base: 28,
+        perLevel: 6,
+        min: 18,
+        max: 100
+    },
+    stageProgress: {
+        base: 22,
+        perStage: 8,
+        min: 18,
+        max: 100
+    },
+    lockerProgress: {
+        perItem: 12,
+        min: 18,
+        max: 100
+    }
+};
+
+const LOCKER_LAYOUT = {
+    placeholderLimit: {
+        main: 20,
+        loadout: 12
+    }
+};
+
 const LOCKER_CATEGORIES = [
     { key: 'all', label: STRINGS.lockerCategories.all },
     { key: 'weapon', label: STRINGS.lockerCategories.weapon },
@@ -196,6 +229,10 @@ let notifyTimers = [];
 
 function shouldShowHubPanel(viewKey) {
     return safeString(viewKey).length > 0;
+}
+
+function shouldShowBackButton(viewKey) {
+    return safeString(viewKey) !== 'menu';
 }
 
 const messageHandlers = {
@@ -603,7 +640,7 @@ function renderCurrentView() {
         ui.hubPanel.classList.toggle('is-open', shouldShowHubPanel(state.currentView));
     }
     if (ui.topbarBack) {
-        ui.topbarBack.classList.toggle('hidden', state.currentView === 'menu');
+        ui.topbarBack.classList.toggle('hidden', !shouldShowBackButton(state.currentView));
     }
     renderSidebar(view.sidebar || buildDefaultSidebar());
     renderShellChrome(view);
@@ -740,17 +777,21 @@ function renderMenuView() {
     const menu = state.menuState;
     const loadoutInfo = getLoadoutInfo(menu);
     const extraction = getExtractionInfo(menu);
-    const lobbyProgress = menu.hasLobby ? (menu.isLeader ? 92 : (menu.isReady ? 84 : 58)) : 26;
-    const lockerProgress = clamp(((safeNumber(menu.arcMainItems, 0) + safeNumber(menu.arcLoadoutItems, 0)) * 12), 18, 100);
+    const lobbyProgress = getMenuLobbyProgress(menu);
+    const lockerProgress = clamp(
+        (safeNumber(menu.arcMainItems, 0) + safeNumber(menu.arcLoadoutItems, 0)) * MENU_METRICS.lockerProgress.perItem,
+        MENU_METRICS.lockerProgress.min,
+        MENU_METRICS.lockerProgress.max
+    );
 
     return {
         title: 'Ana Menü',
-        subtitle: 'Lobi, takım ve loadout akışları tekrar büyük merkez panelde toplandı.',
+        subtitle: 'Lobi, takım ve loadout akışları tekrar büyük merkez panelde birleştirildi.',
         breadcrumb: STRINGS.app.breadcrumb,
         sidebar: {
             cards: [
-                { label: 'Seviye', value: 'Lv.' + menu.userLevel, percent: clamp(28 + menu.userLevel * 6, 18, 100) },
-                { label: 'Takım', value: menu.hasLobby ? 'Bağlı' : 'Solo', percent: menu.hasLobby ? 84 : 30 },
+                { label: 'Seviye', value: 'Lv.' + menu.userLevel, percent: clamp(MENU_METRICS.levelProgress.base + menu.userLevel * MENU_METRICS.levelProgress.perLevel, MENU_METRICS.levelProgress.min, MENU_METRICS.levelProgress.max) },
+                { label: 'Takım', value: menu.hasLobby ? 'Bağlı' : 'Solo', percent: lobbyProgress },
                 { label: 'ARC', value: loadoutInfo.shortLabel, percent: loadoutInfo.percent },
                 { label: 'Tahliye', value: extraction.phase || 'Pasif', percent: extraction.percent }
             ],
@@ -771,7 +812,7 @@ function renderMenuView() {
             extraction: extraction.phase ? extraction : null
         },
         html: '<div class="view-stack">' +
-            renderViewHeader('Lobi Operasyon Merkezi', 'Boş merkez ekran yerine tüm lobi, takım ve hazırlık aksiyonları tekrar tek yerde gösterilir.') +
+            renderViewHeader('Lobi Operasyon Merkezi', 'Boş merkez ekran yerine tüm lobi, takım ve hazırlık eylemleri tekrar tek yerde gösterilir.') +
             '<section class="view-grid menu-dashboard">' +
                 '<article class="panel-section menu-hero span-7">' +
                     '<div class="menu-hero__body">' +
@@ -788,14 +829,14 @@ function renderMenuView() {
                             '</div>' +
                             '<div class="menu-hero__actions">' + buildMenuHeroActions(menu) + '</div>' +
                         '</div>' +
-                        '<div class="menu-hero__aside">' +
-                            renderStat('Lobi Durumu', menu.hasLobby ? 'Aktif' : 'Kapalı', lobbyProgress) +
-                            renderStat('Loadout', loadoutInfo.shortLabel, loadoutInfo.percent) +
-                            renderStat('Locker', describeCount(safeNumber(menu.arcMainItems, 0), 'slot', 'slot'), lockerProgress) +
-                            renderStat('Stage', 'Stage ' + safeNumber(menu.currentStage, 1), clamp(22 + safeNumber(menu.currentStage, 1) * 8, 18, 100)) +
+                            '<div class="menu-hero__aside">' +
+                                renderStat('Lobi Durumu', menu.hasLobby ? 'Aktif' : 'Kapalı', lobbyProgress) +
+                                renderStat('Loadout', loadoutInfo.shortLabel, loadoutInfo.percent) +
+                                renderStat('Locker', describeCount(safeNumber(menu.arcMainItems, 0), 'slot', 'slot'), lockerProgress) +
+                                renderStat('Stage', 'Stage ' + safeNumber(menu.currentStage, 1), clamp(MENU_METRICS.stageProgress.base + safeNumber(menu.currentStage, 1) * MENU_METRICS.stageProgress.perStage, MENU_METRICS.stageProgress.min, MENU_METRICS.stageProgress.max)) +
+                            '</div>' +
                         '</div>' +
-                    '</div>' +
-                '</article>' +
+                    '</article>' +
                 '<article class="panel-section menu-spotlight span-5">' +
                     '<div class="menu-spotlight__header">' +
                         '<div><p class="ui-overline">HAZIRLIK</p><h3 class="ui-card__title">Loadout + Locker</h3></div>' +
@@ -816,7 +857,7 @@ function renderMenuView() {
             '</section>' +
             '<section class="panel-section">' +
                 '<div class="status-grid">' +
-                    renderStat('Oyuncu Seviyesi', 'Lv.' + menu.userLevel, clamp(28 + menu.userLevel * 6, 18, 100)) +
+                    renderStat('Oyuncu Seviyesi', 'Lv.' + menu.userLevel, clamp(MENU_METRICS.levelProgress.base + menu.userLevel * MENU_METRICS.levelProgress.perLevel, MENU_METRICS.levelProgress.min, MENU_METRICS.levelProgress.max)) +
                     renderStat('Mod', menu.currentModeLabel, menu.currentModeId === MODE_ID_RANKED ? 100 : 74) +
                     renderStat('Hazır Oyuncu', menu.isMember ? (menu.isReady ? 'Onaylandı' : 'Bekleniyor') : (menu.hasLobby ? 'Lider Kontrolü' : 'Solo'), menu.isReady ? 90 : (menu.hasLobby ? 58 : 28)) +
                     renderStat('Tahliye', extraction.phase || 'Beklemede', extraction.percent) +
@@ -1229,6 +1270,13 @@ function buildMenuHeroActions(menu) {
     return actions.join('');
 }
 
+function getMenuLobbyProgress(menu) {
+    if (!menu || menu.hasLobby !== true) return MENU_METRICS.lobbyProgress.solo;
+    if (menu.isLeader) return MENU_METRICS.lobbyProgress.leader;
+    if (menu.isReady) return MENU_METRICS.lobbyProgress.readyMember;
+    return MENU_METRICS.lobbyProgress.memberWaiting;
+}
+
 function buildMenuPrimaryCards(menu, loadoutInfo, extraction) {
     const cards = [
         renderActionCard('Match Seçimi', 'Klasik maçı açıp stage ve risk seviyelerini büyük kartlar üzerinden seç.', [
@@ -1504,15 +1552,15 @@ function renderLockerPanel(section, focusSide) {
     const items = safeArray(section && section.items).filter(function (item) {
         return state.lockerCategory === 'all' || getLockerCategory(item) === state.lockerCategory;
     });
-    const placeholderLimit = section.side === 'loadout' ? 12 : 20;
+    const placeholderLimit = section.side === 'loadout' ? LOCKER_LAYOUT.placeholderLimit.loadout : LOCKER_LAYOUT.placeholderLimit.main;
     const placeholders = Math.max(0, Math.min(placeholderLimit, Math.max(safeNumber(section && section.slots, 0), items.length) - items.length));
     const sectionLabel = section.side === 'loadout' ? 'Loadout' : 'Stash';
-    const detailLabel = section.label || section.title || (section.side === 'loadout' ? 'ARC Baskın Çantası' : 'ARC Kalıcı Depo');
+    const defaultSectionDetail = section.label || section.title || (section.side === 'loadout' ? 'ARC Baskın Çantası' : 'ARC Kalıcı Depo');
 
     return '' +
         '<section class="locker-panel locker-panel--' + escAttr(section.side) + (section.side === focusSide ? ' is-focused' : '') + '">' +
             '<div class="locker-panel__header">' +
-                '<div><p class="ui-overline">' + esc(sectionLabel) + '</p><h3 class="locker-panel__title">' + esc(sectionLabel) + '</h3><p class="ui-card__text">' + esc(section.helperText || detailLabel) + '</p></div>' +
+                '<div><p class="ui-overline">' + esc(sectionLabel) + '</p><h3 class="locker-panel__title">' + esc(sectionLabel) + '</h3><p class="ui-card__text">' + esc(section.helperText || defaultSectionDetail) + '</p></div>' +
                 '<span class="ui-badge ' + (section.side === focusSide ? 'ui-badge--primary' : 'ui-badge--muted') + '">' + esc(safeArray(section.items).length + '/' + (section.slots || safeArray(section.items).length)) + '</span>' +
             '</div>' +
             '<div class="locker-panel__summary">' +
