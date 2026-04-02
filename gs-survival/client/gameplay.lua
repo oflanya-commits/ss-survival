@@ -488,6 +488,7 @@ AddEventHandler('onResourceStop', function(resourceName)
     resourceRunning = false
     isMenuOpen = false
     menuStateCacheKey = nil
+    StopMenuPreview()
     ApplyMinimapLayout(DEFAULT_MINIMAP_LAYOUT)
     ClearArcOverlay()
     ClearArcDeploymentZoneBlips()

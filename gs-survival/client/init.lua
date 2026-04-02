@@ -84,6 +84,16 @@ local arcOverlayInfoLastRefreshAt = 0
 local arcOverlaySessionVisible = false
 local menuStateCacheKey = nil
 local isMenuOpen = false
+local menuPreviewCam = nil
+local menuPreviewState = nil
+local MENU_PREVIEW_PED_Z_OFFSET = -1.0
+local MENU_PREVIEW_PED_FORWARD_OFFSET = -0.55
+local MENU_PREVIEW_PED_RIGHT_OFFSET = 1.55
+local MENU_PREVIEW_HEADING_OFFSET = 160.0
+local MENU_PREVIEW_CAM_FORWARD_OFFSET = 2.15
+local MENU_PREVIEW_CAM_HEIGHT_OFFSET = 0.72
+local MENU_PREVIEW_LOOK_AT_HEIGHT_OFFSET = 0.78
+local MENU_PREVIEW_FOV = 30.0
 local ARC_OVERLAY_INFO_REFRESH_INTERVAL_MS = 1000
 -- Minimap coordinates use normalized screen anchors; clipType 0 restores the default square minimap,
 -- while clipType 1 forces the ARC minimap into the top-right rounded layout.
@@ -104,18 +114,106 @@ local GetModeLabel
 local GetActiveArcStageData
 local BuildArcExtractionHudState
 local ToVector3
+local StartMenuPreview
+local StopMenuPreview
+local CanStartMenuPreview
 
 -- [NUI YARDIMCI FONKSİYONLAR]
 local function OpenNUI(data)
     isMenuOpen = true
+    StartMenuPreview()
     SendNUIMessage(data)
     SetNuiFocus(true, true)
 end
 
 local function CloseNUI()
     isMenuOpen = false
+    StopMenuPreview()
     SendNUIMessage({ type = 'closeMenu' })
     SetNuiFocus(false, false)
+end
+
+local function OffsetCoordsFromHeading(baseCoords, heading, forward, right, up)
+    -- Heading tabanlı world offset üretir:
+    -- forward pedin baktığı yön boyunca, right pedin sağına doğru, up ise Z ekseninde uygulanır.
+    local radians = math.rad(heading or 0.0)
+    local sinValue = math.sin(radians)
+    local cosValue = math.cos(radians)
+
+    return vector3(
+        baseCoords.x + (forward * sinValue) + (right * cosValue),
+        baseCoords.y + (forward * cosValue) - (right * sinValue),
+        baseCoords.z + (up or 0.0)
+    )
+end
+
+StartMenuPreview = function()
+    if not CanStartMenuPreview() then
+        return
+    end
+
+    local ped = PlayerPedId()
+    if not ped or ped == 0 or not DoesEntityExist(ped) then
+        return
+    end
+
+    local npcCoords = Config.Npc.Coords
+    local previewAnchor = vector3(npcCoords.x, npcCoords.y, npcCoords.z + MENU_PREVIEW_PED_Z_OFFSET)
+    local previewCoords = OffsetCoordsFromHeading(previewAnchor, npcCoords.w, MENU_PREVIEW_PED_FORWARD_OFFSET, MENU_PREVIEW_PED_RIGHT_OFFSET, 0.0)
+    local previewHeading = (npcCoords.w + MENU_PREVIEW_HEADING_OFFSET) % 360.0
+    local camCoords = OffsetCoordsFromHeading(previewCoords, previewHeading, MENU_PREVIEW_CAM_FORWARD_OFFSET, 0.0, MENU_PREVIEW_CAM_HEIGHT_OFFSET)
+
+    menuPreviewState = {
+        coords = GetEntityCoords(ped),
+        heading = GetEntityHeading(ped),
+        wasFrozen = IsEntityPositionFrozen(ped)
+    }
+
+    SetEntityCoords(ped, previewCoords.x, previewCoords.y, previewCoords.z, false, false, false, false)
+    SetEntityHeading(ped, previewHeading)
+    ClearPedTasksImmediately(ped)
+    TaskStandStill(ped, -1)
+    FreezeEntityPosition(ped, true)
+    SetFocusEntity(ped)
+
+    if not menuPreviewCam then
+        menuPreviewCam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+    end
+
+    SetCamCoord(menuPreviewCam, camCoords.x, camCoords.y, camCoords.z)
+    PointCamAtCoord(menuPreviewCam, previewCoords.x, previewCoords.y, previewCoords.z + MENU_PREVIEW_LOOK_AT_HEIGHT_OFFSET)
+    SetCamFov(menuPreviewCam, MENU_PREVIEW_FOV)
+    RenderScriptCams(true, false, 0, true, true)
+end
+
+StopMenuPreview = function()
+    if menuPreviewCam then
+        RenderScriptCams(false, false, 0, true, true)
+        DestroyCam(menuPreviewCam, true)
+        menuPreviewCam = nil
+    end
+
+    if not menuPreviewState then
+        return
+    end
+
+    local ped = PlayerPedId()
+    if ped and ped ~= 0 and DoesEntityExist(ped) then
+        ClearPedTasksImmediately(ped)
+        SetEntityCoords(ped, menuPreviewState.coords.x, menuPreviewState.coords.y, menuPreviewState.coords.z, false, false, false, false)
+        SetEntityHeading(ped, menuPreviewState.heading)
+        FreezeEntityPosition(ped, menuPreviewState.wasFrozen == true)
+        SetFocusEntity(ped)
+    end
+
+    menuPreviewState = nil
+end
+
+CanStartMenuPreview = function()
+    return menuPreviewState == nil
+        and isSurvivalActive ~= true
+        and Config.Npc ~= nil
+        and Config.Npc.Coords ~= nil
 end
 
 local function RefreshMinimapLayout()
