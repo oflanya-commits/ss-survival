@@ -160,7 +160,6 @@ var hudEls = {
     arcBarricadePlacementTitle: document.getElementById('arc-barricade-placement-title'),
     arcBarricadePlacementControls: document.getElementById('arc-barricade-placement-controls')
 };
-var hideTimer = null;
 var audioCtx = null;
 var currentScreen = 'menu';
 var arcNotifyTimers = [];
@@ -332,7 +331,6 @@ document.addEventListener('mouseleave', function () {
 
 // ─── Visibility ───────────────────────────────────────────────────────────
 function showApp() {
-    clearTimeout(hideTimer);
     appEl.classList.remove('hidden');
     appEl.setAttribute('aria-hidden', 'false');
     requestAnimationFrame(function () {
@@ -421,7 +419,6 @@ function setContent(html) {
 function goBackToMainMenu() {
     screenData.menuView = getDefaultMenuView(screenData.menuState);
     showMenu(screenData.menuState);
-    showApp();
     sendAction('goBack', {});
 }
 
@@ -1233,8 +1230,12 @@ function renderLobbySettingsPanel(state) {
     });
 }
 
+function hasActiveMenuSelection(view) {
+    return Boolean(view && (view.section || view.panel));
+}
+
 function renderMenuPanel(state, view) {
-    if (!view.section && !view.panel) {
+    if (!hasActiveMenuSelection(view)) {
         return '';
     }
 
