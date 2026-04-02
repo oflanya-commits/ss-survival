@@ -2211,7 +2211,11 @@ local function BuildArcDeploymentState(stageData, stageId, bucketId)
         return nil, "ARC deployment bölgeleri ayarlanmamış."
     end
 
-    local selectedZoneId = availableZones[math.random(1, #availableZones)]
+    local requestedZoneId = tonumber(stageId or 0) or 0
+    local selectedZoneId = requestedZoneId
+    if selectedZoneId <= 0 or not deploymentZones[selectedZoneId] then
+        selectedZoneId = availableZones[math.random(1, #availableZones)]
+    end
     local zoneData = deploymentZones[selectedZoneId]
     local insertionPoint, insertionError = SelectArcInsertionPoint(zoneData, bucketId)
     if not insertionPoint then
@@ -2253,8 +2257,8 @@ local function BuildArcDeploymentState(stageData, stageId, bucketId)
     end
 
     return {
-        stageId = 1,
-        stageLabel = "ARC Baskını",
+        stageId = selectedZoneId,
+        stageLabel = zoneData.label or "ARC Baskını",
         zoneId = selectedZoneId,
         zoneLabel = zoneData.label or "Baskın Bölgesi",
         lootRegion = selectedZoneLootRegion,

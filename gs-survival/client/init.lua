@@ -1887,6 +1887,55 @@ local function GetUpgradeLabel(PlayerData)
     return table.concat(ownedUpgrades, " + ")
 end
 
+local function BuildArcDeploymentMenuOptions()
+    local deploymentZones = (Config.ArcPvP and Config.ArcPvP.DeploymentZones) or {}
+    local lootRegions = (Config.ArcPvP and Config.ArcPvP.LootRegions) or {}
+    local options = {}
+
+    for zoneId, zoneData in pairs(deploymentZones) do
+        if type(zoneId) == 'number' and zoneData then
+            local regionData = lootRegions[zoneData.lootRegion or ''] or {}
+            options[#options + 1] = {
+                id = zoneId,
+                label = zoneData.label or ("ARC Bölgesi " .. zoneId),
+                description = "Baskın bölgesini burada seçer, ardından sol alttan operasyonu başlatırsın.",
+                regionLabel = regionData.label or (zoneData.lootRegion and string.upper(zoneData.lootRegion) or "ARC"),
+                lootLabel = regionData.tierLabel or "Baskın",
+                lootNodeCount = #(zoneData.lootNodes or {}),
+                insertionCount = #(zoneData.insertionPoints or {}),
+                extractionLabel = zoneData.extractionPoint and "Hazır" or "Yok"
+            }
+        end
+    end
+
+    table.sort(options, function(a, b)
+        return (tonumber(a.id) or 0) < (tonumber(b.id) or 0)
+    end)
+
+    return options
+end
+
+local function BuildSurvivalStageMenuOptions(userLevel)
+    local options = {}
+
+    for stageId, stageData in ipairs(Config.Stages or {}) do
+        local enemyLabel = "Dalga Operasyonu"
+        if stageData and stageData.Waves and stageData.Waves[1] and stageData.Waves[1].label then
+            enemyLabel = stageData.Waves[1].label
+        end
+
+        options[#options + 1] = {
+            id = stageId,
+            label = stageData.label or ("Bölüm " .. stageId),
+            multiplier = stageData.multiplier or 1.0,
+            locked = stageId > (tonumber(userLevel) or 1),
+            enemyLabel = enemyLabel
+        }
+    end
+
+    return options
+end
+
 local function BuildMenuState(userLevel, PlayerData, arcPrepState, arcSummary)
     local gameMode = Config.GameModes and Config.GameModes[currentModeId] or (Config.GameModes and Config.GameModes.classic)
     local lobbyStatus = "Tek Başına"
@@ -1916,6 +1965,8 @@ local function BuildMenuState(userLevel, PlayerData, arcPrepState, arcSummary)
          arcLoadoutState = arcPrepState and arcPrepState.loadoutState or {},
          arcSummary = arcSummary,
          arcExtraction = BuildArcExtractionHudState(),
+          arcDeploymentZones = BuildArcDeploymentMenuOptions(),
+          survivalStages = BuildSurvivalStageMenuOptions(userLevel),
           allowPersonalInventory = arcSummary.allowPersonalInventory ~= false,
           disconnectPolicy = arcSummary.disconnectPolicy,
           disconnectPolicyLabel = arcSummary.disconnectPolicyLabel,
