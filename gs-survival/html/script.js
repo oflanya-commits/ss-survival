@@ -1049,28 +1049,9 @@ function renderMenuPopupFooter(primaryLabel, primaryAction, footerCopy, disabled
 }
 
 function renderArcRaidPanel(state) {
-    var selectedZoneId = screenData.menuSelections.arcZoneId;
-    var zones = state.arcDeploymentZones || [];
-    var selectedZone = zones.find(function (zone) { return zone.id === selectedZoneId; }) || zones[0];
     var summary = state.arcSummary || {};
     var loadoutUi = getArcLoadoutPresentation(state);
     var canDeploy = summary.canDeploy !== false;
-    var stageCards = zones.map(function (zone) {
-        return renderChoiceCard({
-            selected: zone.id === (selectedZone && selectedZone.id),
-            onclick: 'selectArcZone(' + Number(zone.id) + ')',
-            kicker: zone.regionLabel || 'ARC',
-            chip: zone.lootLabel || 'BASKIN',
-            title: zone.label,
-            desc: zone.description || 'Bölgeyi seçtikten sonra sol alttaki butonla baskını başlat.',
-            meta: [
-                'Loot: ' + (zone.lootNodeCount || 0),
-                'Giriş: ' + (zone.insertionCount || 0),
-                'Tahliye: ' + (zone.extractionLabel || 'Hazır')
-            ],
-            tip: zone.label + ' seçimi baskının konuşlandırma bölgesini belirler.'
-        });
-    }).join('');
 
     var body = '<div class="menu-popup-grid">' +
             renderPopupStat('Lider Yetkisi', state.isLeader ? 'Aktif' : 'Lider Gerekli', state.isLeader ? 'Operasyonu sen başlatabilirsin.' : 'Başlatma sadece lobi liderinde.') +
@@ -1080,16 +1061,31 @@ function renderArcRaidPanel(state) {
         '</div>' +
         renderArcPreflightSummary(state) +
         buildArcExtractionPanel(state) +
-        '<div class="section-header"><div class="section-title">&#9876; Baskın Bölgesi Seç</div></div>' +
-        '<div class="menu-choice-grid">' + stageCards + '</div>';
+        '<div class="section-header"><div class="section-title">&#127920; Rastgele Konuşlandırma</div></div>' +
+        '<div class="menu-choice-grid">' +
+            renderChoiceCard({
+                selected: true,
+                onclick: '',
+                kicker: 'ARC',
+                chip: 'RASTGELE',
+                title: 'Otomatik Baskın Bölgesi',
+                desc: 'ARC baskını başladığında sistem uygun deployment bölgesini otomatik ve rastgele seçecek.',
+                meta: [
+                    'Konuşlandırma: Rastgele',
+                    'Giriş Noktası: Otomatik',
+                    'Tahliye: Operasyona göre'
+                ],
+                tip: 'ARC baskınında manuel bölge seçimi kapalıdır.'
+            }) +
+        '</div>';
 
     return renderMenuPopupFrame({
         kicker: 'ARC MODU',
         title: 'ARC Baskınını Başlat',
-        desc: 'Baskın merkezi artık tek pencerede. Bölgeyi seç, hazırlık özetini kontrol et ve sol alttan operasyona çık.',
-        note: selectedZone ? ('<strong>' + esc(selectedZone.label) + '</strong><br>' + esc(selectedZone.regionLabel || 'ARC Bölgesi')) : 'Bölge seçimi bekleniyor.',
+        desc: 'Baskın merkezi artık tek pencerede. Hazırlık özetini kontrol et; operasyon başlayınca sistem seni rastgele uygun bir ARC bölgesine bırakır.',
+        note: '<strong>Rastgele Bölge</strong><br>Konuşlandırma sunucu tarafından otomatik belirlenir.',
         body: body,
-        footer: renderMenuPopupFooter('ARC BASKININI BAŞLAT', 'startArcModeFromMenu()', canDeploy ? 'Seçilen bölge: ' + ((selectedZone && selectedZone.label) || 'Yok') : 'Kritik ARC hazırlıkları tamamlanmadan başlatılamaz.', !selectedZone || !canDeploy)
+        footer: renderMenuPopupFooter('ARC BASKININI BAŞLAT', 'startArcModeFromMenu()', canDeploy ? 'Baskın başladığında rastgele deployment bölgesi seçilecek.' : 'Kritik ARC hazırlıkları tamamlanmadan başlatılamaz.', !canDeploy)
     });
 }
 
@@ -1251,8 +1247,7 @@ function renderMenuPanel(state, view) {
 }
 
 function startArcModeFromMenu() {
-    if (!screenData.menuSelections.arcZoneId) return;
-    sendAction('startArcPvP', { stageId: screenData.menuSelections.arcZoneId });
+    sendAction('startArcPvP', {});
 }
 
 function startSurvivalModeFromMenu() {
@@ -2685,6 +2680,20 @@ function showStages(data) {
         return;
     }
 
+    if (isArcMode) {
+        html += '<div class="stage-grid">' +
+            '<button class="stage-card" type="button" onclick="selectStage(0)" data-tip="ARC baskınında bölge seçimi kapalıdır; operasyon başladığında uygun deployment bölgesi rastgele belirlenir.">' +
+                '<div class="stage-card-inner">' +
+                    '<div class="stage-card-top"><span class="stage-chip">&#127920; ARC</span><span class="stage-chip">RASTGELE</span></div>' +
+                    '<div><div class="stage-card-title">Rastgele Konuşlandırma</div><div class="stage-card-desc">ARC baskını sabit kurallarla başlar ve sistem seni uygun bir baskın bölgesine otomatik yerleştirir.</div></div>' +
+                    '<div class="stage-card-footer"><span class="stage-chip muted">Otomatik Seçim</span><span class="stage-action">Baskını Başlat</span></div>' +
+                '</div>' +
+            '</button>' +
+        '</div>';
+        setContent(html);
+        return;
+    }
+
     html += '<div class="stage-grid">';
     for (var i = 0; i < screenData.stages.length; i++) {
         var s = screenData.stages[i];
@@ -2724,6 +2733,11 @@ function showStages(data) {
 }
 
 function selectStage(idx) {
+    if ((screenData.selectedModeId || 'classic') === 'arc_pvp') {
+        sendAction('startArcPvP', {});
+        return;
+    }
+
     sendAction('selectStage', {
         stageId: screenData.stages[idx].id,
         modeId: screenData.selectedModeId || 'classic'
