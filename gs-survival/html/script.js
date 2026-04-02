@@ -942,7 +942,7 @@ function getSectionDefaultPanel(sectionKey) {
         return null;
     }
     var item = getNavItemBySection(sectionKey);
-    return item && item.panels && item.panels[0] ? item.panels[0].key : null;
+    return item && Array.isArray(item.panels) && item.panels.length > 0 && item.panels[0] ? item.panels[0].key : null;
 }
 
 function getDefaultMenuView(state) {
@@ -1285,6 +1285,8 @@ function hasActiveMenuSelection(view) {
     return !!(view && (view.section || view.panel));
 }
 
+// Menü görünümünü render öncesi normalize eder; eksik/geçersiz seçimleri varsayılan panele çeker
+// ve ayrı ekran açan yan menü maddelerinden geri dönüldüğünde boş ara ekran göstermez.
 function getRenderableMenuView(state, view) {
     var fallback = getDefaultMenuView(state);
     if (!hasActiveMenuSelection(view)) {
