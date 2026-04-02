@@ -6,79 +6,148 @@
     <title>GS Survival UI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="app" class="app hidden" aria-hidden="true">
-        <div class="app__backdrop"></div>
+        <div class="app__skyline"></div>
+        <div class="app__foliage app__foliage--left"></div>
+        <div class="app__foliage app__foliage--right"></div>
 
-        <div class="app__shell">
-            <aside class="app__sidebar ui-surface ui-surface--glass">
-                <div class="sidebar__brand">
+        <div class="app__frame">
+            <header class="topbar">
+                <div class="topbar__brand">
+                    <button class="topbar__back" type="button" data-ui-action="go-back" aria-label="Geri dön">❮</button>
                     <div>
-                        <p class="ui-overline">GS Survival</p>
-                        <h1 class="sidebar__title">Operasyon Arayüzü</h1>
+                        <p class="topbar__eyebrow">MULTIPLAYER</p>
+                        <h1 class="topbar__title">GS SURVIVAL</h1>
                     </div>
-                    <span class="ui-badge ui-badge--primary">Drop-in UI</span>
                 </div>
 
-                <div id="summary-cards" class="sidebar__metrics"></div>
+                <div class="topbar__utilities">
+                    <button class="utility-button" type="button" data-ui-action="noop" aria-label="Ses"><span>🔇</span></button>
+                    <button class="utility-button" type="button" data-ui-action="noop" aria-label="Mikrofon"><span>🎙</span></button>
+                    <button class="utility-button" type="button" data-ui-action="noop" aria-label="Ekip"><span>👥</span></button>
+                    <button id="close-btn" class="utility-button utility-button--alert" type="button" data-ui-action="close-menu" aria-label="Menüyü kapat"><span>⨯</span></button>
+                </div>
+            </header>
 
-                <section class="sidebar__brief ui-card ui-card--highlight">
-                    <div class="ui-card__header ui-card__header--compact">
-                        <div>
-                            <p class="ui-overline">Görev Özeti</p>
-                            <h2 id="brief-title" class="ui-card__title">Operasyon Hazır</h2>
+            <div class="app__body">
+                <aside class="left-rail panel panel--soft">
+                    <nav id="left-nav" class="rail-nav" aria-label="Ana menü"></nav>
+
+                    <section class="rail-roster panel panel--soft">
+                        <div class="rail-roster__header">
+                            <p class="ui-overline">TEAM FEED</p>
+                            <span class="ui-badge ui-badge--muted">LIVE</span>
                         </div>
-                        <span id="brief-tag" class="ui-badge ui-badge--muted">SOLO</span>
-                    </div>
+                        <div id="social-cards" class="social-stack"></div>
+                    </section>
 
-                    <p id="brief-text" class="ui-card__text">Takım durumunu kontrol et ve operasyona hazırlan.</p>
-                    <div id="brief-badges" class="ui-chip-list"></div>
-
-                    <div id="brief-extraction" class="brief__extraction hidden">
-                        <div class="brief__extraction-row">
-                            <span class="ui-overline">Tahliye</span>
-                            <strong id="brief-extraction-phase">Hazır</strong>
-                        </div>
-                        <p id="brief-extraction-objective" class="brief__extraction-text"></p>
-                        <div id="brief-extraction-countdown" class="brief__extraction-countdown">00:00</div>
-                    </div>
-
-                    <div class="ui-progress ui-progress--large" aria-hidden="true">
-                        <span id="brief-progress-fill" class="ui-progress__fill"></span>
-                    </div>
-
-                    <button id="brief-primary-action" class="ui-button ui-button--primary ui-button--block" type="button" disabled>
-                        Bekleniyor
+                    <button class="rail-chat" type="button" data-ui-action="noop">
+                        <span class="rail-chat__icon">💬</span>
+                        <span>[WORLD] AI</span>
                     </button>
-                </section>
-            </aside>
+                </aside>
 
-            <main class="app__main ui-surface">
-                <header class="app__header">
-                    <div>
-                        <p class="ui-overline">Kontrol Merkezi</p>
-                        <h2 id="screen-title" class="app__screen-title">Ana Menü</h2>
-                        <p id="screen-subtitle" class="app__screen-subtitle">Tüm operasyon akışlarını buradan yönet.</p>
-                    </div>
-
-                    <div class="app__header-actions">
-                        <div class="ui-breadcrumb">
-                            <span id="breadcrumb-text">Operasyon Menüsü / Ana Ekran</span>
+                <main class="battlefield">
+                    <section class="battlefield__stage">
+                        <div class="stage-slot">
+                            <span class="stage-slot__plus">+</span>
+                            <span class="stage-slot__label">JOIN</span>
                         </div>
-                        <button id="close-btn" class="ui-button ui-button--ghost" type="button" data-ui-action="close-menu" aria-label="Menüyü kapat">
-                            ESC ile Kapat
-                        </button>
-                    </div>
-                </header>
 
-                <section id="content" class="app__content" aria-live="polite"></section>
-            </main>
+                        <div class="operator-card">
+                            <div class="operator-card__silhouette">
+                                <div class="operator-card__helmet"></div>
+                                <div class="operator-card__torso"></div>
+                                <div class="operator-card__weapon"></div>
+                            </div>
+                            <div class="operator-card__plate">
+                                <span id="brief-tag" class="ui-badge ui-badge--primary">SOLO</span>
+                                <p class="ui-overline">ACTIVE DEPLOYMENT</p>
+                                <h2 id="brief-title" class="operator-card__title">Operasyon Hazır</h2>
+                                <p id="brief-text" class="operator-card__text">Takım durumunu kontrol et ve operasyona hazırlan.</p>
+                            </div>
+                        </div>
+
+                        <section class="hub-panel panel panel--glass">
+                            <div class="hub-panel__header">
+                                <div>
+                                    <p id="breadcrumb-text" class="ui-overline">Operasyon Menüsü / Ana Ekran</p>
+                                    <h2 id="screen-title" class="hub-panel__title">Ana Menü</h2>
+                                </div>
+                                <span class="hub-panel__hint">ESC</span>
+                            </div>
+                            <p id="screen-subtitle" class="hub-panel__subtitle">Tüm operasyon akışlarını buradan yönet.</p>
+                            <section id="content" class="hub-panel__content" aria-live="polite"></section>
+                        </section>
+                    </section>
+
+                    <aside class="right-rail">
+                        <div class="quick-tools">
+                            <button class="quick-tools__button" type="button" data-ui-action="noop" aria-label="Bildirim"><span>⚑</span></button>
+                            <button class="quick-tools__button" type="button" data-ui-action="noop" aria-label="Görev"><span>⌁</span></button>
+                            <button class="quick-tools__button" type="button" data-ui-action="noop" aria-label="Takvim"><span>◫</span></button>
+                            <button class="quick-tools__button quick-tools__button--accent" type="button" data-ui-action="noop" aria-label="Etkinlik"><span>◆</span></button>
+                        </div>
+
+                        <section class="mission-board panel panel--soft">
+                            <div class="mission-board__header">
+                                <div>
+                                    <p class="ui-overline">DAY OPS</p>
+                                    <h3 class="mission-board__title">Daily Intel</h3>
+                                </div>
+                                <span class="ui-badge ui-badge--success">LIVE</span>
+                            </div>
+                            <div id="summary-cards" class="mission-list"></div>
+                        </section>
+
+                        <section class="launch-panel panel panel--accent">
+                            <div class="launch-panel__header">
+                                <div>
+                                    <p class="ui-overline">EVENT</p>
+                                    <h3 class="launch-panel__title">Deployment Queue</h3>
+                                </div>
+                                <span class="launch-panel__signal"></span>
+                            </div>
+
+                            <div id="brief-badges" class="launch-panel__badges"></div>
+
+                            <div id="brief-extraction" class="launch-panel__extraction hidden">
+                                <div class="launch-panel__extraction-row">
+                                    <span class="ui-overline">Tahliye</span>
+                                    <strong id="brief-extraction-phase">Hazır</strong>
+                                </div>
+                                <p id="brief-extraction-objective" class="launch-panel__extraction-text"></p>
+                                <div id="brief-extraction-countdown" class="launch-panel__countdown">00:00</div>
+                            </div>
+
+                            <div class="launch-panel__meter">
+                                <div class="launch-panel__meter-copy">
+                                    <span class="ui-overline">MATCH STATUS</span>
+                                    <strong>Hazırlık Yüzdesi</strong>
+                                </div>
+                                <div class="ui-progress ui-progress--large" aria-hidden="true">
+                                    <span id="brief-progress-fill" class="ui-progress__fill"></span>
+                                </div>
+                            </div>
+
+                            <button id="brief-primary-action" class="ui-button ui-button--primary ui-button--launch" type="button" disabled>
+                                Bekleniyor
+                            </button>
+                        </section>
+                    </aside>
+                </main>
+
+                <footer class="bottom-dock">
+                    <div id="footer-tabs" class="dock-tabs"></div>
+                </footer>
+            </div>
+
+            <div id="modal-root" class="modal-root hidden" aria-hidden="true"></div>
         </div>
-
-        <div id="modal-root" class="modal-root hidden" aria-hidden="true"></div>
     </div>
 
     <div id="arc-overlay-root" class="overlay-root hidden" aria-hidden="true">

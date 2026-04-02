@@ -99,7 +99,7 @@ const LOCKER_RULES = {
 
 const state = {
     currentView: 'menu',
-    menuState: {},
+    menuState: normalizeMenuState({}),
     upgrades: [],
     recipes: [],
     craftSource: {},
@@ -128,6 +128,9 @@ const ui = {
     app: document.getElementById('app'),
     content: document.getElementById('content'),
     modalRoot: document.getElementById('modal-root'),
+    leftNav: document.getElementById('left-nav'),
+    socialCards: document.getElementById('social-cards'),
+    footerTabs: document.getElementById('footer-tabs'),
     breadcrumb: document.getElementById('breadcrumb-text'),
     screenTitle: document.getElementById('screen-title'),
     screenSubtitle: document.getElementById('screen-subtitle'),
@@ -323,9 +326,6 @@ document.addEventListener('dragleave', handleDragLeave);
 document.addEventListener('drop', handleDrop);
 document.addEventListener('dragend', clearDropTargets);
 document.addEventListener('contextmenu', handleContextMenu);
-
-renderCurrentView();
-renderOverlays();
 
 function getDefaultArcHudState() {
     return {
@@ -565,10 +565,12 @@ function closeDialogs(keepLockerSplit) {
 function renderCurrentView() {
     const renderer = viewRenderers[state.currentView] || renderMenuView;
     const view = renderer();
+    ui.app.dataset.view = state.currentView;
     ui.screenTitle.textContent = view.title || STRINGS.app.title;
     ui.screenSubtitle.textContent = view.subtitle || STRINGS.app.subtitle;
     ui.breadcrumb.textContent = view.breadcrumb || STRINGS.app.breadcrumb;
     renderSidebar(view.sidebar || buildDefaultSidebar());
+    renderShellChrome(view);
     ui.content.innerHTML = view.html;
     bindImageFallbacks(ui.content);
     renderModal();
@@ -587,6 +589,113 @@ const viewRenderers = {
     'create-lobby': renderCreateLobbyView,
     arcLockers: renderArcLockersView
 };
+
+function renderShellChrome(view) {
+    renderPrimaryNav(view);
+    renderSocialCards();
+    renderFooterTabs();
+}
+
+function renderPrimaryNav() {
+    if (!ui.leftNav) return;
+
+    const hasLobby = state.menuState.hasLobby === true;
+    const isLeader = state.menuState.isLeader === true;
+    const modeId = safeString(state.selectedModeId || state.menuState.currentModeId, 'classic');
+    const items = [
+        { key: 'menu', label: 'Match', action: state.currentView === 'menu' ? 'noop' : 'go-back', active: state.currentView === 'menu' },
+        { key: 'stages', label: 'Ranked Match', action: 'open-stages', payload: { modeId: modeId }, active: state.currentView === 'stages' },
+        { key: 'members', label: 'Squad', action: 'open-members', active: state.currentView === 'members', disabled: !hasLobby },
+        { key: 'market', label: 'Store', action: 'open-market', active: state.currentView === 'market' },
+        { key: 'craft', label: 'Loadout', action: 'open-craft', active: state.currentView === 'craft' },
+        { key: 'arcLockers', label: 'Locker', action: 'open-main-stash', active: state.currentView === 'arcLockers' },
+        { key: 'invite', label: 'Invite', action: 'open-invite', active: state.currentView === 'invite', disabled: !isLeader }
+    ];
+
+    ui.leftNav.innerHTML = items.map(function (item) {
+        const className = 'rail-nav__item' + (item.active ? ' is-active' : '');
+        return '<button class="' + className + '" type="button" data-ui-action="' + escAttr(item.action) + '" data-ui-payload="' + jsonAttr(item.payload || {}) + '"' + (item.disabled ? ' disabled' : '') + '>' + esc(item.label) + '</button>';
+    }).join('');
+}
+
+function renderSocialCards() {
+    if (!ui.socialCards) return;
+
+    let cards = [];
+    if (state.members.length) {
+        cards = state.members.slice(0, 3).map(function (member) {
+            const status = member.isLeader ? 'Leader' : (member.isReady ? 'Ready' : 'Waiting');
+            return {
+                thumb: safeString(member.name).trim().charAt(0).toUpperCase() || 'S',
+                name: member.name || 'Takım Üyesi',
+                meta: 'ID ' + safeString(member.id || '-') + ' · ' + status
+            };
+        });
+    } else if (state.players.length) {
+        cards = state.players.slice(0, 3).map(function (player) {
+            return {
+                thumb: safeString(player.name).trim().charAt(0).toUpperCase() || 'P',
+                name: player.name || 'Yakındaki Oyuncu',
+                meta: 'ID ' + safeString(player.id || '-') + ' · Nearby'
+            };
+        });
+    } else if (state.lobbies.length) {
+        cards = state.lobbies.slice(0, 3).map(function (lobby) {
+            const leaderName = lobby.leaderName || 'Aktif Lobi';
+            const playerCount = safeNumber(lobby.playerCount, 1);
+            const maxPlayers = Math.max(1, safeNumber(lobby.maxPlayers, LIMITS.lobbySize));
+            return {
+                thumb: getThumbLabel(leaderName),
+                name: leaderName,
+                meta: playerCount + '/' + maxPlayers + ' ' + (playerCount === 1 ? 'player' : 'players')
+            };
+        });
+    } else {
+        cards = [
+            { thumb: getThumbLabel(state.menuState.playerName || 'Operatör'), name: state.menuState.playerName || 'Operatör', meta: state.menuState.lobbyStatus || 'Solo queue' },
+            { thumb: getThumbLabel('Empty Slot'), name: 'Empty Slot', meta: hasPendingInviteState() ? 'Invite pending' : 'Offline' },
+            { thumb: getThumbLabel('Empty Slot'), name: 'Empty Slot', meta: 'Offline' }
+        ];
+    }
+
+    ui.socialCards.innerHTML = cards.map(function (card) {
+        return '' +
+            '<article class="social-card">' +
+                '<div class="social-card__thumb">' + esc(card.thumb) + '</div>' +
+                '<div>' +
+                    '<div class="social-card__name">' + esc(card.name) + '</div>' +
+                    '<div class="social-card__meta">' + esc(card.meta) + '</div>' +
+                '</div>' +
+            '</article>';
+    }).join('');
+}
+
+function getThumbLabel(label) {
+    return safeString(label).trim().charAt(0).toUpperCase() || '?';
+}
+
+function renderFooterTabs() {
+    if (!ui.footerTabs) return;
+
+    const isInviteActive = state.currentView === 'invite';
+    const isMembersActive = state.currentView === 'members';
+    const isLockerActive = state.currentView === 'arcLockers';
+    const tabs = [
+        { label: '[WORLD] AI', action: 'open-active-lobbies', active: state.currentView === 'active-lobbies' },
+        { label: 'Scorestreaks', action: 'open-main-stash', active: isLockerActive && !(state.arcLockers && state.arcLockers.focusSide === 'loadout') },
+        { label: 'Loadout', action: 'open-loadout-stash', active: isLockerActive && state.arcLockers && state.arcLockers.focusSide === 'loadout' },
+        { label: isMembersActive ? 'Squad' : 'Invite', action: isMembersActive ? 'open-members' : 'open-invite', active: isMembersActive || isInviteActive, disabled: !state.menuState.isLeader && !isMembersActive }
+    ];
+
+    ui.footerTabs.innerHTML = tabs.map(function (tab) {
+        const className = 'dock-tab' + (tab.active ? ' is-active' : '');
+        return '<button class="' + className + '" type="button" data-ui-action="' + escAttr(tab.action) + '" data-ui-payload="' + jsonAttr(tab.payload || {}) + '"' + (tab.disabled ? ' disabled' : '') + '>' + esc(tab.label) + '</button>';
+    }).join('');
+}
+
+function hasPendingInviteState() {
+    return state.currentView === 'invite-received' || state.currentView === 'invite' || state.inviteLeaderId != null;
+}
 
 function buildDefaultSidebar() {
     return {
@@ -612,10 +721,10 @@ function renderSidebar(config) {
     ui.summaryCards.innerHTML = safeArray(sidebar.cards).map(function (card) {
         const width = clamp(safeNumber(card.percent, 0), 0, 100);
         return '' +
-            '<article class="metric-card">' +
-                '<div class="metric-card__top">' +
-                    '<span class="metric-card__label">' + esc(card.label || '-') + '</span>' +
-                    '<span class="metric-card__value">' + esc(card.value || '-') + '</span>' +
+            '<article class="mission-card">' +
+                '<div class="mission-card__meta">' +
+                    '<span class="mission-card__label">' + esc(card.label || '-') + '</span>' +
+                    '<span class="mission-card__value">' + esc(card.value || '-') + '</span>' +
                 '</div>' +
                 '<div class="ui-progress"><span class="ui-progress__fill" style="width:' + width + '%"></span></div>' +
             '</article>';
@@ -640,8 +749,8 @@ function renderSidebar(config) {
 
     ui.briefPrimaryAction.textContent = safeString(sidebar.actionLabel, 'Bekleniyor');
     ui.briefPrimaryAction.disabled = sidebar.actionDisabled === true;
-    ui.briefPrimaryAction.className = 'ui-button ui-button--primary ui-button--block';
-    if (sidebar.actionVariant === 'danger') ui.briefPrimaryAction.className = 'ui-button ui-button--danger ui-button--block';
+    ui.briefPrimaryAction.className = 'ui-button ui-button--primary ui-button--block ui-button--launch';
+    if (sidebar.actionVariant === 'danger') ui.briefPrimaryAction.className = 'ui-button ui-button--danger ui-button--block ui-button--launch';
     ui.briefPrimaryAction.setAttribute('data-ui-action', safeString(sidebar.action, 'noop'));
     ui.briefPrimaryAction.setAttribute('data-ui-payload', jsonAttr(sidebar.actionPayload || {}));
 }
@@ -2150,3 +2259,6 @@ function clearArcHudState() {
     ui.notifyStack.innerHTML = '';
     renderOverlays();
 }
+
+renderCurrentView();
+renderOverlays();
