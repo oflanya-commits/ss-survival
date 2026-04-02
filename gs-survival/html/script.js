@@ -1294,6 +1294,8 @@ function getRenderableMenuView(state, view) {
     var sectionKey = view.section || fallback.section;
     var panelKey = view.panel || getSectionDefaultPanel(sectionKey);
 
+    // Bazı yan menü maddeleri ayrı NUI ekranı açar; menüye geri dönüldüğünde boş ara ekran yerine
+    // ilgili bölümün varsayılan panelini göstermeye devam ediyoruz.
     if (getDirectPanelAction(panelKey)) {
         panelKey = getSectionDefaultPanel(sectionKey);
     }
@@ -1314,14 +1316,7 @@ function renderMenuPanel(state, view) {
     switch (view.panel) {
         case 'arcRaid':
             return renderArcRaidPanel(state);
-        case 'arcLoadout':
-        case 'arcWorkshop':
-        case 'arcDepot':
-            return renderArcRaidPanel(state);
         case 'survivalRaid':
-            return renderSurvivalRaidPanel(state);
-        case 'survivalMarket':
-        case 'survivalWorkshop':
             return renderSurvivalRaidPanel(state);
         case 'lobbySettings':
             return renderLobbySettingsPanel(state);
