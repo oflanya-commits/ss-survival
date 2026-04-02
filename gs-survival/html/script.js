@@ -15,6 +15,15 @@ const STRINGS = {
         locked: 'KİLİTLİ',
         active: 'AKTİF'
     },
+    readyDock: {
+        waiting: 'Bekleniyor',
+        teamTitle: 'Takım Hazırlığı',
+        lobbyTitle: 'Lobi Durumu',
+        readyText: 'Hazır durumundasın. Liderin maçı başlatmasını bekleyebilirsin.',
+        waitingText: 'Takım eşleşmesi için hazır olup liderine sinyal gönderebilirsin.',
+        leaderText: 'Takımın hazır durumunu bu alandan hızlıca takip edebilirsin.',
+        soloText: 'Hazır sistemi için önce bir lobiye katılman gerekiyor.'
+    },
     notifyTitle: {
         info: 'Bilgilendirme',
         success: 'Başarılı',
@@ -151,6 +160,11 @@ const ui = {
     briefExtractionCountdown: document.getElementById('brief-extraction-countdown'),
     briefProgressFill: document.getElementById('brief-progress-fill'),
     briefPrimaryAction: document.getElementById('brief-primary-action'),
+    bottomDock: document.getElementById('bottom-dock'),
+    dockReadyTitle: document.getElementById('dock-ready-title'),
+    dockReadyText: document.getElementById('dock-ready-text'),
+    dockReadyBadge: document.getElementById('dock-ready-badge'),
+    dockReadyAction: document.getElementById('dock-ready-action'),
     overlayRoot: document.getElementById('arc-overlay-root'),
     banner: document.getElementById('arc-result-banner'),
     bannerLabel: document.getElementById('arc-result-banner-label'),
@@ -210,10 +224,7 @@ const messageHandlers = {
             sourceLabel: safeString(data && data.sourceLabel),
             helperText: safeString(data && data.helperText)
         };
-        state.currentView = 'craft';
-        state.craftDialog = null;
-        showApp();
-        renderCurrentView();
+        redirectRemovedCraftToMenu();
     },
     openStages(data) {
         state.stages = safeArray(data && data.stages);
@@ -572,6 +583,14 @@ function closeDialogs(keepLockerSplit) {
     renderModal();
 }
 
+function redirectRemovedCraftToMenu() {
+    state.currentView = 'menu';
+    state.craftDialog = null;
+    closeDialogs();
+    showApp();
+    renderCurrentView();
+}
+
 function renderCurrentView() {
     const renderer = viewRenderers[state.currentView] || renderMenuView;
     const view = renderer();
@@ -686,6 +705,35 @@ function renderSidebar(config) {
     if (sidebar.actionVariant === 'danger') ui.briefPrimaryAction.className = 'ui-button ui-button--danger ui-button--block ui-button--launch';
     ui.briefPrimaryAction.setAttribute('data-ui-action', safeString(sidebar.action, 'noop'));
     ui.briefPrimaryAction.setAttribute('data-ui-payload', jsonAttr(sidebar.actionPayload || {}));
+    renderReadyDock(sidebar);
+}
+
+function renderReadyDock(sidebar) {
+    if (!ui.bottomDock) return;
+
+    const menu = state.menuState || {};
+    const hasInteractiveReady = menu.isMember === true && safeString(sidebar.action) === 'toggle-ready';
+    const actionLabel = safeString(sidebar.actionLabel, STRINGS.readyDock.waiting);
+    const readyBadge = menu.isReady === true
+        ? { text: STRINGS.badge.ready, className: 'ui-badge ui-badge--success' }
+        : (hasInteractiveReady
+            ? { text: STRINGS.badge.waiting, className: 'ui-badge ui-badge--warning' }
+            : { text: safeString(sidebar.tag, STRINGS.badge.solo), className: 'ui-badge ui-badge--muted' });
+
+    ui.bottomDock.classList.toggle('hidden', false);
+    ui.dockReadyTitle.textContent = hasInteractiveReady ? STRINGS.readyDock.teamTitle : STRINGS.readyDock.lobbyTitle;
+    ui.dockReadyText.textContent = hasInteractiveReady
+        ? (menu.isReady === true ? STRINGS.readyDock.readyText : STRINGS.readyDock.waitingText)
+        : (menu.isLeader === true ? STRINGS.readyDock.leaderText : STRINGS.readyDock.soloText);
+    ui.dockReadyBadge.className = readyBadge.className;
+    ui.dockReadyBadge.textContent = readyBadge.text;
+    ui.dockReadyAction.textContent = actionLabel;
+    ui.dockReadyAction.disabled = sidebar.actionDisabled === true;
+    ui.dockReadyAction.className = sidebar.actionVariant === 'danger'
+        ? 'ui-button ui-button--danger'
+        : 'ui-button ui-button--primary';
+    ui.dockReadyAction.setAttribute('data-ui-action', safeString(sidebar.action, 'noop'));
+    ui.dockReadyAction.setAttribute('data-ui-payload', jsonAttr(sidebar.actionPayload || {}));
 }
 
 function renderMenuView() {
@@ -1504,10 +1552,10 @@ function dispatchAction(action, payload) {
             sendAction('openMarket', {});
             return;
         case 'open-craft':
-            sendAction('openCraft', {});
+            redirectRemovedCraftToMenu();
             return;
         case 'open-arc-craft':
-            sendAction('openCraft', payload);
+            redirectRemovedCraftToMenu();
             return;
         case 'open-stages':
             sendAction('openStages', payload);
