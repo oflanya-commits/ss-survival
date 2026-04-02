@@ -641,17 +641,20 @@ function renderSocialCards() {
         });
     } else if (state.lobbies.length) {
         cards = state.lobbies.slice(0, 3).map(function (lobby) {
+            const leaderName = lobby.leaderName || 'Aktif Lobi';
+            const playerCount = safeNumber(lobby.playerCount, 1);
+            const maxPlayers = Math.max(1, safeNumber(lobby.maxPlayers, LIMITS.lobbySize));
             return {
-                thumb: 'L',
-                name: lobby.leaderName || 'Aktif Lobi',
-                meta: safeNumber(lobby.playerCount, 1) + '/' + Math.max(1, safeNumber(lobby.maxPlayers, LIMITS.lobbySize)) + ' player'
+                thumb: getThumbLabel(leaderName),
+                name: leaderName,
+                meta: playerCount + '/' + maxPlayers + ' ' + (playerCount === 1 ? 'player' : 'players')
             };
         });
     } else {
         cards = [
-            { thumb: 'A', name: state.menuState.playerName || 'Operatör', meta: state.menuState.lobbyStatus || 'Solo queue' },
-            { thumb: 'B', name: 'Empty Slot', meta: hasPendingInviteState() ? 'Invite pending' : 'Offline' },
-            { thumb: 'C', name: 'Empty Slot', meta: 'Offline' }
+            { thumb: getThumbLabel(state.menuState.playerName || 'Operatör'), name: state.menuState.playerName || 'Operatör', meta: state.menuState.lobbyStatus || 'Solo queue' },
+            { thumb: getThumbLabel('Empty Slot'), name: 'Empty Slot', meta: hasPendingInviteState() ? 'Invite pending' : 'Offline' },
+            { thumb: getThumbLabel('Empty Slot'), name: 'Empty Slot', meta: 'Offline' }
         ];
     }
 
@@ -665,6 +668,10 @@ function renderSocialCards() {
                 '</div>' +
             '</article>';
     }).join('');
+}
+
+function getThumbLabel(label) {
+    return safeString(label).trim().charAt(0).toUpperCase() || '?';
 }
 
 function renderFooterTabs() {

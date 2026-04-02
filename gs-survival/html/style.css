@@ -99,7 +99,7 @@ img {
 .app::before {
     background:
         linear-gradient(180deg, rgba(5, 8, 7, 0.15) 0%, transparent 28%, transparent 72%, rgba(5, 8, 7, 0.55) 100%),
-        radial-gradient(circle at center, transparent 48%, rgba(6, 10, 8, 0.44) 100%);
+        radial-gradient(circle, transparent 48%, rgba(6, 10, 8, 0.44) 100%);
 }
 
 .app::after {
@@ -564,7 +564,9 @@ img {
     width: min(38vw, 540px);
     height: min(58vh, 690px);
     transform: translateX(-50%);
-    background: radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.26), transparent 22%), radial-gradient(circle at 50% 54%, rgba(255, 218, 125, 0.18), transparent 44%);
+    background:
+        radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.26), transparent 22%),
+        radial-gradient(circle at 50% 54%, rgba(255, 218, 125, 0.18), transparent 44%);
     filter: blur(18px);
 }
 
