@@ -942,7 +942,8 @@ function getSectionDefaultPanel(sectionKey) {
         return null;
     }
     var item = getNavItemBySection(sectionKey);
-    return item && Array.isArray(item.panels) && item.panels.length > 0 && item.panels[0] ? item.panels[0].key : null;
+    var panels = item && Array.isArray(item.panels) ? item.panels : [];
+    return panels.length > 0 && panels[0] ? panels[0].key : null;
 }
 
 function getDefaultMenuView(state) {
@@ -1296,8 +1297,8 @@ function getRenderableMenuView(state, view) {
     var sectionKey = view.section || fallback.section;
     var panelKey = view.panel || getSectionDefaultPanel(sectionKey);
 
-    // Bazı yan menü maddeleri ayrı NUI ekranı açar; menüye geri dönüldüğünde boş ara ekran yerine
-    // ilgili bölümün varsayılan panelini göstermeye devam ediyoruz.
+    // Some sidebar items open a separate NUI screen, so returning to the menu should resume
+    // the section's default panel instead of leaving the main content area empty.
     if (getDirectPanelAction(panelKey)) {
         panelKey = getSectionDefaultPanel(sectionKey);
     }
