@@ -198,6 +198,10 @@ function isPopupPanelView(viewKey) {
     return viewKey !== 'menu';
 }
 
+function shouldShowHubPanel(viewKey) {
+    return safeString(viewKey).length > 0;
+}
+
 const messageHandlers = {
     openMenu(data) {
         state.menuState = normalizeMenuState(data);
@@ -595,15 +599,15 @@ function renderCurrentView() {
     const renderer = viewRenderers[state.currentView] || renderMenuView;
     const view = renderer();
     ui.app.dataset.view = state.currentView;
-    ui.app.dataset.popupOpen = isPopupPanelView(state.currentView) ? '1' : '0';
+    ui.app.dataset.popupOpen = shouldShowHubPanel(state.currentView) ? '1' : '0';
     ui.screenTitle.textContent = view.title || STRINGS.app.title;
     ui.screenSubtitle.textContent = view.subtitle || STRINGS.app.subtitle;
     ui.breadcrumb.textContent = view.breadcrumb || STRINGS.app.breadcrumb;
     if (ui.hubPanel) {
-        ui.hubPanel.classList.toggle('is-open', isPopupPanelView(state.currentView));
+        ui.hubPanel.classList.toggle('is-open', shouldShowHubPanel(state.currentView));
     }
     if (ui.topbarBack) {
-        ui.topbarBack.classList.toggle('hidden', !isPopupPanelView(state.currentView));
+        ui.topbarBack.classList.toggle('hidden', state.currentView === 'menu');
     }
     renderSidebar(view.sidebar || buildDefaultSidebar());
     renderShellChrome(view);
@@ -740,10 +744,12 @@ function renderMenuView() {
     const menu = state.menuState;
     const loadoutInfo = getLoadoutInfo(menu);
     const extraction = getExtractionInfo(menu);
+    const lobbyProgress = menu.hasLobby ? (menu.isLeader ? 92 : (menu.isReady ? 84 : 58)) : 26;
+    const lockerProgress = clamp(((safeNumber(menu.arcMainItems, 0) + safeNumber(menu.arcLoadoutItems, 0)) * 12), 18, 100);
 
     return {
         title: 'Ana Menü',
-        subtitle: 'Sol taraftan bir bölüm seç ve büyük pencere olarak aç.',
+        subtitle: 'Lobi, takım ve loadout akışları tekrar büyük merkez panelde toplandı.',
         breadcrumb: STRINGS.app.breadcrumb,
         sidebar: {
             cards: [
@@ -768,7 +774,63 @@ function renderMenuView() {
             actionDisabled: !menu.isMember,
             extraction: extraction.phase ? extraction : null
         },
-        html: ''
+        html: '<div class="view-stack">' +
+            renderViewHeader('Lobi Operasyon Merkezi', 'Boş merkez ekran yerine tüm lobi, takım ve hazırlık aksiyonları tekrar tek yerde gösterilir.') +
+            '<section class="view-grid menu-dashboard">' +
+                '<article class="panel-section menu-hero span-7">' +
+                    '<div class="menu-hero__body">' +
+                        '<div class="menu-hero__copy">' +
+                            '<div>' +
+                                '<p class="ui-overline">LOBI SISTEMI</p>' +
+                                '<h3 class="ui-card__title">' + esc(menu.playerName || 'Operatör') + '</h3>' +
+                                '<p class="ui-card__text">' + esc(menu.currentModeLabel) + ' seçili. ' + esc(menu.hasLobby ? 'Takımın bağlı, operasyon öncesi üyeleri ve hazırlığı buradan yönetebilirsin.' : 'Henüz bir lobiye bağlı değilsin. Public veya private lobi kurup takımını toplamaya başla.') + '</p>' +
+                            '</div>' +
+                            '<div class="menu-hero__badges">' +
+                                '<span class="ui-badge ui-badge--primary">' + esc(menu.lobbyStatus) + '</span>' +
+                                '<span class="ui-badge ' + (menu.isReady ? 'ui-badge--success' : 'ui-badge--warning') + '">' + esc(menu.isMember ? (menu.isReady ? 'Hazır' : 'Hazır Değil') : (menu.isLeader ? 'Lider' : 'Solo')) + '</span>' +
+                                '<span class="ui-badge ui-badge--muted">' + esc(loadoutInfo.badge) + '</span>' +
+                            '</div>' +
+                            '<div class="menu-hero__actions">' + buildMenuHeroActions(menu) + '</div>' +
+                        '</div>' +
+                        '<div class="menu-hero__aside">' +
+                            renderStat('Lobi Durumu', menu.hasLobby ? 'Aktif' : 'Kapalı', lobbyProgress) +
+                            renderStat('Loadout', loadoutInfo.shortLabel, loadoutInfo.percent) +
+                            renderStat('Locker', describeCount(safeNumber(menu.arcMainItems, 0), 'slot', 'slot'), lockerProgress) +
+                            renderStat('Stage', 'Stage ' + safeNumber(menu.currentStage, 1), clamp(22 + safeNumber(menu.currentStage, 1) * 8, 18, 100)) +
+                        '</div>' +
+                    '</div>' +
+                '</article>' +
+                '<article class="panel-section menu-spotlight span-5">' +
+                    '<div class="menu-spotlight__header">' +
+                        '<div><p class="ui-overline">HAZIRLIK</p><h3 class="ui-card__title">Loadout + Locker</h3></div>' +
+                        '<span class="ui-badge ui-badge--primary">' + esc(loadoutInfo.shortLabel) + '</span>' +
+                    '</div>' +
+                    '<p class="ui-card__text">' + esc(loadoutInfo.detail) + '</p>' +
+                    '<div class="menu-spotlight__stats">' +
+                        renderMetaRow('Kalıcı Locker', describeCount(menu.arcMainItems, 'eşya', 'eşya')) +
+                        renderMetaRow('Raid Loadout', describeCount(menu.arcLoadoutItems, 'eşya', 'eşya')) +
+                        renderMetaRow('Politika', menu.disconnectPolicyLabel || 'Varsayılan') +
+                        renderMetaRow('Tahliye', extraction.phase || 'Pasif') +
+                    '</div>' +
+                    '<div class="menu-spotlight__actions">' +
+                        button('Loadout Aç', 'open-loadout-stash', {}, 'primary') +
+                        button('Locker Aç', 'open-main-stash', {}, 'ghost') +
+                    '</div>' +
+                '</article>' +
+            '</section>' +
+            '<section class="panel-section">' +
+                '<div class="status-grid">' +
+                    renderStat('Oyuncu Seviyesi', 'Lv.' + menu.userLevel, clamp(28 + menu.userLevel * 6, 18, 100)) +
+                    renderStat('Mod', menu.currentModeLabel, menu.currentModeId === MODE_ID_RANKED ? 100 : 74) +
+                    renderStat('Hazır Oyuncu', menu.isMember ? (menu.isReady ? 'Onaylandı' : 'Bekleniyor') : (menu.hasLobby ? 'Lider Kontrolü' : 'Solo'), menu.isReady ? 90 : (menu.hasLobby ? 58 : 28)) +
+                    renderStat('Tahliye', extraction.phase || 'Beklemede', extraction.percent) +
+                '</div>' +
+            '</section>' +
+            '<section class="view-grid menu-sections">' +
+                '<div class="span-7"><div class="card-grid menu-primary-actions">' + buildMenuPrimaryCards(menu, loadoutInfo, extraction) + '</div></div>' +
+                '<div class="span-5"><div class="card-grid menu-team-actions">' + buildMenuTeamCards(menu) + '</div></div>' +
+            '</section>' +
+        '</div>'
     };
 }
 
@@ -1154,6 +1216,50 @@ function renderActionCard(title, text, badges, actionHtml) {
         '</article>';
 }
 
+function buildMenuHeroActions(menu) {
+    const actions = [
+        menu.hasLobby ? button('Takımı Gör', 'open-members', {}, 'ghost') : button('Lobi Kur', 'show-create-lobby', {}, 'primary'),
+        button('Aktif Lobiler', 'open-active-lobbies', {}, 'ghost'),
+        button('Match', 'open-stages', { modeId: MODE_ID_CLASSIC }, menu.hasLobby ? 'primary' : 'ghost'),
+        button('Ranked', 'open-stages', { modeId: MODE_ID_RANKED }, 'ghost')
+    ];
+
+    if (menu.isLeader) {
+        actions.unshift(button('Oyuncu Davet Et', 'open-invite', {}, 'primary'));
+    } else if (menu.isMember) {
+        actions.unshift(button(menu.isReady ? 'Hazır Değil' : 'Hazır Ol', 'toggle-ready', {}, 'primary'));
+    }
+
+    return actions.join('');
+}
+
+function buildMenuPrimaryCards(menu, loadoutInfo, extraction) {
+    const cards = [
+        renderActionCard('Match Seçimi', 'Klasik maçı açıp stage ve risk seviyelerini büyük kartlar üzerinden seç.', [
+            menu.currentModeLabel,
+            'Stage ' + safeNumber(menu.currentStage, 1)
+        ], button('Match Aç', 'open-stages', { modeId: MODE_ID_CLASSIC }, 'primary')),
+        renderActionCard('Ranked Match', 'ARC hazırlığını başlatmadan önce ranked akışını ve tahliye durumunu kontrol et.', [
+            extraction.phase || 'Tahliye Pasif',
+            menu.disconnectPolicyLabel || 'Varsayılan'
+        ], button('Ranked Aç', 'open-stages', { modeId: MODE_ID_RANKED }, 'ghost')),
+        renderActionCard('Store', 'Yükseltmeleri kaybetmeden markete geç ve takımına saha avantajı kazandır.', [
+            menu.upgradeLabel || 'Güncel Paket',
+            menu.hasLobby ? 'Takım Bağlı' : 'Solo'
+        ], button('Store Aç', 'open-market', {}, 'ghost')),
+        renderActionCard('Loadout Hazırlığı', 'Loadout ve locker artık aynı büyük popup içinde yatay yerleşimle açılır.', [
+            loadoutInfo.badge,
+            'Loadout: ' + describeCount(menu.arcLoadoutItems, 'eşya', 'eşya'),
+            'Locker: ' + describeCount(menu.arcMainItems, 'eşya', 'eşya')
+        ], '' +
+            button('Loadout Aç', 'open-loadout-stash', {}, 'primary') +
+            button('Locker Aç', 'open-main-stash', {}, 'ghost') +
+        '')
+    ];
+
+    return cards.join('');
+}
+
 function renderStat(label, value, percent) {
     return '' +
         '<div class="status-grid__item">' +
@@ -1402,14 +1508,15 @@ function renderLockerPanel(section, focusSide) {
     const items = safeArray(section && section.items).filter(function (item) {
         return state.lockerCategory === 'all' || getLockerCategory(item) === state.lockerCategory;
     });
-    const placeholderLimit = section.side === 'loadout' ? 12 : 18;
+    const placeholderLimit = section.side === 'loadout' ? 12 : 20;
     const placeholders = Math.max(0, Math.min(placeholderLimit, Math.max(safeNumber(section && section.slots, 0), items.length) - items.length));
     const sectionLabel = section.side === 'loadout' ? 'Loadout' : 'Stash';
+    const detailLabel = section.label || section.title || (section.side === 'loadout' ? 'ARC Baskın Çantası' : 'ARC Kalıcı Depo');
 
     return '' +
         '<section class="locker-panel locker-panel--' + escAttr(section.side) + (section.side === focusSide ? ' is-focused' : '') + '">' +
             '<div class="locker-panel__header">' +
-                '<div><p class="ui-overline">' + esc(sectionLabel) + '</p><h3 class="locker-panel__title">' + esc(sectionLabel) + '</h3><p class="ui-card__text">' + esc(section.helperText || '') + '</p></div>' +
+                '<div><p class="ui-overline">' + esc(sectionLabel) + '</p><h3 class="locker-panel__title">' + esc(sectionLabel) + '</h3><p class="ui-card__text">' + esc(section.helperText || detailLabel) + '</p></div>' +
                 '<span class="ui-badge ' + (section.side === focusSide ? 'ui-badge--primary' : 'ui-badge--muted') + '">' + esc(safeArray(section.items).length + '/' + (section.slots || safeArray(section.items).length)) + '</span>' +
             '</div>' +
             '<div class="locker-panel__summary">' +

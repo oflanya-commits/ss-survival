@@ -508,10 +508,10 @@ img {
     position: absolute;
     left: 50%;
     top: 50%;
-    width: min(1380px, calc(100vw - 280px));
-    height: min(84vh, 920px);
+    width: min(1500px, calc(100% - 12px));
+    height: min(88vh, calc(100% - 12px));
     transform: translate(-50%, -50%) scale(0.98);
-    padding: 22px;
+    padding: 24px;
     border-radius: 30px;
     display: flex;
     flex-direction: column;
@@ -548,7 +548,13 @@ img {
 .hub-panel__content {
     min-height: 0;
     overflow: auto;
-    padding-right: 6px;
+    padding-right: 10px;
+}
+
+.app[data-view="menu"] .hub-panel,
+.app[data-view="arcLockers"] .hub-panel {
+    width: min(1560px, calc(100% - 4px));
+    height: min(90vh, calc(100% - 4px));
 }
 
 .right-rail {
@@ -886,6 +892,71 @@ img {
     grid-template-columns: repeat(12, minmax(0, 1fr));
 }
 
+.menu-dashboard {
+    align-items: stretch;
+}
+
+.menu-hero,
+.menu-spotlight {
+    min-height: 240px;
+}
+
+.menu-hero {
+    background:
+        radial-gradient(circle at top left, rgba(245, 222, 89, 0.12), transparent 34%),
+        linear-gradient(180deg, rgba(14, 18, 20, 0.88), rgba(10, 13, 15, 0.66));
+}
+
+.menu-hero__body {
+    min-height: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.92fr);
+    gap: 18px;
+}
+
+.menu-hero__copy,
+.menu-hero__aside,
+.menu-spotlight,
+.menu-spotlight__stats {
+    display: grid;
+    gap: 14px;
+}
+
+.menu-hero__copy {
+    align-content: space-between;
+}
+
+.menu-hero__badges,
+.menu-hero__actions,
+.menu-spotlight__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.menu-hero__aside {
+    align-content: start;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.menu-spotlight {
+    background:
+        linear-gradient(180deg, rgba(255, 231, 119, 0.08), rgba(13, 15, 20, 0.72)),
+        rgba(12, 15, 16, 0.72);
+}
+
+.menu-spotlight__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.menu-primary-actions,
+.menu-team-actions {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
 .span-12 { grid-column: span 12; }
 .span-7 { grid-column: span 7; }
 .span-5 { grid-column: span 5; }
@@ -1079,13 +1150,14 @@ img {
 .locker-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;
+    gap: 18px;
 }
 
 .locker-panel__grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, 120px);
-    gap: 10px;
-    justify-content: start;
+    grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
+    gap: 12px;
+    align-content: start;
 }
 
 .locker-shell {
@@ -1104,9 +1176,9 @@ img {
 
 .locker-item,
 .locker-placeholder {
-    min-height: 132px;
-    padding: 9px;
-    border-radius: 12px;
+    min-height: 198px;
+    padding: 12px;
+    border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.04);
 }
@@ -1119,8 +1191,9 @@ img {
 
 .locker-item__thumb {
     position: relative;
-    height: 70px;
-    border-radius: 10px;
+    height: 112px;
+    padding: 12px;
+    border-radius: 14px;
     background: rgba(0, 0, 0, 0.24);
     overflow: hidden;
     display: grid;
@@ -1128,9 +1201,11 @@ img {
 }
 
 .locker-item__thumb img {
-    width: 72%;
-    height: 72%;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
+    object-position: center;
+    filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.28));
 }
 
 .locker-item__count {
@@ -1149,7 +1224,7 @@ img {
 .locker-item__name,
 .locker-panel__title {
     font-family: var(--font-ui);
-    font-size: 0.95rem;
+    font-size: 1.02rem;
     font-weight: 700;
     text-transform: uppercase;
 }
@@ -1163,7 +1238,7 @@ img {
 
 .locker-item__meta {
     color: var(--color-soft);
-    font-size: 0.82rem;
+    font-size: 0.88rem;
 }
 
 .locker-item__actions {
@@ -1171,9 +1246,9 @@ img {
 }
 
 .locker-item__actions .ui-button {
-    min-height: 34px;
-    padding: 0 8px;
-    font-size: 0.72rem;
+    min-height: 38px;
+    padding: 0 10px;
+    font-size: 0.78rem;
 }
 
 .locker-placeholder {
@@ -1208,7 +1283,7 @@ img {
 }
 
 .modal {
-    width: min(720px, 100%);
+    width: min(860px, 100%);
 }
 
 .modal__actions {
@@ -1322,13 +1397,29 @@ img {
         min-height: 720px;
     }
 
-    .hub-panel {
+    .hub-panel,
+    .app[data-view="menu"] .hub-panel,
+    .app[data-view="arcLockers"] .hub-panel {
         width: min(100%, calc(100vw - 32px));
+        height: min(90vh, calc(100% - 12px));
     }
 
     .bottom-dock {
         left: 16px;
         bottom: 16px;
         width: min(100%, calc(100vw - 32px));
+    }
+}
+
+@media (max-width: 1320px) {
+    .menu-hero__body,
+    .menu-hero__aside {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 1080px) {
+    .locker-grid {
+        grid-template-columns: 1fr;
     }
 }
