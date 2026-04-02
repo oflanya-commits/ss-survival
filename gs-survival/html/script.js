@@ -1285,8 +1285,8 @@ function hasActiveMenuSelection(view) {
     return !!(view && (view.section || view.panel));
 }
 
-// Menü görünümünü render öncesi normalize eder; eksik/geçersiz seçimleri varsayılan panele çeker
-// ve ayrı ekran açan yan menü maddelerinden geri dönüldüğünde boş ara ekran göstermez.
+// Normalizes menu view state before render; invalid selections fall back to the section default
+// and direct-action sidebar items never leave the main menu on an empty intermediate screen.
 function getRenderableMenuView(state, view) {
     var fallback = getDefaultMenuView(state);
     if (!hasActiveMenuSelection(view)) {
