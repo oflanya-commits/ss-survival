@@ -62,7 +62,7 @@ RegisterNUICallback('nuiAction', function(data, cb)
 
     elseif action == 'startArcPvP' then
         CloseNUI()
-        TriggerEvent('gs-survival:client:startFinal', { modeId = 'arc_pvp' })
+        TriggerEvent('gs-survival:client:startFinal', { modeId = 'arc_pvp', stageId = data.data and data.data.stageId })
 
     elseif action == 'openInvite' then
         TriggerEvent('gs-survival:client:inviteMenu')
@@ -127,4 +127,3 @@ end)
 RegisterNetEvent('gs-survival:client:openArcLockerManager', function(focusSide)
     OpenArcLockerManager(focusSide)
 end)
-

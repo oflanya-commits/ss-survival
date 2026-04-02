@@ -82,6 +82,11 @@ var screenData = {
     memberLeaderId: null,
     reconnectPrompt: null,
     menuState: {},
+    menuView: null,
+    menuSelections: {
+        arcZoneId: null,
+        survivalStageId: null
+    },
     arcHud: {
         enabled: false,
         showInfo: false,
@@ -108,6 +113,8 @@ var appEl = document.getElementById('app');
 var contentEl = document.getElementById('content');
 var tooltipEl = document.getElementById('hud-tooltip');
 var hudEls = {
+    menuSidebarShell: document.getElementById('menu-sidebar-shell'),
+    menuSidebar: document.getElementById('menu-sidebar'),
     statusTitle: document.getElementById('status-strip-title'),
     healthLabel: document.getElementById('hud-health-label'),
     healthValue: document.getElementById('hud-health-value'),
@@ -121,6 +128,7 @@ var hudEls = {
     signalLabel: document.getElementById('hud-signal-label'),
     signalValue: document.getElementById('hud-signal-value'),
     signalBar: document.getElementById('hud-signal-bar'),
+    missionBrief: document.getElementById('mission-brief'),
     briefTitle: document.getElementById('brief-title'),
     briefText: document.getElementById('brief-text'),
     briefExtraction: document.getElementById('brief-extraction'),
@@ -191,6 +199,37 @@ var ARC_LOCKER_CATEGORY_RULES = {
     food: [/(water|cola|drink|food|sandwich|bread|burger|milk|juice|consume)/],
     utility: [/(tool|lockpick|radio|phone|repair kit|repairkit|armor|z[ıi]rh|helmet|bag|utility)/]
 };
+var MENU_NAV_ITEMS = [
+    {
+        key: 'arc',
+        label: 'ARC MODU',
+        meta: 'Baskın Merkezi',
+        panels: [
+            { key: 'arcRaid', label: 'ARC BASKINI', desc: 'Baskın bölgesini seç ve operasyona hazırlan.' },
+            { key: 'arcLoadout', label: 'BASKIN ÇANTASI', desc: 'Üstüne verilecek ekipmanı düzenle.' },
+            { key: 'arcWorkshop', label: 'ARC ATÖLYESİ', desc: 'Kalıcı depodaki malzemelerle üretim yap.' },
+            { key: 'arcDepot', label: 'KALICI DEPO', desc: 'Baskın dışında da sende kalan depoyu yönet.' }
+        ]
+    },
+    {
+        key: 'survival',
+        label: 'HAYATTA KALMA MODU',
+        meta: 'Dalga Operasyonu',
+        panels: [
+            { key: 'survivalRaid', label: 'HAYATTA KALMA', desc: 'Haritayı seç, sonra sol alttan başlat.' },
+            { key: 'survivalMarket', label: 'MARKET', desc: 'Saha güçlendirmelerini kredi ile aç.' },
+            { key: 'survivalWorkshop', label: 'ATÖLYE', desc: 'Topladığın malzemelerle ekipman üret.' }
+        ]
+    },
+    {
+        key: 'lobby',
+        label: 'LOBİ',
+        meta: 'Takım Sistemi',
+        panels: [
+            { key: 'lobbySettings', label: 'LOBİ AYARLARI', desc: 'Takım, hazır durumu ve davet akışını yönet.' }
+        ]
+    }
+];
 // Drag sonrası istemsiz click tetiklenmesini önlemek için kısa bastırma süreleri kullanılır.
 var ARC_LOCKER_DRAG_SUPPRESS_START_MS = 250;
 var ARC_LOCKER_DRAG_SUPPRESS_DROP_MS = 350;
@@ -251,7 +290,7 @@ document.addEventListener('keydown', function (e) {
 
 // ─── UI click + hover feedback ─────────────────────────────────────────────
 document.addEventListener('click', function (event) {
-    var target = event.target.closest('.btn, .menu-item, .player-item, .stage-card');
+    var target = event.target.closest('.btn, .menu-item, .player-item, .stage-card, .menu-sidebar-main, .menu-sidebar-subitem, .menu-choice-card');
     if (target && !target.classList.contains('disabled') && !target.disabled) {
         // Ready/craft actions play their own mechanical sounds from their dedicated handlers.
         if (target.classList.contains('pubg-ready-btn') || target.classList.contains('btn-craft-action')) return;
@@ -714,6 +753,7 @@ function bindImageFallbacks(root) {
 function setHudState(data) {
     data = data || {};
     refreshOperatorStatus(data.operatorCards);
+    hudEls.missionBrief.classList.toggle('hidden', data.hideMissionBrief === true);
 
     hudEls.briefTitle.textContent = data.briefTitle || DEFAULT_HUD.briefTitle;
     hudEls.briefText.textContent = data.briefText || DEFAULT_HUD.briefText;
@@ -829,6 +869,405 @@ function describeCount(count, singular, plural) {
     return count + ' ' + (count === 1 ? singular : plural);
 }
 
+function setMainNavigationVisible(visible) {
+    hudEls.menuSidebarShell.classList.toggle('hidden', visible !== true);
+}
+
+function renderMenuSidebar(html) {
+    hudEls.menuSidebar.innerHTML = html || '';
+}
+
+function hideMainNavigation() {
+    setMainNavigationVisible(false);
+    renderMenuSidebar('');
+}
+
+function getNavItemBySection(sectionKey) {
+    return MENU_NAV_ITEMS.find(function (item) {
+        return item.key === sectionKey;
+    }) || MENU_NAV_ITEMS[0];
+}
+
+function getMenuPanelDefinition(panelKey) {
+    for (var i = 0; i < MENU_NAV_ITEMS.length; i++) {
+        var panel = (MENU_NAV_ITEMS[i].panels || []).find(function (entry) {
+            return entry.key === panelKey;
+        });
+        if (panel) return panel;
+    }
+    return MENU_NAV_ITEMS[0].panels[0];
+}
+
+function getDefaultMenuView(state) {
+    if (state && state.currentModeId === 'arc_pvp') {
+        return { section: 'arc', panel: 'arcRaid' };
+    }
+    return { section: 'survival', panel: 'survivalRaid' };
+}
+
+function syncMenuView(state) {
+    var fallback = getDefaultMenuView(state);
+    var view = screenData.menuView || fallback;
+    var activeSection = getNavItemBySection(view.section);
+    var hasPanel = (activeSection.panels || []).some(function (panel) {
+        return panel.key === view.panel;
+    });
+    if (!hasPanel) {
+        view.panel = activeSection.panels[0].key;
+    }
+    screenData.menuView = {
+        section: activeSection.key,
+        panel: view.panel
+    };
+    return screenData.menuView;
+}
+
+function ensureMenuSelections(state) {
+    state = state || {};
+    if (!screenData.menuSelections.arcZoneId) {
+        screenData.menuSelections.arcZoneId = state.selectedArcZoneId || (state.arcDeploymentZones && state.arcDeploymentZones[0] && state.arcDeploymentZones[0].id) || null;
+    }
+    if (!screenData.menuSelections.survivalStageId) {
+        screenData.menuSelections.survivalStageId = state.selectedSurvivalStageId || (state.survivalStages && state.survivalStages[0] && state.survivalStages[0].id) || null;
+    }
+}
+
+function selectMenuSection(sectionKey) {
+    var item = getNavItemBySection(sectionKey);
+    screenData.menuView = {
+        section: item.key,
+        panel: item.panels[0].key
+    };
+    if (currentScreen === 'menu') {
+        showMenu(screenData.menuState);
+    }
+}
+
+function selectMenuPanel(sectionKey, panelKey) {
+    screenData.menuView = {
+        section: sectionKey,
+        panel: panelKey
+    };
+    if (currentScreen === 'menu') {
+        showMenu(screenData.menuState);
+    }
+}
+
+function selectArcZone(zoneId) {
+    screenData.menuSelections.arcZoneId = zoneId;
+    if (currentScreen === 'menu') {
+        showMenu(screenData.menuState);
+    }
+}
+
+function selectSurvivalStage(stageId) {
+    screenData.menuSelections.survivalStageId = stageId;
+    if (currentScreen === 'menu') {
+        showMenu(screenData.menuState);
+    }
+}
+
+function renderPopupStat(label, value, desc) {
+    return '<div class="menu-popup-stat">' +
+        '<div class="menu-popup-stat-label">' + esc(label) + '</div>' +
+        '<div class="menu-popup-stat-value">' + esc(value) + '</div>' +
+        (desc ? '<div class="menu-popup-stat-desc">' + esc(desc) + '</div>' : '') +
+    '</div>';
+}
+
+function renderChoiceCard(options) {
+    options = options || {};
+    var cls = 'menu-choice-card' + (options.selected ? ' is-selected' : '');
+    return '<button class="' + cls + '" type="button" onclick="' + (options.onclick || '') + '"' +
+        (options.tip ? ' data-tip="' + esc(options.tip) + '"' : '') + '>' +
+        '<div class="menu-choice-top">' +
+            '<span class="menu-choice-chip">' + esc(options.kicker || 'SEÇİM') + '</span>' +
+            '<span class="menu-choice-chip">' + esc(options.chip || 'HAZIR') + '</span>' +
+        '</div>' +
+        '<div class="menu-choice-title">' + esc(options.title || 'Bilinmiyor') + '</div>' +
+        (options.desc ? '<div class="menu-choice-desc">' + esc(options.desc) + '</div>' : '') +
+        (options.meta && options.meta.length ? '<div class="menu-choice-meta">' + options.meta.map(function (item) {
+            return '<span>' + esc(item) + '</span>';
+        }).join('') + '</div>' : '') +
+    '</button>';
+}
+
+function buildSidebarHtml(state, view) {
+    var html = '<div class="menu-sidebar-panel">' +
+        '<div class="menu-sidebar-kicker">Kontrol Menüsü</div>' +
+        '<div class="menu-sidebar-title">SOL NAVİGASYON</div>';
+
+    MENU_NAV_ITEMS.forEach(function (item) {
+        var isActiveSection = view.section === item.key;
+        html += '<div class="menu-sidebar-group">' +
+            '<button class="menu-sidebar-main' + (isActiveSection ? ' is-active' : '') + '" type="button" onclick="selectMenuSection(\'' + item.key + '\')">' +
+                '<span class="menu-sidebar-main-label">' + esc(item.label) + '</span>' +
+                '<span class="menu-sidebar-main-meta">' + esc(item.meta) + '</span>' +
+            '</button>';
+
+        if (isActiveSection) {
+            html += '<div class="menu-sidebar-sublist">';
+            item.panels.forEach(function (panel) {
+                html += '<button class="menu-sidebar-subitem' + (view.panel === panel.key ? ' is-active' : '') + '" type="button" onclick="selectMenuPanel(\'' + item.key + '\',\'' + panel.key + '\')">' +
+                    '<span class="menu-sidebar-subitem-label">' + esc(panel.label) + '</span>' +
+                    '<span class="menu-sidebar-subitem-desc">' + esc(panel.desc) + '</span>' +
+                '</button>';
+            });
+            html += '</div>';
+        }
+
+        html += '</div>';
+    });
+
+    return html + '<div class="menu-sidebar-footer">Karakter ön izlemesi açık kalır. Sol menüden seç, sağdaki büyük pencereden yönet.</div></div>';
+}
+
+function renderMenuPopupFrame(config) {
+    config = config || {};
+    return '<div class="menu-shell"><section class="menu-popup">' +
+        '<div class="menu-popup-header">' +
+            '<div>' +
+                '<div class="menu-popup-kicker">' + esc(config.kicker || 'OPERASYON') + '</div>' +
+                '<div class="menu-popup-title">' + esc(config.title || 'Kontrol Penceresi') + '</div>' +
+                (config.desc ? '<div class="menu-popup-desc">' + esc(config.desc) + '</div>' : '') +
+            '</div>' +
+            (config.note ? '<div class="menu-popup-note">' + config.note + '</div>' : '') +
+        '</div>' +
+        '<div class="menu-popup-body">' + (config.body || '') + '</div>' +
+        (config.footer || '') +
+    '</section></div>';
+}
+
+function renderMenuPopupFooter(primaryLabel, primaryAction, footerCopy, disabled) {
+    return '<div class="menu-popup-footer">' +
+        '<div class="menu-popup-actions">' +
+            '<button class="pubg-ready-btn menu-popup-start' + (disabled ? ' is-static' : '') + '" type="button" ' +
+                (disabled ? 'disabled' : '') + ' onclick="' + primaryAction + '">' + esc(primaryLabel) + '</button>' +
+        '</div>' +
+        '<div class="menu-popup-footer-copy">' + esc(footerCopy || '') + '</div>' +
+    '</div>';
+}
+
+function renderArcRaidPanel(state) {
+    var selectedZoneId = screenData.menuSelections.arcZoneId;
+    var zones = state.arcDeploymentZones || [];
+    var selectedZone = zones.find(function (zone) { return zone.id === selectedZoneId; }) || zones[0];
+    var summary = state.arcSummary || {};
+    var loadoutUi = getArcLoadoutPresentation(state);
+    var canDeploy = summary.canDeploy !== false;
+    var stageCards = zones.map(function (zone) {
+        return renderChoiceCard({
+            selected: zone.id === (selectedZone && selectedZone.id),
+            onclick: 'selectArcZone(' + Number(zone.id) + ')',
+            kicker: zone.regionLabel || 'ARC',
+            chip: zone.lootLabel || 'BASKIN',
+            title: zone.label,
+            desc: zone.description || 'Bölgeyi seçtikten sonra sol alttaki butonla baskını başlat.',
+            meta: [
+                'Loot: ' + (zone.lootNodeCount || 0),
+                'Giriş: ' + (zone.insertionCount || 0),
+                'Tahliye: ' + (zone.extractionLabel || 'Hazır')
+            ],
+            tip: zone.label + ' seçimi baskının konuşlandırma bölgesini belirler.'
+        });
+    }).join('');
+
+    var body = '<div class="menu-popup-grid">' +
+            renderPopupStat('Lider Yetkisi', state.isLeader ? 'Aktif' : 'Lider Gerekli', state.isLeader ? 'Operasyonu sen başlatabilirsin.' : 'Başlatma sadece lobi liderinde.') +
+            renderPopupStat('Takım Hazır mı', canDeploy ? 'Hazır' : 'Eksik Var', canDeploy ? 'Kritik engel görünmüyor.' : 'Önce eksikleri tamamla.') +
+            renderPopupStat('Baskın Çantası', loadoutUi.title, loadoutUi.detail) +
+            renderPopupStat('Bağlantı Koparsa', state.disconnectPolicyLabel || 'Güvenli Dönüş', state.disconnectPolicyDescription || 'Kopma durumunda ARC politikası uygulanır.') +
+        '</div>' +
+        renderArcPreflightSummary(state) +
+        buildArcExtractionPanel(state) +
+        '<div class="section-header"><div class="section-title">&#9876; Baskın Bölgesi Seç</div></div>' +
+        '<div class="menu-choice-grid">' + stageCards + '</div>';
+
+    return renderMenuPopupFrame({
+        kicker: 'ARC MODU',
+        title: 'ARC Baskınını Başlat',
+        desc: 'Baskın merkezi artık tek pencerede. Bölgeyi seç, hazırlık özetini kontrol et ve sol alttan operasyona çık.',
+        note: selectedZone ? ('<strong>' + esc(selectedZone.label) + '</strong><br>' + esc(selectedZone.regionLabel || 'ARC Bölgesi')) : 'Bölge seçimi bekleniyor.',
+        body: body,
+        footer: renderMenuPopupFooter('ARC BASKININI BAŞLAT', 'startArcModeFromMenu()', canDeploy ? 'Seçilen bölge: ' + ((selectedZone && selectedZone.label) || 'Yok') : 'Kritik ARC hazırlıkları tamamlanmadan başlatılamaz.', !selectedZone || !canDeploy)
+    });
+}
+
+function renderArcActionPanel(title, desc, stats, actionLabel, actionJs, footerCopy) {
+    return renderMenuPopupFrame({
+        kicker: 'ARC MODU',
+        title: title,
+        desc: desc,
+        body: '<div class="menu-popup-grid">' + stats.join('') + '</div>',
+        footer: '<div class="menu-popup-footer"><div class="menu-popup-actions">' +
+            '<button class="btn btn-primary" type="button" onclick="' + actionJs + '">' + esc(actionLabel) + '</button>' +
+        '</div><div class="menu-popup-footer-copy">' + esc(footerCopy || '') + '</div></div>'
+    });
+}
+
+function renderSurvivalRaidPanel(state) {
+    var stages = state.survivalStages || [];
+    var selectedStageId = screenData.menuSelections.survivalStageId;
+    var selectedStage = stages.find(function (stage) { return stage.id === selectedStageId; }) || stages[0];
+    var stageCards = stages.map(function (stage) {
+        return renderChoiceCard({
+            selected: stage.id === (selectedStage && selectedStage.id),
+            onclick: stage.locked ? '' : 'selectSurvivalStage(' + Number(stage.id) + ')',
+            kicker: stage.locked ? 'KİLİTLİ' : 'HARİTA',
+            chip: stage.locked ? 'SEVİYE' : ('x' + stage.multiplier),
+            title: stage.label,
+            desc: stage.locked ? 'Bu harita mevcut seviyende kapalı.' : 'Seçimi yaptıktan sonra sol alttan başlat.',
+            meta: [
+                'Zorluk x' + stage.multiplier,
+                stage.locked ? 'Açılmadı' : 'Hazır',
+                stage.enemyLabel || 'Dalga modu'
+            ],
+            tip: stage.locked ? (stage.label + ' kilitli.') : (stage.label + ' seçildiğinde sol alttan başlatılır.')
+        });
+    }).join('');
+
+    return renderMenuPopupFrame({
+        kicker: 'HAYATTA KALMA',
+        title: 'Haritayı Seç',
+        desc: 'Hayatta kalma modunda karakterin ön izlemede kalır, haritayı seçersin ve operasyonu sol alttaki butondan başlatırsın.',
+        note: '<strong>Seviye ' + esc(String(state.userLevel || 1)) + '</strong><br>' + esc(state.upgradeLabel || 'Standart Paket'),
+        body: '<div class="menu-popup-grid">' +
+                renderPopupStat('Aktif Operatif', state.playerName || 'Bilinmeyen Operatif', 'Karakter ön izlemesi menü boyunca açık kalır.') +
+                renderPopupStat('Takım Durumu', state.lobbyStatus || 'Tek Başına', state.hasLobby ? 'Takımınla birlikte girebilirsin.' : 'İstersen solo başlayabilirsin.') +
+                renderPopupStat('Hazırlık', state.isReady ? 'Hazır' : 'Beklemede', state.isMember ? 'Hazır butonu lobi ayarlarında bulunur.' : 'Solo modda doğrudan başlayabilirsin.') +
+            '</div>' +
+            '<div class="section-header"><div class="section-title">&#128205; Operasyon Haritaları</div></div>' +
+            '<div class="menu-choice-grid">' + stageCards + '</div>',
+        footer: renderMenuPopupFooter('HAYATTA KALMAYI BAŞLAT', 'startSurvivalModeFromMenu()', selectedStage ? ('Seçilen harita: ' + selectedStage.label) : 'Önce bir harita seç.', !selectedStage || selectedStage.locked)
+    });
+}
+
+function renderLobbySettingsPanel(state) {
+    var lobbyActions = [];
+    if (!state.hasLobby) {
+        lobbyActions.push('<button class="btn btn-primary" type="button" onclick="createLobbyFromMenu(true)">PUBLIC LOBİ KUR</button>');
+        lobbyActions.push('<button class="btn" type="button" onclick="createLobbyFromMenu(false)">PRIVATE LOBİ KUR</button>');
+    } else {
+        lobbyActions.push('<button class="btn btn-primary" type="button" onclick="handleReadyButton()">' + esc(state.isReady ? 'HAZIRLIĞI KALDIR' : 'HAZIR OL') + '</button>');
+        lobbyActions.push('<button class="btn" type="button" onclick="sendAction(\'openMembers\',{})">TAKIMI GÖR</button>');
+        if (state.isLeader) {
+            lobbyActions.push('<button class="btn" type="button" onclick="sendAction(\'openInvite\',{})">OYUNCU DAVET ET</button>');
+            lobbyActions.push('<button class="btn btn-danger" type="button" onclick="sendAction(\'disbandLobby\',{})">LOBİYİ DAĞIT</button>');
+        } else if (state.isMember) {
+            lobbyActions.push('<button class="btn btn-danger" type="button" onclick="sendAction(\'leaveLobby\',{})">LOBİDEN AYRIL</button>');
+        }
+    }
+    lobbyActions.push('<button class="btn" type="button" onclick="sendAction(\'openActiveLobbies\',{})">AKTİF LOBİLER</button>');
+
+    return renderMenuPopupFrame({
+        kicker: 'LOBİ',
+        title: 'Lobi Ayarları',
+        desc: 'Sol taraftaki lobi menüsünden takım akışını yönet, hazır durumunu kontrol et ve ayrıntı ekranlarını gerektiğinde aç.',
+        note: '<strong>' + esc(state.lobbyStatus || 'Tek Başına') + '</strong><br>' + esc(state.isLeader ? 'Lider sensin.' : state.isMember ? 'Bir takıma bağlısın.' : 'Henüz takımın yok.'),
+        body: '<div class="menu-popup-grid">' +
+                renderPopupStat('Lider Yetkisi', state.isLeader ? 'Açık' : 'Kapalı', state.isLeader ? 'Operasyon ve davet yetkisi sende.' : 'Başlatma liderde.') +
+                renderPopupStat('Takım Hazır mı', state.isReady ? 'Evet' : 'Hayır', 'Hazır durumunu bu pencereden değiştir.') +
+                renderPopupStat('Oyuncu Sayısı', state.hasLobby ? (state.lobbyMemberCount || 'Takım Aktif') : 'Solo', state.hasLobby ? 'Takım bilgisi telemetri ekranında açılır.' : 'Dilersen lobi kurabilirsin.') +
+            '</div>' +
+            '<div class="menu-popup-actions">' + lobbyActions.join('') + '</div>',
+        footer: '<div class="menu-popup-footer"><div class="menu-popup-actions"></div><div class="menu-popup-footer-copy">Lobi detayları gerektiğinde ayrı pencere olarak açılır; ana ayarlar burada tutulur.</div></div>'
+    });
+}
+
+function renderMenuPanel(state, view) {
+    switch (view.panel) {
+        case 'arcRaid':
+            return renderArcRaidPanel(state);
+        case 'arcLoadout':
+            return renderArcActionPanel(
+                'Baskın Çantası',
+                'Baskına girişte üstüne verilecek ekipmanı burada yönetirsin.',
+                [
+                    renderPopupStat('Hazır Durum', state.arcLoadoutReady ? 'Hazır' : 'Boş', state.arcLoadoutReady ? 'Çanta baskına hazır.' : 'Hazırlık eksik olabilir.'),
+                    renderPopupStat('Stack', String(state.arcLoadoutStacks || 0), 'Toplam farklı yığın sayısı.'),
+                    renderPopupStat('Eşya', String(state.arcLoadoutItems || 0), 'Toplam item adedi.')
+                ],
+                'BASKIN ÇANTASINI AÇ',
+                'sendAction(\'openArcLoadoutStash\',{})',
+                'Çanta ekranı açıldığında yükleme ekipmanını doğrudan düzenlersin.'
+            );
+        case 'arcWorkshop':
+            return renderArcActionPanel(
+                'ARC Atölyesi',
+                'Kalıcı depodan beslenen ARC craft akışını burada başlatırsın.',
+                [
+                    renderPopupStat('Depo Stack', String(state.arcMainStacks || 0), 'Kalıcı depodaki stack adedi.'),
+                    renderPopupStat('Depo Eşya', String(state.arcMainItems || 0), 'Kalıcı depodaki toplam eşya.'),
+                    renderPopupStat('Craft Kaynağı', 'ARC Ana Depo', 'Üretilen eşyalar aynı depoya geri düşer.')
+                ],
+                'ARC ATÖLYESİNİ AÇ',
+                'sendAction(\'openCraft\',{source:\'arc_main\'})',
+                'Atölye büyük pencere olarak açılır ve kalıcı depo malzemelerini kullanır.'
+            );
+        case 'arcDepot':
+            return renderArcActionPanel(
+                'Kalıcı Depo',
+                'Baskın dışında da sende kalan tüm ARC lootlarını bu depoda saklarsın.',
+                [
+                    renderPopupStat('Stack', String(state.arcMainStacks || 0), 'Kalıcı saklanan stack sayısı.'),
+                    renderPopupStat('Eşya', String(state.arcMainItems || 0), 'Kalıcı depodaki toplam içerik.'),
+                    renderPopupStat('Bağlantı', state.disconnectPolicyLabel || 'Güvenli', 'Kopma politikası bu depoyu da etkiler.')
+                ],
+                'KALICI DEPOYU AÇ',
+                'sendAction(\'openArcMainStash\',{})',
+                'Depo yöneticisi açıldığında kalıcı depo ile baskın çantasını birlikte görebilirsin.'
+            );
+        case 'survivalRaid':
+            return renderSurvivalRaidPanel(state);
+        case 'survivalMarket':
+            return renderArcActionPanel(
+                'Market',
+                'Hayatta kalma operasyonuna girmeden önce güçlendirmeleri incele.',
+                [
+                    renderPopupStat('Seviye', String(state.userLevel || 1), 'Açık haritalar seviyene göre artar.'),
+                    renderPopupStat('Paket', state.upgradeLabel || 'Standart Paket', 'Satın aldığın avantajlar burada görünür.'),
+                    renderPopupStat('Takım', state.lobbyStatus || 'Tek Başına', 'Market ekranı takım açıkken de erişilebilir.')
+                ],
+                'MARKETİ AÇ',
+                'sendAction(\'openMarket\',{})',
+                'Market ekranı büyük pencere olarak açılır.'
+            );
+        case 'survivalWorkshop':
+            return renderArcActionPanel(
+                'Atölye',
+                'Topladığın kaynaklarla hayatta kalma ekipmanını üret.',
+                [
+                    renderPopupStat('Kaynak Akışı', 'Genel Çanta', 'Craft normal kaynaklarını kullanır.'),
+                    renderPopupStat('Hazırlık', state.isReady ? 'Hazır' : 'Beklemede', 'Takımla giriyorsan hazır durumunu ayrıca kontrol et.'),
+                    renderPopupStat('Operatif', state.playerName || 'Bilinmeyen', 'Karakter ön izlemesi açık kalır.')
+                ],
+                'ATÖLYEYİ AÇ',
+                'sendAction(\'openCraft\',{})',
+                'Atölye ekranı ayrı büyük pencere olarak açılır.'
+            );
+        default:
+            return renderLobbySettingsPanel(state);
+    }
+}
+
+function startArcModeFromMenu() {
+    if (!screenData.menuSelections.arcZoneId) return;
+    sendAction('startArcPvP', { stageId: screenData.menuSelections.arcZoneId });
+}
+
+function startSurvivalModeFromMenu() {
+    if (!screenData.menuSelections.survivalStageId) return;
+    sendAction('selectStage', {
+        stageId: screenData.menuSelections.survivalStageId,
+        modeId: 'classic'
+    });
+}
+
+function createLobbyFromMenu(isPublic) {
+    screenData.menuView = { section: 'lobby', panel: 'lobbySettings' };
+    sendAction('createLobby', { isPublic: isPublic === true });
+}
+
 function showTooltip(text) {
     if (!text) {
         hideTooltip();
@@ -940,13 +1379,8 @@ function updateMenuState(data) {
     var nextState = Object.assign({}, screenData.menuState, data);
     screenData.menuState = nextState;
     if (currentScreen === 'menu') {
-        // Extraction summary/objective updates affect multiple menu blocks, so re-render the
-        // full menu only when those fields change. Ready-only updates keep the lighter path.
-        if (data.arcExtraction || data.arcSummary) {
-            showMenu(screenData.menuState);
-            return;
-        }
-        setReadyButton(screenData.menuState);
+        showMenu(screenData.menuState);
+        return;
     }
     refreshOperatorStatus();
 }
@@ -1776,118 +2210,58 @@ function showMenu(state) {
     state = state || {};
     currentScreen = 'menu';
     screenData.menuState = state;
-    var arcLoadoutUi = getArcLoadoutPresentation(state);
-    var extractionHud = state.arcExtraction || (state.arcSummary && state.arcSummary.extraction) || {};
-    var arcLoadoutBadge = arcLoadoutUi.badge;
-    var arcMainBadge = 'KALICI x' + esc(String(state.arcMainStacks || 0));
-    var windowEyebrowLabel = 'Kontrol Penceresi';
-    setBreadcrumb('Operasyon Menüsü / Ana Ekran');
+    ensureMenuSelections(state);
+    var view = syncMenuView(state);
+    var panel = getMenuPanelDefinition(view.panel);
+    var isArcPanel = view.section === 'arc';
+    var operatorCards = isArcPanel ? [
+        {
+            label: 'KARAKTER',
+            value: state.playerName || 'Bilinmeyen Operatif',
+            valuePct: clamp(((state.playerName || 'Bilinmeyen Operatif').length || 1) * 7, 24, 100)
+        },
+        {
+            label: 'MOD',
+            value: isArcPanel ? 'ARC Baskını' : 'Hayatta Kalma',
+            valuePct: 100
+        },
+        {
+            label: 'YÜK',
+            value: isArcPanel ? getArcLoadoutPresentation(state).title : (state.upgradeLabel || 'Standart Paket'),
+            valuePct: isArcPanel ? (state.arcLoadoutReady ? 92 : 44) : (state.upgradeLabel === 'Standart Paket' ? 36 : 82)
+        },
+        {
+            label: 'TAKIM',
+            value: state.lobbyStatus || 'Tek Başına',
+            valuePct: state.hasLobby ? (state.isLeader ? 88 : 74) : 28
+        }
+    ] : buildOperatorCards();
+    setMainNavigationVisible(true);
+    renderMenuSidebar(buildSidebarHtml(state, view));
+    setBreadcrumb('Operasyon Menüsü / ' + (panel.label || 'Ana Menü'));
     setHudState({
+        operatorCards: operatorCards,
         health: clamp(MAIN_MENU_BASE_HEALTH + ((state.userLevel || 1) * MAIN_MENU_HEALTH_PER_LEVEL), 0, 100),
-        radiation: state.isLeader ? 34 : state.isMember ? 42 : 18,
-        inventoryPct: state.hasLobby ? 66 : 50,
-        inventoryText: state.hasLobby ? '04/06' : '03/06',
+        radiation: view.section === 'arc' ? 41 : state.isLeader ? 34 : state.isMember ? 42 : 18,
+        inventoryPct: view.section === 'arc' ? (state.arcLoadoutReady ? 82 : 46) : state.hasLobby ? 66 : 50,
+        inventoryText: view.section === 'arc'
+            ? String(state.arcLoadoutItems || 0) + '/' + String(state.arcLoadoutStacks || 0)
+            : (state.hasLobby ? '04/06' : '03/06'),
         signal: state.hasLobby ? 86 : 71,
         signalText: state.hasLobby ? 'TAKIM' : 'TEK',
-        briefTitle: state.currentModeId === 'arc_pvp' ? 'ARC Baskın Hazırlığı' : 'Operasyon Hazır',
-        briefText: state.currentModeId === 'arc_pvp'
-            ? (state.currentModeLabel || 'ARC Baskını') + ' seçili. ' + arcLoadoutUi.detail + ' ' + (state.allowPersonalInventory ? 'Baskında TAB ile kişisel çantanı yönetebilirsin.' : 'Bu baskında kişisel çanta erişimi kapalı.')
-            : (state.currentModeLabel || 'Klasik Hayatta Kalma') + ' seçili. Takımını düzenle ve operasyona hazırlan.',
-        briefExtractionPhase: state.currentModeId === 'arc_pvp' && extractionHud.enabled === true ? (extractionHud.phaseLabel || 'Tahliye Hazır') : '',
-        briefExtractionObjective: state.currentModeId === 'arc_pvp' && extractionHud.enabled === true ? (extractionHud.objective || 'Tahliye fazı ARC baskınının final baskısını belirler.') : '',
-        briefExtractionCountdown: state.currentModeId === 'arc_pvp' && extractionHud.enabled === true
-            ? (extractionHud.countdown > 0 ? formatSecondsClock(extractionHud.countdown) : (extractionHud.availableIn > 0 ? formatSecondsClock(extractionHud.availableIn) : 'READY'))
-            : '',
-        briefTag: state.currentModeId === 'arc_pvp' ? 'ARC' : (state.isLeader ? 'LİDER' : state.isMember ? 'TAKIM' : 'TEK'),
+        briefTitle: panel.label || 'Operasyon Hazır',
+        briefText: panel.desc || 'Sol menüden seç, açılan pencereden yönet.',
+        briefTag: view.section === 'arc' ? 'ARC' : view.section === 'survival' ? 'SURV' : 'LOBİ',
         progress: state.hasLobby ? 54 : 36,
-        slotsFilled: state.hasLobby ? 4 : 3
+        slotsFilled: state.hasLobby ? 4 : 3,
+        hideMissionBrief: true
     });
-
-    var html = '';
-    var teamHtml = '';
-
-    if (state.hasLobby) {
-        teamHtml += menuRow('&#128203;', 'Takım Telemetrisi', 'Lobideki oyuncuların anlık durumunu izle', '',
-            'sendAction(\'openMembers\',{})', '', 'Takımdaki oyuncuları, lider bilgisini ve hazır durumunu burada görürsün.');
-    }
-
-    teamHtml += menuRow('&#128065;', 'Aktif Lobiler', 'Sunucuda açık olan lobileri ve doluluklarını görüntüle', '',
-        'sendAction(\'openActiveLobbies\',{})', '', 'Açık lobilerin liderini, doluluk oranını ve hazır oyuncu sayısını burada görürsün.');
-
-    if (state.isLeader) {
-        teamHtml += menuRow('&#10133;', 'Yakındaki Oyuncuyu Davet Et', 'Yakındaki oyuncuyu takıma çağır', '',
-            'sendAction(\'openInvite\',{})', '', 'Yakındaki oyuncuları listeler ve takım daveti göndermeni sağlar.');
-        teamHtml += menuRow('&#128683;', 'Takımı Dağıt', 'Mevcut takımını tamamen kapat', '',
-            'sendAction(\'disbandLobby\',{})', 'danger', 'Lider olarak tüm üyeleri takımdan çıkarır ve lobi durumunu sıfırlar.');
-    } else if (state.isMember) {
-        teamHtml += menuRow('&#127939;', 'Takımdan Ayrıl', 'Takımı bırak ve tek başına devam et', '',
-            'sendAction(\'leaveLobby\',{})', 'danger', 'Mevcut takımdan ayrılır ve operasyonu solo sürdürürsün.');
-    } else {
-        teamHtml += menuRow('&#127968;', 'Lobi Kur', 'Önce kendi lobini oluştur, sonra oyuncu davet et', '',
-            'showCreateLobbySetup()', '', 'Lobini public veya private olarak kurabilir, ardından oyuncu davet edebilir ya da public açtıysan doğrudan katılım alabilirsin.');
-    }
-
-    html += '<div class="menu-hub-grid">' +
-        '<section class="menu-window menu-window-arc">' +
-            '<div class="menu-window-header">' +
-                '<div>' +
-                    '<div class="menu-window-eyebrow">' + windowEyebrowLabel + '</div>' +
-                    '<div class="menu-window-title">&#9876; Baskın Merkezi</div>' +
-            '</div>' +
-                '<div class="menu-window-note">' + esc(state.currentModeId === 'arc_pvp' ? 'Aktif mod' : 'Hazırlık') + '</div>' +
-            '</div>' +
-            '<div class="menu-window-desc">Baskın hazırlığını, çantayı, depoyu ve ARC craft akışını tek alanda yönet.</div>' +
-            renderArcPreflightSummary(state) +
-            menuRow('&#9876;', 'ARC Baskını', 'Baskın öncesi son kontrolleri gözden geçir ve operasyona başla',
-                '<span class="level-badge">' + arcLoadoutBadge + '</span>',
-                'startArcMode()', '', 'ARC baskınında giriş noktası tüm haritadan rastgele seçilir. ' + arcLoadoutUi.title + ': ' + arcLoadoutUi.detail + ' Baskın kontrol özetinde takımın hazır olup olmadığını anında görürsün.') +
-            menuRow('&#128737;', 'Baskın Çantası', 'Baskına girerken üstüne verilecek ekipmanı burada hazırla',
-                '<span class="level-badge">' + arcLoadoutBadge + '</span>',
-                'sendAction(\'openArcLoadoutStash\',{})', '', 'Baskın çantan hazırsa içindekiler girişte üstüne verilir. Çanta boşsa ' + (state.arcLoadoutState && state.arcLoadoutState.usesFallback ? 'varsayılan başlangıç paketi kullanılacak.' : 'hazırlığın eksik sayılacak.') + ' Bunu kalıcı deponla aynı ekranda yönetebilirsin.') +
-            menuRow('&#128296;', 'ARC Atölyesi', 'Kalıcı depodaki lootları baskın ekipmanına dönüştür',
-                '<span class="level-badge">' + arcMainBadge + '</span>',
-                'sendAction(\'openCraft\',{source:\'arc_main\'})', '', 'ARC ana depodaki malzemeleri kullanarak craft yaparsın. Üretilen eşya doğrudan aynı depoya geri düşer.') +
-            menuRow('&#128451;', 'Kalıcı Depo', 'Kalıcı deponu aç ve baskın için ayıracağın ekipmanı düzenle',
-                '<span class="level-badge">' + arcMainBadge + '</span>',
-                'sendAction(\'openArcMainStash\',{})', '', 'Kalıcı depo baskın dışında da sende kalır. Baskın çantası ise yalnızca girişte üstüne verilecek ekipmanı tutar.') +
-        '</section>' +
-        '<section class="menu-window menu-window-survival">' +
-            '<div class="menu-window-header">' +
-                '<div>' +
-                    '<div class="menu-window-eyebrow">' + windowEyebrowLabel + '</div>' +
-                    '<div class="menu-window-title">&#128737; Hayatta Kalma</div>' +
-                '</div>' +
-                '<div class="menu-window-note">Seviye ' + esc(String(state.userLevel || 1)) + '</div>' +
-            '</div>' +
-            '<div class="menu-window-desc">Dalga modu, market ve atölye ekranlarını sade bir akışta aç.</div>' +
-            menuRow('&#128737;', 'Klasik Hayatta Kalma', 'Dalga tabanlı hayatta kalma modunu başlat',
-                '<span class="level-badge">Seviye ' + esc(String(state.userLevel || 1)) + '</span>',
-                'sendAction(\'openStages\',{modeId:\'classic\'})', '', 'Bu modda bölgeyi seçip dalga dalga gelen düşmanlara karşı ayakta kalırsın.') +
-            menuRow('&#128722;', 'Market', 'Saha avantajlarını kredi ile satın al', '',
-                'sendAction(\'openMarket\',{})', '', 'Koruma, dayanıklılık ve destek güçlendirmelerini bu ekrandan alırsın.') +
-            menuRow('&#128296;', 'Atölye', 'Topladığın malzemelerle ekipmanları atölyede birleştir', '',
-                'sendAction(\'openCraft\',{})', '', 'Kaynakları kullanarak sahada işine yarayacak ekipmanları üretirsin.') +
-        '</section>' +
-    '</div>';
-
-    html += '<section class="menu-window menu-window-team menu-window-full">' +
-        '<div class="menu-window-header">' +
-            '<div>' +
-                '<div class="menu-window-eyebrow">' + windowEyebrowLabel + '</div>' +
-                '<div class="menu-window-title">&#128101; Takım Yönetimi</div>' +
-            '</div>' +
-            '<div class="menu-window-note">' + esc(state.hasLobby ? 'Takım aktif' : 'Solo') + '</div>' +
-        '</div>' +
-        '<div class="menu-window-desc">Lobi, davet ve takım durumlarını ayrı bir alanda yönet.</div>' +
-        teamHtml +
-    '</section>';
-
-    setContent(html);
-    setReadyButton(state);
+    setContent(renderMenuPanel(state, view));
 }
 
 function showArcLockers(data) {
     data = data || {};
+    hideMainNavigation();
     var previousData = screenData.arcLockers || {};
     data.activeCategory = previousData.activeCategory || data.activeCategory || 'all';
     screenData.arcLockers = data;
@@ -1930,6 +2304,7 @@ function showArcLockers(data) {
 // ── Market ─────────────────────────────────────────────────────────────────
 function showMarket(data) {
     data = data || {};
+    hideMainNavigation();
     currentScreen = 'market';
     screenData.upgrades = data.upgrades || [];
     setBreadcrumb('Operasyon Menüsü / Market');
@@ -2195,6 +2570,7 @@ function renderCraftScreen() {
 // ── Craft ──────────────────────────────────────────────────────────────────
 function showCraft(data) {
     data = data || {};
+    hideMainNavigation();
     currentScreen = 'craft';
     screenData.recipes = data.recipes || [];
     screenData.craftSource = {
@@ -2258,6 +2634,7 @@ function confirmCraftItem() {
 // ── Stages ─────────────────────────────────────────────────────────────────
 function showStages(data) {
     data = data || {};
+    hideMainNavigation();
     currentScreen = 'stages';
     screenData.stages = data.stages || [];
     screenData.selectedModeId = data.modeId || 'classic';
@@ -2360,6 +2737,7 @@ function selectStage(idx) {
 // ── Invite Players ─────────────────────────────────────────────────────────
 function showInvite(data) {
     data = data || {};
+    hideMainNavigation();
     currentScreen = 'invite';
     screenData.players = data.players || [];
     setBreadcrumb('Operasyon Menüsü / Davet');
@@ -2406,6 +2784,7 @@ function invitePlayer(idx) {
 }
 
 function showCreateLobbySetup() {
+    hideMainNavigation();
     currentScreen = 'create-lobby';
     setBreadcrumb('Operasyon Menüsü / Lobi Görünürlüğü');
     setHudState({
@@ -2472,6 +2851,7 @@ function createLobbyWithVisibility(isPublic) {
 // ── Active Lobbies ───────────────────────────────────────────────────────────
 function showActiveLobbies(data) {
     data = data || {};
+    hideMainNavigation();
     currentScreen = 'active-lobbies';
     screenData.lobbies = data.lobbies || [];
     setBreadcrumb('Operasyon Menüsü / Aktif Lobiler');
@@ -2530,6 +2910,7 @@ function showActiveLobbies(data) {
 // ── Lobby Members ──────────────────────────────────────────────────────────
 function showMembers(data) {
     data = data || {};
+    hideMainNavigation();
     currentScreen = 'members';
     screenData.members  = data.members  || [];
     screenData.memberLeaderId = data.leaderId;
@@ -2577,6 +2958,7 @@ function showMembers(data) {
 // ── Receive Invite ─────────────────────────────────────────────────────────
 function showReceiveInvite(data) {
     data = data || {};
+    hideMainNavigation();
     currentScreen = 'invite-received';
     screenData.inviteLeaderId = data.leaderId;
     setBreadcrumb('Operasyon Menüsü / Gelen Davet');
@@ -2623,6 +3005,7 @@ function denyInvite() {
 
 function showReconnectPrompt(data) {
     data = data || {};
+    hideMainNavigation();
     currentScreen = 'arc-reconnect';
     screenData.reconnectPrompt = data;
     setBreadcrumb('ARC Bağlantı / Geri Katılım');

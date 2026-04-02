@@ -30,11 +30,41 @@
 
             <!-- ANA İÇERİK KUTUSU -->
             <div id="pubg-main-container">
-                
-                <!-- SOL PANEL (HUD ve Brief) -->
-                <div class="pubg-side-panel">
-                    
-                    <!-- HUD DURUM KUTUSU -->
+                <aside id="menu-sidebar-shell" class="hidden" aria-label="Operasyon menüleri">
+                    <div id="menu-sidebar"></div>
+                </aside>
+
+                <div class="pubg-workspace">
+                    <div id="panel-body" class="pubg-right-panel">
+                        <div id="content"></div>
+                    </div>
+
+                    <div id="mission-brief" class="pubg-matchmaking-panel">
+                        <div class="brief-label">TAKIM DURUMU</div>
+                        
+                        <div class="brief-main">
+                            <div>
+                                <div id="brief-title">Operasyon Hazır</div>
+                                <div id="brief-text">Takım durumunu kontrol et, bölgeyi seç ve ekipmanını hazırla.</div>
+                                <div id="brief-extraction" class="brief-extraction hidden">
+                                    <div class="brief-extraction-phase" id="brief-extraction-phase">Extraction available</div>
+                                    <div class="brief-extraction-objective" id="brief-extraction-objective">Extraction objective</div>
+                                    <div class="brief-extraction-countdown" id="brief-extraction-countdown">00:00</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="brief-progress">
+                            <span id="brief-progress-bar"></span>
+                        </div>
+
+                        <div class="brief-side">
+                            <button id="brief-tag" class="pubg-ready-btn" onclick="handleReadyButton()">BEKLE</button>
+                        </div>
+                    </div>
+                </div>
+
+                <aside class="pubg-info-rail">
                     <div id="status-strip" class="pubg-crafter-pass">
                         <div id="status-strip-title" class="pass-header">OPERATÖR BİLGİSİ</div>
                         
@@ -70,41 +100,7 @@
                             <div class="status-bar"><span id="hud-signal-bar" style="background: #f2a900;"></span></div>
                         </div>
                     </div>
-
-                    <!-- MISSION BRIEF (PUBG Ready / Eşleştirme Stili) -->
-                    <div id="mission-brief" class="pubg-matchmaking-panel">
-                        <div class="brief-label">TAKIM DURUMU</div>
-                        
-                        <div class="brief-main">
-                            <div>
-                                <div id="brief-title">Operasyon Hazır</div>
-                                <div id="brief-text">Takım durumunu kontrol et, bölgeyi seç ve ekipmanını hazırla.</div>
-                                <div id="brief-extraction" class="brief-extraction hidden">
-                                    <div class="brief-extraction-phase" id="brief-extraction-phase">Extraction available</div>
-                                    <div class="brief-extraction-objective" id="brief-extraction-objective">Extraction objective</div>
-                                    <div class="brief-extraction-countdown" id="brief-extraction-countdown">00:00</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Progress Bar -->
-                        <div class="brief-progress">
-                            <span id="brief-progress-bar"></span>
-                        </div>
-
-                        <!-- Dinamik READY Butonu -->
-                        <div class="brief-side">
-                            <button id="brief-tag" class="pubg-ready-btn" onclick="handleReadyButton()">BEKLE</button>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- SAĞ PANEL (İçerik) -->
-                <div id="panel-body" class="pubg-right-panel">
-                    <div id="content"></div>
-                </div>
-
+                </aside>
             </div>
         </div>
 
