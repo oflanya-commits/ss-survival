@@ -114,6 +114,9 @@ local GetModeLabel
 local GetActiveArcStageData
 local BuildArcExtractionHudState
 local ToVector3
+local StartMenuPreview
+local StopMenuPreview
+local CanStartMenuPreview
 
 -- [NUI YARDIMCI FONKSİYONLAR]
 local function OpenNUI(data)
@@ -131,6 +134,8 @@ local function CloseNUI()
 end
 
 local function OffsetCoordsFromHeading(baseCoords, heading, forward, right, up)
+    -- Heading tabanlı world offset üretir:
+    -- forward pedin baktığı yön boyunca, right pedin sağına doğru, up ise Z ekseninde uygulanır.
     local radians = math.rad(heading or 0.0)
     local sinValue = math.sin(radians)
     local cosValue = math.cos(radians)
@@ -142,7 +147,7 @@ local function OffsetCoordsFromHeading(baseCoords, heading, forward, right, up)
     )
 end
 
-function StartMenuPreview()
+StartMenuPreview = function()
     if not CanStartMenuPreview() then
         return
     end
@@ -181,7 +186,7 @@ function StartMenuPreview()
     RenderScriptCams(true, false, 0, true, true)
 end
 
-function StopMenuPreview()
+StopMenuPreview = function()
     if menuPreviewCam then
         RenderScriptCams(false, false, 0, true, true)
         DestroyCam(menuPreviewCam, true)
@@ -204,7 +209,7 @@ function StopMenuPreview()
     menuPreviewState = nil
 end
 
-function CanStartMenuPreview()
+CanStartMenuPreview = function()
     return menuPreviewState == nil
         and isSurvivalActive ~= true
         and Config.Npc ~= nil

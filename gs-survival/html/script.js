@@ -80,6 +80,9 @@ const LIMITS = {
     lobbySize: 4
 };
 
+const MODE_ID_CLASSIC = 'classic';
+const MODE_ID_RANKED = 'arc_pvp';
+
 const LOCKER_CATEGORIES = [
     { key: 'all', label: STRINGS.lockerCategories.all },
     { key: 'weapon', label: STRINGS.lockerCategories.weapon },
@@ -107,7 +110,7 @@ const state = {
     craftCategory: 'all',
     craftDialog: null,
     stages: [],
-    selectedModeId: 'classic',
+    selectedModeId: MODE_ID_CLASSIC,
     stageModeLabel: 'Klasik Hayatta Kalma',
     players: [],
     lobbies: [],
@@ -177,7 +180,7 @@ let bannerTimer = null;
 let progressFrame = null;
 let notifyTimers = [];
 
-function shouldShowPopup(viewKey) {
+function isPopupPanelView(viewKey) {
     return viewKey !== 'menu';
 }
 
@@ -214,8 +217,8 @@ const messageHandlers = {
     },
     openStages(data) {
         state.stages = safeArray(data && data.stages);
-        state.selectedModeId = safeString(data && data.modeId, 'classic');
-        state.stageModeLabel = safeString(data && data.modeLabel, state.selectedModeId === 'arc_pvp' ? 'ARC Baskını' : 'Klasik Hayatta Kalma');
+        state.selectedModeId = safeString(data && data.modeId, MODE_ID_CLASSIC);
+        state.stageModeLabel = safeString(data && data.modeLabel, state.selectedModeId === MODE_ID_RANKED ? 'ARC Baskını' : 'Klasik Hayatta Kalma');
         state.currentView = 'stages';
         closeDialogs();
         showApp();
@@ -451,7 +454,7 @@ function normalizeMenuState(data) {
         currentStage: safeNumber(next.currentStage, 1),
         upgradeLabel: safeString(next.upgradeLabel, '-'),
         lobbyStatus: safeString(next.lobbyStatus, 'Tek Başına'),
-        currentModeId: safeString(next.currentModeId, 'classic'),
+        currentModeId: safeString(next.currentModeId, MODE_ID_CLASSIC),
         currentModeLabel: safeString(next.currentModeLabel, 'Klasik Hayatta Kalma'),
         arcMainStacks: safeNumber(next.arcMainStacks, 0),
         arcMainItems: safeNumber(next.arcMainItems, 0),
@@ -573,15 +576,15 @@ function renderCurrentView() {
     const renderer = viewRenderers[state.currentView] || renderMenuView;
     const view = renderer();
     ui.app.dataset.view = state.currentView;
-    ui.app.dataset.popupOpen = shouldShowPopup(state.currentView) ? '1' : '0';
+    ui.app.dataset.popupOpen = isPopupPanelView(state.currentView) ? '1' : '0';
     ui.screenTitle.textContent = view.title || STRINGS.app.title;
     ui.screenSubtitle.textContent = view.subtitle || STRINGS.app.subtitle;
     ui.breadcrumb.textContent = view.breadcrumb || STRINGS.app.breadcrumb;
     if (ui.hubPanel) {
-        ui.hubPanel.classList.toggle('is-open', shouldShowPopup(state.currentView));
+        ui.hubPanel.classList.toggle('is-open', isPopupPanelView(state.currentView));
     }
     if (ui.topbarBack) {
-        ui.topbarBack.classList.toggle('hidden', !shouldShowPopup(state.currentView));
+        ui.topbarBack.classList.toggle('hidden', !isPopupPanelView(state.currentView));
     }
     renderSidebar(view.sidebar || buildDefaultSidebar());
     renderShellChrome(view);
@@ -611,8 +614,8 @@ function renderShellChrome(view) {
 function renderPrimaryNav() {
     if (!ui.leftNav) return;
     const items = [
-        { key: 'match', label: 'Match', action: 'open-stages', payload: { modeId: 'classic' }, active: state.currentView === 'stages' && state.selectedModeId !== 'arc_pvp' },
-        { key: 'ranked', label: 'Ranked Match', action: 'open-stages', payload: { modeId: 'arc_pvp' }, active: state.currentView === 'stages' && state.selectedModeId === 'arc_pvp' },
+        { key: 'match', label: 'Match', action: 'open-stages', payload: { modeId: MODE_ID_CLASSIC }, active: state.currentView === 'stages' && state.selectedModeId !== MODE_ID_RANKED },
+        { key: 'ranked', label: 'Ranked Match', action: 'open-stages', payload: { modeId: MODE_ID_RANKED }, active: state.currentView === 'stages' && state.selectedModeId === MODE_ID_RANKED },
         { key: 'market', label: 'Store', action: 'open-market', active: state.currentView === 'market' },
         { key: 'loadout', label: 'Loadout', action: 'open-loadout-stash', active: state.currentView === 'arcLockers' && state.arcLockers && state.arcLockers.focusSide === 'loadout' },
         { key: 'arcLockers', label: 'Locker', action: 'open-main-stash', active: state.currentView === 'arcLockers' && !(state.arcLockers && state.arcLockers.focusSide === 'loadout') }
@@ -701,8 +704,8 @@ function renderMenuView() {
                 { label: 'ARC', value: loadoutInfo.shortLabel, percent: loadoutInfo.percent },
                 { label: 'Tahliye', value: extraction.phase || 'Pasif', percent: extraction.percent }
             ],
-            title: menu.currentModeId === 'arc_pvp' ? 'ARC Baskın Hazırlığı' : 'Operasyon Hazır',
-            text: menu.currentModeId === 'arc_pvp'
+            title: menu.currentModeId === MODE_ID_RANKED ? 'ARC Baskın Hazırlığı' : 'Operasyon Hazır',
+            text: menu.currentModeId === MODE_ID_RANKED
                 ? menu.currentModeLabel + ' seçili. ' + loadoutInfo.detail
                 : menu.currentModeLabel + ' seçili. Takımını düzenle ve operasyona hazırlan.',
             tag: menu.isLeader ? STRINGS.badge.leader : (menu.isMember ? STRINGS.badge.team : STRINGS.badge.solo),
@@ -807,7 +810,7 @@ function renderCraftView() {
 }
 
 function renderStagesView() {
-    const isArc = state.selectedModeId === 'arc_pvp';
+    const isArc = state.selectedModeId === MODE_ID_RANKED;
     const cards = state.stages.length ? state.stages.map(function (stage, index) {
         return renderStageCard(stage, index, isArc);
     }).join('') : renderEmptyState('📍', STRINGS.empty.stages);
@@ -1587,7 +1590,7 @@ function dispatchAction(action, payload) {
         case 'select-stage': {
             const stage = state.stages[safeNumber(payload.index, -1)];
             if (!stage || stage.locked) return;
-            sendAction('selectStage', { stageId: stage.id, modeId: state.selectedModeId || 'classic' });
+            sendAction('selectStage', { stageId: stage.id, modeId: state.selectedModeId || MODE_ID_CLASSIC });
             return;
         }
         case 'invite-player': {
