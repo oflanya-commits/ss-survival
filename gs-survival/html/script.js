@@ -99,7 +99,7 @@ const LOCKER_RULES = {
 
 const state = {
     currentView: 'menu',
-    menuState: {},
+    menuState: normalizeMenuState({}),
     upgrades: [],
     recipes: [],
     craftSource: {},
@@ -326,9 +326,6 @@ document.addEventListener('dragleave', handleDragLeave);
 document.addEventListener('drop', handleDrop);
 document.addEventListener('dragend', clearDropTargets);
 document.addEventListener('contextmenu', handleContextMenu);
-
-renderCurrentView();
-renderOverlays();
 
 function getDefaultArcHudState() {
     return {
@@ -2255,3 +2252,6 @@ function clearArcHudState() {
     ui.notifyStack.innerHTML = '';
     renderOverlays();
 }
+
+renderCurrentView();
+renderOverlays();
