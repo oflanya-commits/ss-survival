@@ -937,6 +937,9 @@ function getMenuPanelDefinition(panelKey) {
 }
 
 function getSectionDefaultPanel(sectionKey) {
+    if (!sectionKey) {
+        return null;
+    }
     var item = getNavItemBySection(sectionKey);
     return item && item.panels && item.panels[0] ? item.panels[0].key : null;
 }
@@ -2147,7 +2150,8 @@ function renderArcLoadoutPanel(section, focusSide) {
     var stats = getArcLockerSectionStats(section);
     var helperText = section.helperText || 'Buraya koyduğun ekipman baskın girişinde üstüne verilir.';
     var defaultBackpackSlots = 24;
-    var visibleBackpackSlots = Math.max(stats.items.length, stats.totalSlots || defaultBackpackSlots);
+    var maxBackpackSlots = 24;
+    var visibleBackpackSlots = Math.max(stats.items.length, Math.min(stats.totalSlots || defaultBackpackSlots, maxBackpackSlots));
     var placeholderCount = Math.max(visibleBackpackSlots - stats.items.length, 0);
     var html = '<section class="arc-locker-panel arc-locker-panel-loadout' + (section.side === focusSide ? ' is-focused' : '') + '">' +
         '<div class="arc-locker-panel-top arc-locker-panel-top-loadout">' +
