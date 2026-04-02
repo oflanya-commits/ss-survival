@@ -1399,8 +1399,7 @@ body {
 }
 
 /* Menü Öğeleri */
-.section-header { margin: 20px 0 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
-.section-header { animation: ui-fade-down 0.22s ease-out both; }
+.section-header { margin: 20px 0 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; animation: ui-fade-down 0.22s ease-out both; }
 .section-title { font-family: var(--font-head); font-size: 1.45rem; color: var(--pubg-yellow); }
 
 .menu-hub-grid {
