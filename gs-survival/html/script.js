@@ -238,6 +238,7 @@ var ARC_LOCKER_DRAG_SUPPRESS_END_MS = 150;
 var ARC_LOCKER_POINTER_DRAG_THRESHOLD_PX = 8;
 var ARC_LOCKER_POINTER_DRAG_THRESHOLD_SQ = ARC_LOCKER_POINTER_DRAG_THRESHOLD_PX * ARC_LOCKER_POINTER_DRAG_THRESHOLD_PX;
 var ARC_LOCKER_DEFAULT_SPLIT_RATIO = 0.5;
+var ARC_LOADOUT_VISIBLE_SLOTS = 24;
 var arcLockerDragState = null;
 var arcLockerDragSuppressUntil = 0;
 var arcLockerNativeDragActive = false;
@@ -936,8 +937,29 @@ function getMenuPanelDefinition(panelKey) {
     return MENU_NAV_ITEMS[0].panels[0];
 }
 
+/**
+ * Returns the first panel key for the given sidebar section.
+ * Used during menu initialization and section switching to keep the content area populated.
+ * @param {string|null} sectionKey
+ * @returns {string|null} First panel key, or null when the section is missing or has no panels.
+ */
+function getSectionDefaultPanel(sectionKey) {
+    if (!sectionKey) {
+        return null;
+    }
+    var item = getNavItemBySection(sectionKey);
+    if (!item || !Array.isArray(item.panels)) {
+        return null;
+    }
+    return item.panels.length > 0 ? item.panels[0].key : null;
+}
+
 function getDefaultMenuView(state) {
-    return { section: null, panel: null };
+    var defaultSection = MENU_NAV_ITEMS.length > 0 ? MENU_NAV_ITEMS[0] : null;
+    return {
+        section: defaultSection ? defaultSection.key : null,
+        panel: getSectionDefaultPanel(defaultSection ? defaultSection.key : null)
+    };
 }
 
 function syncMenuView(state) {
@@ -962,8 +984,10 @@ function syncMenuView(state) {
             return panel.key === panelKey;
         });
         if (!hasPanel) {
-            panelKey = null;
+            panelKey = getSectionDefaultPanel(activeSection.key);
         }
+    } else {
+        panelKey = getSectionDefaultPanel(activeSection.key);
     }
 
     screenData.menuView = {
@@ -987,7 +1011,7 @@ function selectMenuSection(sectionKey) {
     var item = getNavItemBySection(sectionKey);
     screenData.menuView = {
         section: item.key,
-        panel: null
+        panel: getSectionDefaultPanel(item.key)
     };
     if (currentScreen === 'menu') {
         showMenu(screenData.menuState);
@@ -1270,26 +1294,58 @@ function hasActiveMenuSelection(view) {
     return !!(view && (view.section || view.panel));
 }
 
-function renderMenuPanel(state, view) {
+function getMenuSection(sectionKey) {
+    return MENU_NAV_ITEMS.find(function (item) {
+        return item.key === sectionKey;
+    }) || null;
+}
+
+/**
+ * Normalizes menu view state before render.
+ * Invalid or missing selections fall back to the section default, and panels handled by
+ * getDirectPanelAction resume that section default instead of leaving the main menu blank.
+ * @param {object} state
+ * @param {{section?: string|null, panel?: string|null}} view
+ * @returns {{section: string|null, panel: string|null}}
+ */
+function getRenderableMenuView(state, view) {
+    var fallback = getDefaultMenuView(state);
     if (!hasActiveMenuSelection(view)) {
-        return '';
+        return fallback;
     }
+
+    var section = getMenuSection(view.section) || getMenuSection(fallback.section);
+    var sectionKey = section ? section.key : null;
+    var panelKey = view.panel || getSectionDefaultPanel(sectionKey);
+
+    // Some sidebar items open a separate NUI screen, so returning to the menu should resume
+    // the section's default panel instead of leaving the main content area empty.
+    if (getDirectPanelAction(panelKey)) {
+        panelKey = getSectionDefaultPanel(sectionKey);
+    }
+
+    if (!panelKey) {
+        return fallback;
+    }
+
+    return {
+        section: sectionKey,
+        panel: panelKey
+    };
+}
+
+function renderMenuPanel(state, view) {
+    view = getRenderableMenuView(state, view);
 
     switch (view.panel) {
         case 'arcRaid':
             return renderArcRaidPanel(state);
-        case 'arcLoadout':
-        case 'arcWorkshop':
-        case 'arcDepot':
-        case 'survivalMarket':
-        case 'survivalWorkshop':
-            return renderMenuLanding(state, view);
         case 'survivalRaid':
             return renderSurvivalRaidPanel(state);
         case 'lobbySettings':
             return renderLobbySettingsPanel(state);
         default:
-            return renderMenuLanding(state, view);
+            return '';
     }
 }
 
@@ -2120,8 +2176,7 @@ function renderArcLoadoutPanel(section, focusSide) {
     section = section || {};
     var stats = getArcLockerSectionStats(section);
     var helperText = section.helperText || 'Buraya koyduğun ekipman baskın girişinde üstüne verilir.';
-    var defaultBackpackSlots = 10;
-    var visibleBackpackSlots = Math.max(stats.items.length, Math.min(stats.totalSlots || defaultBackpackSlots, defaultBackpackSlots));
+    var visibleBackpackSlots = Math.max(stats.items.length, Math.min(stats.totalSlots || ARC_LOADOUT_VISIBLE_SLOTS, ARC_LOADOUT_VISIBLE_SLOTS));
     var placeholderCount = Math.max(visibleBackpackSlots - stats.items.length, 0);
     var html = '<section class="arc-locker-panel arc-locker-panel-loadout' + (section.side === focusSide ? ' is-focused' : '') + '">' +
         '<div class="arc-locker-panel-top arc-locker-panel-top-loadout">' +
