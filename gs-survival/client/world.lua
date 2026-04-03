@@ -223,7 +223,7 @@ local function ClearArcAmbientPopulation(radius)
         if DoesEntityExist(vehicle) and vehicle ~= playerVehicle and not IsEntityAMissionEntity(vehicle) then
             local vehicleCoords = GetEntityCoords(vehicle)
             local vehicleNetId = NetworkGetNetworkIdFromEntity(vehicle)
-            local isArcSessionVehicle = vehicleNetId and vehicleNetId ~= 0 and arcSessionVehicleNetIds[vehicleNetId] == true
+            local isArcSessionVehicle = vehicleNetId and vehicleNetId ~= 0 and arcSessionVehicleNetIds[vehicleNetId]
             if not isArcSessionVehicle and IsWithinArcCleanupRadius(centerCoords, vehicleCoords, radiusSq) then
                 local driver = GetPedInVehicleSeat(vehicle, -1)
                 local hasAmbientDriver = driver ~= 0 and DoesEntityExist(driver) and not IsPedAPlayer(driver)
