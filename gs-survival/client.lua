@@ -1,22 +1,32 @@
 local resourceName = GetCurrentResourceName()
 local clientModules = {
-    'client/init.lua',
-    'client/nui.lua',
-    'client/world.lua',
-    'client/crafting.lua',
-    'client/gameplay.lua',
-    'client/lobby.lua',
+    { path = 'client/init.lua', sharedScope = true },
+    { path = 'client/nui.lua' },
+    { path = 'client/world.lua' },
+    { path = 'client/crafting.lua' },
+    { path = 'client/gameplay.lua' },
+    { path = 'client/lobby.lua' },
 }
 
--- Client modülleri bootstrap tarafından LoadResourceFile ile birleştirilip tek chunk olarak çalıştırılır.
-local clientBundle = {}
-for _, modulePath in ipairs(clientModules) do
-    local moduleSource = LoadResourceFile(resourceName, modulePath)
+local function BuildBundledModule(resource, module)
+    local modulePath = type(module) == 'table' and module.path or module
+    local sharedScope = type(module) == 'table' and module.sharedScope == true
+    local moduleSource = LoadResourceFile(resource, modulePath)
     if not moduleSource then
         error(('Failed to load client module: %s'):format(modulePath))
     end
 
-    clientBundle[#clientBundle + 1] = ('--# source: %s\n%s'):format(modulePath, moduleSource)
+    if sharedScope then
+        return ('--# source: %s\n%s'):format(modulePath, moduleSource)
+    end
+
+    return ('--# source: %s\ndo\n%s\nend'):format(modulePath, moduleSource)
+end
+
+-- Client modülleri bootstrap tarafından LoadResourceFile ile birleştirilip tek chunk olarak çalıştırılır.
+local clientBundle = {}
+for _, module in ipairs(clientModules) do
+    clientBundle[#clientBundle + 1] = BuildBundledModule(resourceName, module)
 end
 
 local clientChunk, loadError = load(table.concat(clientBundle, '\n'), ('@@%s/client_bundle.lua'):format(resourceName))
