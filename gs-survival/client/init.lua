@@ -88,15 +88,19 @@ local menuPreviewCam = nil
 local menuPreviewState = nil
 local menuPreviewPeds = {}
 local menuPreviewStarting = false
-local MENU_PREVIEW_SETTINGS = type(Config.MenuPreview) == 'table' and Config.MenuPreview or {}
-local DEFAULT_MENU_PREVIEW_COORDS = vector4(2386.85, 3063.76, 48.15, 270.0)
-local DEFAULT_MENU_PREVIEW_CAM_OFFSET = { forward = 4.15, right = 0.0, up = 1.05 }
-local DEFAULT_MENU_PREVIEW_LOOK_AT_OFFSET = { forward = 0.0, right = 0.0, up = 0.78 }
-local DEFAULT_MENU_PREVIEW_FOV = 28.0
-local DEFAULT_MENU_PREVIEW_MEMBER_OFFSETS = {
-    { forward = 0.0, right = -1.35, up = 0.0 },
-    { forward = 0.0, right = 1.35, up = 0.0 },
-    { forward = 0.0, right = 2.7, up = 0.0 }
+local MENU_PREVIEW = {
+    settings = type(Config.MenuPreview) == 'table' and Config.MenuPreview or {},
+    defaults = {
+        coords = vector4(2386.85, 3063.76, 48.15, 270.0),
+        camOffset = { forward = 4.15, right = 0.0, up = 1.05 },
+        lookAtOffset = { forward = 0.0, right = 0.0, up = 0.78 },
+        fov = 28.0,
+        memberOffsets = {
+            { forward = 0.0, right = -1.35, up = 0.0 },
+            { forward = 0.0, right = 1.35, up = 0.0 },
+            { forward = 0.0, right = 2.7, up = 0.0 }
+        }
+    }
 }
 
 local function NormalizeMenuPreviewOffset(offset, fallback)
@@ -146,13 +150,13 @@ local function NormalizeMenuPreviewPoint(coords)
     )
 end
 
-local MENU_PREVIEW_COORDS = MENU_PREVIEW_SETTINGS.Coords or DEFAULT_MENU_PREVIEW_COORDS
-local MENU_PREVIEW_CAM_COORDS = NormalizeMenuPreviewPoint(MENU_PREVIEW_SETTINGS.CameraCoords)
-local MENU_PREVIEW_CAM_OFFSET = NormalizeMenuPreviewOffset(MENU_PREVIEW_SETTINGS.CameraOffset, DEFAULT_MENU_PREVIEW_CAM_OFFSET)
-local MENU_PREVIEW_LOOK_AT_COORDS = NormalizeMenuPreviewPoint(MENU_PREVIEW_SETTINGS.LookAtCoords)
-local MENU_PREVIEW_LOOK_AT_OFFSET = NormalizeMenuPreviewOffset(MENU_PREVIEW_SETTINGS.LookAtOffset, DEFAULT_MENU_PREVIEW_LOOK_AT_OFFSET)
-local MENU_PREVIEW_FOV = tonumber(MENU_PREVIEW_SETTINGS.Fov) or DEFAULT_MENU_PREVIEW_FOV
-local MENU_PREVIEW_MEMBER_OFFSETS = NormalizeMenuPreviewOffsets(MENU_PREVIEW_SETTINGS.MemberOffsets, DEFAULT_MENU_PREVIEW_MEMBER_OFFSETS)
+MENU_PREVIEW.coords = MENU_PREVIEW.settings.Coords or MENU_PREVIEW.defaults.coords
+MENU_PREVIEW.camCoords = NormalizeMenuPreviewPoint(MENU_PREVIEW.settings.CameraCoords)
+MENU_PREVIEW.camOffset = NormalizeMenuPreviewOffset(MENU_PREVIEW.settings.CameraOffset, MENU_PREVIEW.defaults.camOffset)
+MENU_PREVIEW.lookAtCoords = NormalizeMenuPreviewPoint(MENU_PREVIEW.settings.LookAtCoords)
+MENU_PREVIEW.lookAtOffset = NormalizeMenuPreviewOffset(MENU_PREVIEW.settings.LookAtOffset, MENU_PREVIEW.defaults.lookAtOffset)
+MENU_PREVIEW.fov = tonumber(MENU_PREVIEW.settings.Fov) or MENU_PREVIEW.defaults.fov
+MENU_PREVIEW.memberOffsets = NormalizeMenuPreviewOffsets(MENU_PREVIEW.settings.MemberOffsets, MENU_PREVIEW.defaults.memberOffsets)
 local ARC_OVERLAY_INFO_REFRESH_INTERVAL_MS = 1000
 -- Minimap coordinates use normalized screen anchors; clipType 0 restores the default square minimap,
 -- while clipType 1 forces the ARC minimap into the top-right rounded layout.
@@ -298,7 +302,7 @@ local function BuildMenuPreviewLineup(lobbyMembers)
 
     for _, member in ipairs(type(lobbyMembers) == 'table' and lobbyMembers or {}) do
         if tonumber(member.id) ~= tonumber(myServerId) then
-            if #lineup >= #MENU_PREVIEW_MEMBER_OFFSETS then
+            if #lineup >= #MENU_PREVIEW.memberOffsets then
                 break
             end
 
@@ -316,7 +320,7 @@ local function SpawnMenuPreviewPeds(baseCoords, heading, lineup)
     ClearMenuPreviewPeds()
 
     for index, appearance in ipairs(lineup or {}) do
-        local offset = MENU_PREVIEW_MEMBER_OFFSETS[index]
+        local offset = MENU_PREVIEW.memberOffsets[index]
         if offset and appearance and appearance.model then
             RequestModel(appearance.model)
             while not HasModelLoaded(appearance.model) do
@@ -355,23 +359,23 @@ StartMenuPreview = function(menuPayload, onReady)
     end
 
     menuPreviewStarting = true
-    local previewCoords = vector3(MENU_PREVIEW_COORDS.x, MENU_PREVIEW_COORDS.y, MENU_PREVIEW_COORDS.z)
-    local previewHeading = tonumber(MENU_PREVIEW_COORDS.w) or 0.0
-    local camCoords = MENU_PREVIEW_CAM_COORDS
+    local previewCoords = vector3(MENU_PREVIEW.coords.x, MENU_PREVIEW.coords.y, MENU_PREVIEW.coords.z)
+    local previewHeading = tonumber(MENU_PREVIEW.coords.w) or 0.0
+    local camCoords = MENU_PREVIEW.camCoords
         or OffsetCoordsFromHeading(
             previewCoords,
             previewHeading,
-            MENU_PREVIEW_CAM_OFFSET.forward or 0.0,
-            MENU_PREVIEW_CAM_OFFSET.right or 0.0,
-            MENU_PREVIEW_CAM_OFFSET.up or 0.0
+            MENU_PREVIEW.camOffset.forward or 0.0,
+            MENU_PREVIEW.camOffset.right or 0.0,
+            MENU_PREVIEW.camOffset.up or 0.0
         )
-    local lookAtCoords = MENU_PREVIEW_LOOK_AT_COORDS
+    local lookAtCoords = MENU_PREVIEW.lookAtCoords
         or OffsetCoordsFromHeading(
             previewCoords,
             previewHeading,
-            MENU_PREVIEW_LOOK_AT_OFFSET.forward or 0.0,
-            MENU_PREVIEW_LOOK_AT_OFFSET.right or 0.0,
-            MENU_PREVIEW_LOOK_AT_OFFSET.up or 0.0
+            MENU_PREVIEW.lookAtOffset.forward or 0.0,
+            MENU_PREVIEW.lookAtOffset.right or 0.0,
+            MENU_PREVIEW.lookAtOffset.up or 0.0
         )
     local menuPayloadData = type(menuPayload) == 'table' and type(menuPayload.data) == 'table' and menuPayload.data or nil
     local lineup = BuildMenuPreviewLineup(menuPayloadData and menuPayloadData.lobbyMembers)
@@ -414,7 +418,7 @@ StartMenuPreview = function(menuPayload, onReady)
 
         SetCamCoord(menuPreviewCam, camCoords.x, camCoords.y, camCoords.z)
         PointCamAtCoord(menuPreviewCam, lookAtCoords.x, lookAtCoords.y, lookAtCoords.z)
-        SetCamFov(menuPreviewCam, MENU_PREVIEW_FOV)
+        SetCamFov(menuPreviewCam, MENU_PREVIEW.fov)
         RenderScriptCams(true, false, 0, true, true)
         DoScreenFadeIn(250)
 
