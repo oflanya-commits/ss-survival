@@ -358,13 +358,13 @@ Citizen.CreateThread(function()
                     RefreshArcOverlayInfo(("Airlift inbound • %s sn"):format(GetArcExtractionCountdownSeconds()))
                 end
             elseif currentModeId == 'arc_pvp' then
-                RefreshArcOverlayInfo(ARC_OVERLAY_EMPTY_PROMPT)
+                RefreshArcOverlayInfo(ARC_OVERLAY.EMPTY_PROMPT)
             end
 
             EnsureArcExtractionScene()
         else
             if currentModeId == 'arc_pvp' then
-                RefreshArcOverlayInfo(ARC_OVERLAY_EMPTY_PROMPT)
+                RefreshArcOverlayInfo(ARC_OVERLAY.EMPTY_PROMPT)
             end
             if currentModeId ~= 'arc_pvp' then
                 ClearArcExtractionScene()

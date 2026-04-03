@@ -1,26 +1,34 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 local MAX_LOBBY_SIZE = 4
 local MAX_LOBBY_MEMBERS = MAX_LOBBY_SIZE - 1
-local ARC_EXTRACTION_HELI_SPAWN_OFFSET = vector3(110.0, -70.0, 18.0)
-local ARC_EXTRACTION_HELI_MIN_SPEED = 4.0
-local ARC_EXTRACTION_HELI_MAX_SPEED = 25.0
-local ARC_EXTRACTION_HELI_HOVER_SPEED = 6.0
-local ARC_EXTRACTION_HELI_RADIUS = 8.0
-local ARC_EXTRACTION_HELI_SLOW_DIST = 20.0
-local ARC_EXTRACTION_HELI_MISSION_TYPE = 4
-local ARC_EXTRACTION_HELI_MISSION_FLAGS = 0
-local SCREEN_TRANSITION_FADE_DURATION_MS = 600
-local SCREEN_TRANSITION_BLACK_HOLD_MS = 3400
-local SCREEN_TRANSITION_TOTAL_DURATION_MS = (SCREEN_TRANSITION_FADE_DURATION_MS * 2) + SCREEN_TRANSITION_BLACK_HOLD_MS
-local UI_PROGRESS_CANCEL_CONTROLS = { 177, 200, 202 }
-local UI_PROGRESS_MIN_DURATION_MS = 250
-local UI_PROGRESS_MAX_DURATION_MS = 60000
-local DEFAULT_PROGRESS_TITLE = 'İşlem Sürüyor'
-local DEFAULT_PROGRESS_LABEL = 'İşlem sürüyor...'
-local SCREEN_TRANSITION_LABEL = 'OTURUM GEÇİŞİ'
-local SCREEN_TRANSITION_ENTER_TITLE = "SESSION'A GİRİLİYOR"
-local SCREEN_TRANSITION_RETURN_TITLE = 'LOBİYE DÖNÜLÜYOR'
-local ARC_OVERLAY_EMPTY_PROMPT = ''
+local ARC_EXTRACTION_HELI = {
+    SPAWN_OFFSET = vector3(110.0, -70.0, 18.0),
+    MIN_SPEED = 4.0,
+    MAX_SPEED = 25.0,
+    HOVER_SPEED = 6.0,
+    RADIUS = 8.0,
+    SLOW_DIST = 20.0,
+    MISSION_TYPE = 4,
+    MISSION_FLAGS = 0
+}
+local SCREEN_TRANSITION = {
+    FADE_DURATION_MS = 600,
+    BLACK_HOLD_MS = 3400,
+    LABEL = 'OTURUM GEÇİŞİ',
+    ENTER_TITLE = "SESSION'A GİRİLİYOR",
+    RETURN_TITLE = 'LOBİYE DÖNÜLÜYOR'
+}
+SCREEN_TRANSITION.TOTAL_DURATION_MS = (SCREEN_TRANSITION.FADE_DURATION_MS * 2) + SCREEN_TRANSITION.BLACK_HOLD_MS
+local UI_PROGRESS = {
+    CANCEL_CONTROLS = { 177, 200, 202 },
+    MIN_DURATION_MS = 250,
+    MAX_DURATION_MS = 60000,
+    DEFAULT_TITLE = 'İşlem Sürüyor',
+    DEFAULT_LABEL = 'İşlem sürüyor...'
+}
+local ARC_OVERLAY = {
+    EMPTY_PROMPT = ''
+}
 local nextUiProgressId = 0
 local activeUiProgress = nil
 local currentWave, isSurvivalActive, myBucket = 0, false, 0
@@ -93,19 +101,21 @@ local DEFAULT_MENU_PREVIEW_COORDS = vector4(2386.85, 3063.76, 48.15, 270.0)
 local DEFAULT_MENU_PREVIEW_CAM_OFFSET = { forward = 4.15, right = 0.0, up = 1.05 }
 local DEFAULT_MENU_PREVIEW_LOOK_AT_OFFSET = { forward = 0.0, right = 0.0, up = 0.78 }
 local DEFAULT_MENU_PREVIEW_FOV = 28.0
-local MENU_PREVIEW_NAME_LABEL_MIN_WIDTH = 0.055
-local MENU_PREVIEW_NAME_LABEL_MAX_WIDTH = 0.16
-local MENU_PREVIEW_NAME_LABEL_WIDTH_PER_CHAR = 0.0032
-local MENU_PREVIEW_NAME_LABEL_BASE_WIDTH = 0.016
-local MENU_PREVIEW_NAME_LABEL_DRAW_INTERVAL_MS = 16
-local MENU_PREVIEW_NAME_LABEL_HEAD_BONE = 0x796E
-local MENU_PREVIEW_NAME_LABEL_LOCAL_OFFSET_Z = 0.35
-local MENU_PREVIEW_NAME_LABEL_MEMBER_OFFSET_Z = 0.3
-local MENU_PREVIEW_NAME_LABEL_BG_COLOR = { 6, 8, 12, 150 }
-local MENU_PREVIEW_NAME_LABEL_TEXT_SCALE_HIGHLIGHT = 0.34
-local MENU_PREVIEW_NAME_LABEL_TEXT_SCALE_NORMAL = 0.31
-local MENU_PREVIEW_NAME_LABEL_COLOR_HIGHLIGHT = { 255, 232, 164, 255 }
-local MENU_PREVIEW_NAME_LABEL_COLOR_NORMAL = { 255, 255, 255, 235 }
+local MENU_PREVIEW_NAME_LABEL = {
+    MIN_WIDTH = 0.055,
+    MAX_WIDTH = 0.16,
+    WIDTH_PER_CHAR = 0.0032,
+    BASE_WIDTH = 0.016,
+    DRAW_INTERVAL_MS = 16,
+    HEAD_BONE = 0x796E,
+    LOCAL_OFFSET_Z = 0.35,
+    MEMBER_OFFSET_Z = 0.3,
+    BG_COLOR = { 6, 8, 12, 150 },
+    TEXT_SCALE_HIGHLIGHT = 0.34,
+    TEXT_SCALE_NORMAL = 0.31,
+    COLOR_HIGHLIGHT = { 255, 232, 164, 255 },
+    COLOR_NORMAL = { 255, 255, 255, 235 }
+}
 local DEFAULT_MENU_PREVIEW_MEMBER_OFFSETS = {
     { forward = 0.0, right = -1.35, up = 0.0 },
     { forward = 0.0, right = 1.35, up = 0.0 },
@@ -366,24 +376,24 @@ local function DrawMenuPreviewNameLabel(coords, label, highlight)
 
     local text = tostring(label)
     local width = math.min(
-        MENU_PREVIEW_NAME_LABEL_MAX_WIDTH,
-        math.max(MENU_PREVIEW_NAME_LABEL_MIN_WIDTH, (#text * MENU_PREVIEW_NAME_LABEL_WIDTH_PER_CHAR) + MENU_PREVIEW_NAME_LABEL_BASE_WIDTH)
+        MENU_PREVIEW_NAME_LABEL.MAX_WIDTH,
+        math.max(MENU_PREVIEW_NAME_LABEL.MIN_WIDTH, (#text * MENU_PREVIEW_NAME_LABEL.WIDTH_PER_CHAR) + MENU_PREVIEW_NAME_LABEL.BASE_WIDTH)
     )
     local textY = -0.004
     local rectY = 0.014
 
     SetDrawOrigin(coords.x, coords.y, coords.z, 0)
-    DrawRect(0.0, rectY, width, 0.03, table.unpack(MENU_PREVIEW_NAME_LABEL_BG_COLOR))
-    SetTextScale(0.0, highlight and MENU_PREVIEW_NAME_LABEL_TEXT_SCALE_HIGHLIGHT or MENU_PREVIEW_NAME_LABEL_TEXT_SCALE_NORMAL)
+    DrawRect(0.0, rectY, width, 0.03, table.unpack(MENU_PREVIEW_NAME_LABEL.BG_COLOR))
+    SetTextScale(0.0, highlight and MENU_PREVIEW_NAME_LABEL.TEXT_SCALE_HIGHLIGHT or MENU_PREVIEW_NAME_LABEL.TEXT_SCALE_NORMAL)
     SetTextFont(0)
     SetTextProportional(true)
     SetTextCentre(true)
     SetTextDropshadow(1, 0, 0, 0, 180)
     SetTextOutline()
     if highlight then
-        SetTextColour(table.unpack(MENU_PREVIEW_NAME_LABEL_COLOR_HIGHLIGHT))
+        SetTextColour(table.unpack(MENU_PREVIEW_NAME_LABEL.COLOR_HIGHLIGHT))
     else
-        SetTextColour(table.unpack(MENU_PREVIEW_NAME_LABEL_COLOR_NORMAL))
+        SetTextColour(table.unpack(MENU_PREVIEW_NAME_LABEL.COLOR_NORMAL))
     end
     BeginTextCommandDisplayText('STRING')
     AddTextComponentString(text)
@@ -397,7 +407,7 @@ CreateThread(function()
             local localPed = PlayerPedId()
             if localPed and DoesEntityExist(localPed) and not IsPedFatallyInjured(localPed) then
                 DrawMenuPreviewNameLabel(
-                    GetPedBoneCoords(localPed, MENU_PREVIEW_NAME_LABEL_HEAD_BONE, 0.0, 0.0, MENU_PREVIEW_NAME_LABEL_LOCAL_OFFSET_Z),
+                    GetPedBoneCoords(localPed, MENU_PREVIEW_NAME_LABEL.HEAD_BONE, 0.0, 0.0, MENU_PREVIEW_NAME_LABEL.LOCAL_OFFSET_Z),
                     menuPreviewState.playerName,
                     true
                 )
@@ -407,12 +417,12 @@ CreateThread(function()
                 local ped = type(previewEntry) == 'table' and previewEntry.ped or previewEntry
                 local label = type(previewEntry) == 'table' and previewEntry.name or nil
                 if ped and label and DoesEntityExist(ped) and not IsPedFatallyInjured(ped) then
-                    local labelCoords = GetPedBoneCoords(ped, MENU_PREVIEW_NAME_LABEL_HEAD_BONE, 0.0, 0.0, MENU_PREVIEW_NAME_LABEL_MEMBER_OFFSET_Z)
+                    local labelCoords = GetPedBoneCoords(ped, MENU_PREVIEW_NAME_LABEL.HEAD_BONE, 0.0, 0.0, MENU_PREVIEW_NAME_LABEL.MEMBER_OFFSET_Z)
                     DrawMenuPreviewNameLabel(labelCoords, label, false)
                 end
             end
 
-            Wait(MENU_PREVIEW_NAME_LABEL_DRAW_INTERVAL_MS)
+            Wait(MENU_PREVIEW_NAME_LABEL.DRAW_INTERVAL_MS)
         else
             Wait(500)
         end
@@ -620,15 +630,15 @@ local function ShowArcResultBanner(title, label, duration, options)
         type = 'showArcBanner',
         data = {
             title = title,
-            label = label or SCREEN_TRANSITION_LABEL,
-            duration = duration or SCREEN_TRANSITION_TOTAL_DURATION_MS,
+            label = label or SCREEN_TRANSITION.LABEL,
+            duration = duration or SCREEN_TRANSITION.TOTAL_DURATION_MS,
             transition = options.transition == true
         }
     })
 end
 
 local function ShowScreenTransition(title)
-    ShowArcResultBanner(title, SCREEN_TRANSITION_LABEL, SCREEN_TRANSITION_TOTAL_DURATION_MS, {
+    ShowArcResultBanner(title, SCREEN_TRANSITION.LABEL, SCREEN_TRANSITION.TOTAL_DURATION_MS, {
         transition = true
     })
 end
@@ -706,7 +716,7 @@ local function RunUiProgress(options, onComplete, onCancel)
         end
         return
     end
-    duration = math.max(UI_PROGRESS_MIN_DURATION_MS, math.min(duration, UI_PROGRESS_MAX_DURATION_MS))
+    duration = math.max(UI_PROGRESS.MIN_DURATION_MS, math.min(duration, UI_PROGRESS.MAX_DURATION_MS))
 
     local ped = PlayerPedId()
     local disable = options.disable or {}
@@ -741,8 +751,8 @@ local function RunUiProgress(options, onComplete, onCancel)
         type = 'showArcProgress',
         data = {
             id = progressId,
-            title = options.title or DEFAULT_PROGRESS_TITLE,
-            label = options.label or DEFAULT_PROGRESS_LABEL,
+            title = options.title or UI_PROGRESS.DEFAULT_TITLE,
+            label = options.label or UI_PROGRESS.DEFAULT_LABEL,
             duration = duration,
             canCancel = canCancel
         }
@@ -806,7 +816,7 @@ local function RunUiProgress(options, onComplete, onCancel)
             local cancelRequested = false
             if canCancel then
                 -- ESC ve frontend geri/pause tuşlarını aynı iptal davranışına bağla.
-                for _, controlId in ipairs(UI_PROGRESS_CANCEL_CONTROLS) do
+                for _, controlId in ipairs(UI_PROGRESS.CANCEL_CONTROLS) do
                     if IsControlJustPressed(0, controlId) then
                         cancelRequested = true
                         break
@@ -1846,9 +1856,9 @@ local function EnsureArcExtractionScene()
     local hoverHeight = tonumber(arcExtractionState.helicopterHeight or 80.0) or 80.0
     local hoverCoords = vector3(zoneCoords.x, zoneCoords.y, zoneCoords.z + hoverHeight)
     local startCoords = vector3(
-        zoneCoords.x + ARC_EXTRACTION_HELI_SPAWN_OFFSET.x,
-        zoneCoords.y + ARC_EXTRACTION_HELI_SPAWN_OFFSET.y,
-        zoneCoords.z + hoverHeight + ARC_EXTRACTION_HELI_SPAWN_OFFSET.z
+        zoneCoords.x + ARC_EXTRACTION_HELI.SPAWN_OFFSET.x,
+        zoneCoords.y + ARC_EXTRACTION_HELI.SPAWN_OFFSET.y,
+        zoneCoords.z + hoverHeight + ARC_EXTRACTION_HELI.SPAWN_OFFSET.z
     )
     local heading = tonumber(arcExtractionState.zone.heading or 0.0) or 0.0
     local shouldApproach = arcExtractionState.phase == 'called' or arcExtractionState.phase == 'inbound'
@@ -1898,8 +1908,8 @@ local function EnsureArcExtractionScene()
         local inboundSeconds = math.max(1.0, tonumber(arcExtractionState.callDelay or 45) or 45.0)
         local approachDistance = #(hoverCoords - startCoords)
         local flightSpeed = shouldApproach
-            and math.max(ARC_EXTRACTION_HELI_MIN_SPEED, math.min(ARC_EXTRACTION_HELI_MAX_SPEED, approachDistance / inboundSeconds))
-            or ARC_EXTRACTION_HELI_HOVER_SPEED
+            and math.max(ARC_EXTRACTION_HELI.MIN_SPEED, math.min(ARC_EXTRACTION_HELI.MAX_SPEED, approachDistance / inboundSeconds))
+            or ARC_EXTRACTION_HELI.HOVER_SPEED
 
         ClearPedTasks(arcExtractionPilot)
         TaskHeliMission(
@@ -1910,14 +1920,14 @@ local function EnsureArcExtractionScene()
             hoverCoords.x,
             hoverCoords.y,
             hoverCoords.z,
-            ARC_EXTRACTION_HELI_MISSION_TYPE,
+            ARC_EXTRACTION_HELI.MISSION_TYPE,
             flightSpeed,
-            ARC_EXTRACTION_HELI_RADIUS,
+            ARC_EXTRACTION_HELI.RADIUS,
             heading,
             hoverHeight,
             math.max(18.0, hoverHeight * 0.5),
-            ARC_EXTRACTION_HELI_SLOW_DIST,
-            ARC_EXTRACTION_HELI_MISSION_FLAGS
+            ARC_EXTRACTION_HELI.SLOW_DIST,
+            ARC_EXTRACTION_HELI.MISSION_FLAGS
         )
         SetPedKeepTask(arcExtractionPilot, true)
         arcExtractionHeliTaskKey = targetTaskKey
