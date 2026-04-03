@@ -94,6 +94,14 @@ local DEFAULT_MENU_PREVIEW_COORDS = vector4(2386.85, 3063.76, 48.15, 270.0)
 local DEFAULT_MENU_PREVIEW_CAM_OFFSET = { forward = 4.15, right = 0.0, up = 1.05 }
 local DEFAULT_MENU_PREVIEW_LOOK_AT_OFFSET = { forward = 0.0, right = 0.0, up = 0.78 }
 local DEFAULT_MENU_PREVIEW_FOV = 28.0
+local MENU_PREVIEW_LABEL_MIN_CAM_FOV = 25.0
+local MENU_PREVIEW_LABEL_DEFAULT_CAM_FOV = 45.0
+local MENU_PREVIEW_LABEL_MAX_CAM_FOV = 60.0
+local MENU_PREVIEW_LABEL_MAX_DISTANCE = 20.0
+local MENU_PREVIEW_LABEL_MIN_SCALE = 0.28
+local MENU_PREVIEW_LABEL_MAX_SCALE = 0.45
+local MENU_PREVIEW_LABEL_FOV_MULTIPLIER = 0.22
+local PED_HEAD_BONE_ID = 31086
 local DEFAULT_MENU_PREVIEW_MEMBER_OFFSETS = {
     { forward = 0.0, right = -1.35, up = 0.0 },
     { forward = 0.0, right = 1.35, up = 0.0 },
@@ -245,6 +253,25 @@ local function DrawMenuPreviewNameLabel(coords, text, scale)
     ClearDrawOrigin()
 end
 
+local function BuildMenuPreviewFallbackName(serverId, fallbackIndex)
+    local targetServerId = tonumber(serverId)
+    if targetServerId then
+        return "Operatör #" .. tostring(targetServerId)
+    end
+
+    return "Operatör " .. tostring(fallbackIndex or 1)
+end
+
+local function CalculateMenuPreviewLabelScale(distance, camFovScale)
+    return math.max(
+        MENU_PREVIEW_LABEL_MIN_SCALE,
+        math.min(
+            MENU_PREVIEW_LABEL_MAX_SCALE,
+            (1.0 / math.max(distance, 1.0)) * (camFovScale * MENU_PREVIEW_LABEL_FOV_MULTIPLIER)
+        )
+    )
+end
+
 local function CaptureMenuPreviewAppearance(serverId)
     local targetServerId = tonumber(serverId)
     if not targetServerId then
@@ -326,7 +353,7 @@ local function BuildMenuPreviewLineup(lobbyMembers)
             if appearance then
                 lineup[#lineup + 1] = {
                     appearance = appearance,
-                    name = tostring(member.name or ("Oyuncu #" .. tostring(member.id)))
+                    name = member.name and tostring(member.name) or BuildMenuPreviewFallbackName(member.id, #lineup + 1)
                 }
             end
         end
@@ -345,7 +372,7 @@ local function SpawnMenuPreviewPeds(baseCoords, heading, lineup, localPlayerName
         resolvedLocalPlayerName = GetCharacterName(playerData)
     end
 
-    if localPed and localPed ~= 0 and DoesEntityExist(localPed) and resolvedLocalPlayerName and resolvedLocalPlayerName ~= '' then
+    if localPed and DoesEntityExist(localPed) and resolvedLocalPlayerName and resolvedLocalPlayerName ~= '' then
         menuPreviewLabels[#menuPreviewLabels + 1] = {
             entity = localPed,
             name = resolvedLocalPlayerName
@@ -354,7 +381,7 @@ local function SpawnMenuPreviewPeds(baseCoords, heading, lineup, localPlayerName
 
     for index, memberData in ipairs(lineup or {}) do
         local offset = MENU_PREVIEW_MEMBER_OFFSETS[index]
-        local appearance = memberData and memberData.appearance or nil
+        local appearance = memberData and memberData.appearance
         if offset and appearance and appearance.model then
             RequestModel(appearance.model)
             while not HasModelLoaded(appearance.model) do
@@ -373,7 +400,7 @@ local function SpawnMenuPreviewPeds(baseCoords, heading, lineup, localPlayerName
             menuPreviewPeds[#menuPreviewPeds + 1] = previewPed
             menuPreviewLabels[#menuPreviewLabels + 1] = {
                 entity = previewPed,
-                name = tostring(memberData.name or ("Operatör " .. tostring(index + 1)))
+                name = memberData.name or BuildMenuPreviewFallbackName(nil, index)
             }
             SetModelAsNoLongerNeeded(appearance.model)
         end
@@ -516,22 +543,25 @@ CreateThread(function()
         if isMenuOpen and menuPreviewState and #menuPreviewLabels > 0 then
             local camCoords = menuPreviewCam and GetCamCoord(menuPreviewCam) or GetGameplayCamCoord()
             local camFov = menuPreviewCam and GetCamFov(menuPreviewCam) or GetGameplayCamFov()
-            local camFovScale = math.max(25.0, tonumber(camFov) or 45.0)
+            local clampedCamFov = math.max(
+                MENU_PREVIEW_LABEL_MIN_CAM_FOV,
+                math.min(MENU_PREVIEW_LABEL_MAX_CAM_FOV, tonumber(camFov) or MENU_PREVIEW_LABEL_DEFAULT_CAM_FOV)
+            )
 
             for _, label in ipairs(menuPreviewLabels) do
                 local entity = label.entity
                 if entity and DoesEntityExist(entity) and label.name and label.name ~= '' then
-                    local headBoneIndex = GetPedBoneIndex(entity, 31086)
+                    local headBoneIndex = GetPedBoneIndex(entity, PED_HEAD_BONE_ID)
                     local labelCoords = headBoneIndex ~= -1
                         and GetWorldPositionOfEntityBone(entity, headBoneIndex)
                         or GetEntityCoords(entity)
                     local distance = #(camCoords - labelCoords)
 
-                    if distance <= 20.0 then
+                    if distance <= MENU_PREVIEW_LABEL_MAX_DISTANCE then
                         DrawMenuPreviewNameLabel(
                             vector3(labelCoords.x, labelCoords.y, labelCoords.z + 0.38),
                             label.name,
-                            math.max(0.28, math.min(0.45, (1.0 / math.max(distance, 1.0)) * (camFovScale * 0.22)))
+                            CalculateMenuPreviewLabelScale(distance, clampedCamFov)
                         )
                     end
                 end
