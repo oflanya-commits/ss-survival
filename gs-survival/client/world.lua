@@ -149,15 +149,29 @@ Citizen.CreateThread(function()
     end
 end)
 
+local ARC_AMBIENT_CLEANUP_INTERVAL_MS = 5000
+local ARC_AMBIENT_CLEANUP_RADIUS_METERS = 120.0
+local ARC_MOVING_VEHICLE_SPEED_THRESHOLD_MPS = 1.0
+
+local function IsPopulationSuppressedMode()
+    return isSurvivalActive and (currentModeId == 'classic' or currentModeId == 'arc_pvp')
+end
+
+local function IsArcModeRunning()
+    return isSurvivalActive and currentModeId == 'arc_pvp'
+end
+
+local function IsClassicWaveRunning()
+    return isSurvivalActive and currentModeId == 'classic' and currentWave > 0 and not waitingForWave
+end
+
 Citizen.CreateThread(function()
     while true do
-        if isSurvivalActive and currentModeId == 'classic' then
-            -- Yoğunluk baskılamasını sadece klasik dalga modunda tut.
-            -- ARC zaten bucket odaklı çalıştığı için burada her frame dünya yoğunluğu bastırmak gereksiz yük oluşturur.
+        if IsPopulationSuppressedMode() then
             SetVehicleDensityMultiplierThisFrame(0.0)
             SetPedDensityMultiplierThisFrame(0.0)
             SetRandomVehicleDensityMultiplierThisFrame(0.0)
-            SetParkedVehicleDensityMultiplierThisFrame(0.0)
+            SetParkedVehicleDensityMultiplierThisFrame(IsArcModeRunning() and 1.0 or 0.0)
             SetScenarioPedDensityMultiplierThisFrame(0.0, 0.0)
             Citizen.Wait(0)
         else
@@ -166,18 +180,85 @@ Citizen.CreateThread(function()
     end
 end)
 
+local function BuildArcSessionVehicleNetIdSet()
+    local activeNetIds = {}
+    for _, vehicleState in pairs(arcSessionVehicles or {}) do
+        local netId = tonumber(vehicleState and vehicleState.netId)
+        if netId and netId ~= 0 then
+            activeNetIds[netId] = true
+        end
+    end
+    return activeNetIds
+end
+
+local function IsWithinArcCleanupRadius(sourceCoords, targetCoords, radiusSq)
+    local dx = sourceCoords.x - targetCoords.x
+    local dy = sourceCoords.y - targetCoords.y
+    local dz = sourceCoords.z - targetCoords.z
+    return ((dx * dx) + (dy * dy) + (dz * dz)) <= radiusSq
+end
+
+local function ClearArcAmbientPopulation(radius)
+    local playerPed = PlayerPedId()
+    if not DoesEntityExist(playerPed) then
+        return
+    end
+
+    local centerCoords = GetEntityCoords(playerPed)
+    local radiusSq = radius * radius
+    local playerVehicle = GetVehiclePedIsIn(playerPed, false)
+    local arcSessionVehicleNetIds = IsArcModeRunning() and BuildArcSessionVehicleNetIdSet() or {}
+
+    for _, ped in ipairs(GetGamePool('CPed')) do
+        if ped ~= playerPed and DoesEntityExist(ped) and not IsPedAPlayer(ped) and not IsEntityAMissionEntity(ped) then
+            local pedCoords = GetEntityCoords(ped)
+            if IsWithinArcCleanupRadius(centerCoords, pedCoords, radiusSq) then
+                SetEntityAsMissionEntity(ped, true, true)
+                DeleteEntity(ped)
+            end
+        end
+    end
+
+    for _, vehicle in ipairs(GetGamePool('CVehicle')) do
+        if DoesEntityExist(vehicle) and vehicle ~= playerVehicle and not IsEntityAMissionEntity(vehicle) then
+            local vehicleCoords = GetEntityCoords(vehicle)
+            local vehicleNetId = NetworkGetNetworkIdFromEntity(vehicle)
+            local isArcSessionVehicle = vehicleNetId and vehicleNetId ~= 0 and arcSessionVehicleNetIds[vehicleNetId]
+            if not isArcSessionVehicle and IsWithinArcCleanupRadius(centerCoords, vehicleCoords, radiusSq) then
+                local driver = GetPedInVehicleSeat(vehicle, -1)
+                local hasAmbientDriver = driver ~= 0 and DoesEntityExist(driver) and not IsPedAPlayer(driver)
+                local isMovingVehicle = GetEntitySpeed(vehicle) > ARC_MOVING_VEHICLE_SPEED_THRESHOLD_MPS
+                local shouldRemoveVehicle = hasAmbientDriver or isMovingVehicle
+
+                if shouldRemoveVehicle then
+                    if hasAmbientDriver and not IsEntityAMissionEntity(driver) then
+                        SetEntityAsMissionEntity(driver, true, true)
+                        DeleteEntity(driver)
+                    end
+
+                    SetEntityAsMissionEntity(vehicle, true, true)
+                    DeleteEntity(vehicle)
+                end
+            end
+        end
+    end
+end
+
 Citizen.CreateThread(function()
     while true do
-        if isSurvivalActive and currentModeId == 'classic' and currentWave > 0 and not waitingForWave then
-            -- Sadece aktif klasik dalga sırasında dar yarıçaplı araç temizliği uygula.
-            -- Ped temizliğini kaldırıyoruz; bu hem pahalı hem de başka senaryolara yan etki üretebiliyor.
+        if IsArcModeRunning() then
+            ClearArcAmbientPopulation(ARC_AMBIENT_CLEANUP_RADIUS_METERS)
+            Citizen.Wait(ARC_AMBIENT_CLEANUP_INTERVAL_MS)
+        elseif IsClassicWaveRunning() then
             local ped = PlayerPedId()
             if DoesEntityExist(ped) then
                 local coords = GetEntityCoords(ped)
                 ClearAreaOfVehicles(coords.x, coords.y, coords.z, 80.0, false, false, false, false, false)
             end
+            Citizen.Wait(15000)
+        else
+            Citizen.Wait(15000)
         end
-        Citizen.Wait(15000) 
     end
 end)
 
