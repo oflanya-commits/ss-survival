@@ -369,13 +369,13 @@ RegisterNetEvent('gs-survival:server:spawnWave', function(bId, wave, stageId)
             if DoesEntityExist(npc) then
                 SetEntityRoutingBucket(npc, bucketId)
 
-                local maxNetIdAttempts = 40
+                local maxNetIdAttempts = 20
                 local netIdRetryDelayMs = 25
-                local npcNetId = 0
+                local netId = 0
                 local netIdAttempts = 0
-                while DoesEntityExist(npc) and npcNetId == 0 and netIdAttempts < maxNetIdAttempts do
-                    npcNetId = NetworkGetNetworkIdFromEntity(npc)
-                    if npcNetId == 0 then
+                while DoesEntityExist(npc) and netId == 0 and netIdAttempts < maxNetIdAttempts do
+                    netId = NetworkGetNetworkIdFromEntity(npc)
+                    if netId == 0 then
                         Wait(netIdRetryDelayMs)
                         netIdAttempts = netIdAttempts + 1
                     end
@@ -394,10 +394,10 @@ RegisterNetEvent('gs-survival:server:spawnWave', function(bId, wave, stageId)
                 end
 
                 -- Client tarafında Blip ve Target ayarları için gönder
-                if npcNetId ~= 0 then
+                if netId ~= 0 then
                     for _, pId in pairs(groupMembers[bucketId]) do
                         -- Multiplier (zorluk çarpanı) parametre olarak eklendi
-                        TriggerClientEvent('gs-survival:client:setupNpc', pId, npcNetId, multiplier)
+                        TriggerClientEvent('gs-survival:client:setupNpc', pId, netId, multiplier)
                     end
                 else
                     print(('[gs-survival] Failed to resolve network id for spawned NPC in bucket %s wave %s'):format(bucketId, waveNumber))
