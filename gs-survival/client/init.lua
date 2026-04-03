@@ -395,7 +395,7 @@ CreateThread(function()
     while true do
         if isMenuOpen and menuPreviewState then
             local localPed = PlayerPedId()
-            if localPed and localPed ~= 0 and DoesEntityExist(localPed) and not IsPedFatallyInjured(localPed) then
+            if localPed and DoesEntityExist(localPed) and not IsPedFatallyInjured(localPed) then
                 DrawMenuPreviewNameLabel(
                     GetPedBoneCoords(localPed, MENU_PREVIEW_NAME_LABEL_HEAD_BONE, 0.0, 0.0, MENU_PREVIEW_NAME_LABEL_LOCAL_OFFSET_Z),
                     menuPreviewState.playerName,
@@ -406,7 +406,7 @@ CreateThread(function()
             for _, previewEntry in ipairs(menuPreviewPeds) do
                 local ped = type(previewEntry) == 'table' and previewEntry.ped or previewEntry
                 local label = type(previewEntry) == 'table' and previewEntry.name or nil
-                if ped and DoesEntityExist(ped) and not IsPedFatallyInjured(ped) then
+                if ped and label and DoesEntityExist(ped) and not IsPedFatallyInjured(ped) then
                     local labelCoords = GetPedBoneCoords(ped, MENU_PREVIEW_NAME_LABEL_HEAD_BONE, 0.0, 0.0, MENU_PREVIEW_NAME_LABEL_MEMBER_OFFSET_Z)
                     DrawMenuPreviewNameLabel(labelCoords, label, false)
                 end
