@@ -48,11 +48,11 @@ RegisterNetEvent('gs-survival:client:initSurvival', function(bucket, wave, party
     modeBoundaryGraceUntil = GetGameTimer() + GetModeSpawnGraceMs('classic')
     activeBoundaryRadius = GetModeBoundaryRadius('classic', stageData)
 
-    ShowScreenTransition(SCREEN_TRANSITION_ENTER_TITLE)
+    ShowScreenTransition(SCREEN_TRANSITION.ENTER_TITLE)
     CloseNUI()
     Wait(100)
-    DoScreenFadeOut(SCREEN_TRANSITION_FADE_DURATION_MS)
-    Wait(SCREEN_TRANSITION_FADE_DURATION_MS + 100)
+    DoScreenFadeOut(SCREEN_TRANSITION.FADE_DURATION_MS)
+    Wait(SCREEN_TRANSITION.FADE_DURATION_MS + 100)
 
     if DoesEntityExist(startPed) then
         SetEntityVisible(startPed, false, false)
@@ -66,8 +66,8 @@ RegisterNetEvent('gs-survival:client:initSurvival', function(bucket, wave, party
         print("^1HATA: Survival stage merkezi bulunamadı!^7")
     end
 
-    Wait(SCREEN_TRANSITION_BLACK_HOLD_MS)
-    DoScreenFadeIn(SCREEN_TRANSITION_FADE_DURATION_MS)
+    Wait(SCREEN_TRANSITION.BLACK_HOLD_MS)
+    DoScreenFadeIn(SCREEN_TRANSITION.FADE_DURATION_MS)
     StartWaveCountdown()
 end)
 
@@ -114,12 +114,12 @@ RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers,
     ApplyArcSessionVehicles(activeArcDeployment and activeArcDeployment.sessionVehicles or {})
 
     RefreshArcOverlayTeam()
-    RefreshArcOverlayInfo(ARC_OVERLAY_EMPTY_PROMPT, true)
-    ShowScreenTransition(SCREEN_TRANSITION_ENTER_TITLE)
+    RefreshArcOverlayInfo(ARC_OVERLAY.EMPTY_PROMPT, true)
+    ShowScreenTransition(SCREEN_TRANSITION.ENTER_TITLE)
     CloseNUI()
     Wait(100)
-    DoScreenFadeOut(SCREEN_TRANSITION_FADE_DURATION_MS)
-    Wait(SCREEN_TRANSITION_FADE_DURATION_MS + 100)
+    DoScreenFadeOut(SCREEN_TRANSITION.FADE_DURATION_MS)
+    Wait(SCREEN_TRANSITION.FADE_DURATION_MS + 100)
 
     if DoesEntityExist(startPed) then
         SetEntityVisible(startPed, false, false)
@@ -137,14 +137,14 @@ RegisterNetEvent('gs-survival:client:initArcPvP', function(bucket, squadMembers,
     RefreshArcSessionVehicleBlips()
     RefreshArcFriendlyBlips()
     RefreshArcOverlayTeam()
-    RefreshArcOverlayInfo(ARC_OVERLAY_EMPTY_PROMPT, true)
+    RefreshArcOverlayInfo(ARC_OVERLAY.EMPTY_PROMPT, true)
     TriggerServerEvent('gs-survival:server:requestArcBarricadeSync')
     Wait(tonumber(Config.ArcPvP and Config.ArcPvP.DeploymentNotifyDelay or 1200) or 1200)
-    Wait(math.max(0, SCREEN_TRANSITION_BLACK_HOLD_MS - (tonumber(Config.ArcPvP and Config.ArcPvP.DeploymentNotifyDelay or 1200) or 1200)))
-    DoScreenFadeIn(SCREEN_TRANSITION_FADE_DURATION_MS)
+    Wait(math.max(0, SCREEN_TRANSITION.BLACK_HOLD_MS - (tonumber(Config.ArcPvP and Config.ArcPvP.DeploymentNotifyDelay or 1200) or 1200)))
+    DoScreenFadeIn(SCREEN_TRANSITION.FADE_DURATION_MS)
     arcOverlaySessionVisible = true
     RefreshArcOverlayTeam()
-    RefreshArcOverlayInfo(ARC_OVERLAY_EMPTY_PROMPT, true)
+    RefreshArcOverlayInfo(ARC_OVERLAY.EMPTY_PROMPT, true)
     NotifyForMode(arrivalNotifyMessage, "success", 3500, "ARC Dağıtım")
     NotifyForMode(string.format("Baskın bölgesi: %s", deploymentLabel), "primary", 5000, "ARC Bölge")
     NotifyForMode("TAB ile envanterini aç, kasaları topla ve tahliye açıldığında extraction hattına yönel.", "success", 6000, "ARC Görev")
@@ -279,10 +279,10 @@ RegisterNetEvent('gs-survival:client:stopEverything', function(isVictory, modeId
     TriggerEvent('gs-survival:client:cleanupBeforeLeave')
     TriggerEvent('gs-survival:client:clearWorldSpecial')
 
-    ShowScreenTransition(SCREEN_TRANSITION_RETURN_TITLE)
+    ShowScreenTransition(SCREEN_TRANSITION.RETURN_TITLE)
     Wait(100)
-    DoScreenFadeOut(SCREEN_TRANSITION_FADE_DURATION_MS)
-    Wait(SCREEN_TRANSITION_FADE_DURATION_MS + 100)
+    DoScreenFadeOut(SCREEN_TRANSITION.FADE_DURATION_MS)
+    Wait(SCREEN_TRANSITION.FADE_DURATION_MS + 100)
 
     if DoesEntityExist(startPed) then
         SetEntityVisible(startPed, true, false)
@@ -295,12 +295,12 @@ RegisterNetEvent('gs-survival:client:stopEverything', function(isVictory, modeId
     SetEntityVisible(ped, true)
     FreezeEntityPosition(ped, false)
 
-    Wait(SCREEN_TRANSITION_BLACK_HOLD_MS)
-    DoScreenFadeIn(SCREEN_TRANSITION_FADE_DURATION_MS)
+    Wait(SCREEN_TRANSITION.BLACK_HOLD_MS)
+    DoScreenFadeIn(SCREEN_TRANSITION.FADE_DURATION_MS)
     if endedModeId == 'arc_pvp' then
         SendArcNotify(isVictory and "ARC baskını başarıyla tamamlandı!" or "ARC baskını sona erdi!", isVictory and "success" or "error", 5000, "ARC Sonuç")
         CreateThread(function()
-            Wait(SCREEN_TRANSITION_TOTAL_DURATION_MS + 600)
+            Wait(SCREEN_TRANSITION.TOTAL_DURATION_MS + 600)
             if endedModeId == 'arc_pvp' and not isSurvivalActive then
                 ClearArcOverlay()
             end
