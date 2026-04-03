@@ -87,6 +87,7 @@ local isMenuOpen = false
 local menuPreviewCam = nil
 local menuPreviewState = nil
 local menuPreviewPeds = {}
+local menuPreviewLabels = {}
 local menuPreviewStarting = false
 local MENU_PREVIEW_SETTINGS = type(Config.MenuPreview) == 'table' and Config.MenuPreview or {}
 local DEFAULT_MENU_PREVIEW_COORDS = vector4(2386.85, 3063.76, 48.15, 270.0)
@@ -223,6 +224,25 @@ local function ClearMenuPreviewPeds()
         end
     end
     menuPreviewPeds = {}
+    menuPreviewLabels = {}
+end
+
+local function DrawMenuPreviewNameLabel(coords, text, scale)
+    if not coords or not text or text == '' then
+        return
+    end
+
+    SetDrawOrigin(coords.x, coords.y, coords.z, 0)
+    SetTextScale(scale or 0.34, scale or 0.34)
+    SetTextFont(4)
+    SetTextProportional(1)
+    SetTextColour(255, 255, 255, 235)
+    SetTextCentre(true)
+    SetTextOutline()
+    BeginTextCommandDisplayText('STRING')
+    AddTextComponentSubstringPlayerName(text)
+    EndTextCommandDisplayText(0.0, 0.0)
+    ClearDrawOrigin()
 end
 
 local function CaptureMenuPreviewAppearance(serverId)
@@ -304,7 +324,10 @@ local function BuildMenuPreviewLineup(lobbyMembers)
 
             local appearance = CaptureMenuPreviewAppearance(member.id)
             if appearance then
-                lineup[#lineup + 1] = appearance
+                lineup[#lineup + 1] = {
+                    appearance = appearance,
+                    name = tostring(member.name or ("Oyuncu #" .. tostring(member.id)))
+                }
             end
         end
     end
@@ -312,11 +335,26 @@ local function BuildMenuPreviewLineup(lobbyMembers)
     return lineup
 end
 
-local function SpawnMenuPreviewPeds(baseCoords, heading, lineup)
+local function SpawnMenuPreviewPeds(baseCoords, heading, lineup, localPlayerName)
     ClearMenuPreviewPeds()
+    local localPed = PlayerPedId()
+    local resolvedLocalPlayerName = localPlayerName
 
-    for index, appearance in ipairs(lineup or {}) do
+    if (not resolvedLocalPlayerName or resolvedLocalPlayerName == '') and QBCore and QBCore.Functions then
+        local playerData = QBCore.Functions.GetPlayerData()
+        resolvedLocalPlayerName = GetCharacterName(playerData)
+    end
+
+    if localPed and localPed ~= 0 and DoesEntityExist(localPed) and resolvedLocalPlayerName and resolvedLocalPlayerName ~= '' then
+        menuPreviewLabels[#menuPreviewLabels + 1] = {
+            entity = localPed,
+            name = resolvedLocalPlayerName
+        }
+    end
+
+    for index, memberData in ipairs(lineup or {}) do
         local offset = MENU_PREVIEW_MEMBER_OFFSETS[index]
+        local appearance = memberData and memberData.appearance or nil
         if offset and appearance and appearance.model then
             RequestModel(appearance.model)
             while not HasModelLoaded(appearance.model) do
@@ -333,6 +371,10 @@ local function SpawnMenuPreviewPeds(baseCoords, heading, lineup)
             TaskStandStill(previewPed, -1)
             ApplyMenuPreviewAppearance(previewPed, appearance)
             menuPreviewPeds[#menuPreviewPeds + 1] = previewPed
+            menuPreviewLabels[#menuPreviewLabels + 1] = {
+                entity = previewPed,
+                name = tostring(memberData.name or ("Operatör " .. tostring(index + 1)))
+            }
             SetModelAsNoLongerNeeded(appearance.model)
         end
     end
@@ -406,7 +448,7 @@ StartMenuPreview = function(menuPayload, onReady)
         TaskStandStill(ped, -1)
         FreezeEntityPosition(ped, true)
 
-        SpawnMenuPreviewPeds(previewCoords, previewHeading, lineup)
+        SpawnMenuPreviewPeds(previewCoords, previewHeading, lineup, menuPayloadData and menuPayloadData.playerName)
 
         if not menuPreviewCam then
             menuPreviewCam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
@@ -468,6 +510,39 @@ CanStartMenuPreview = function()
         and Config.MenuPreview ~= nil
         and Config.MenuPreview.Coords ~= nil
 end
+
+CreateThread(function()
+    while true do
+        if isMenuOpen and menuPreviewState and #menuPreviewLabels > 0 then
+            local camCoords = menuPreviewCam and GetCamCoord(menuPreviewCam) or GetGameplayCamCoord()
+            local camFov = menuPreviewCam and GetCamFov(menuPreviewCam) or GetGameplayCamFov()
+            local camFovScale = math.max(25.0, tonumber(camFov) or 45.0)
+
+            for _, label in ipairs(menuPreviewLabels) do
+                local entity = label.entity
+                if entity and DoesEntityExist(entity) and label.name and label.name ~= '' then
+                    local headBoneIndex = GetPedBoneIndex(entity, 31086)
+                    local labelCoords = headBoneIndex ~= -1
+                        and GetWorldPositionOfEntityBone(entity, headBoneIndex)
+                        or GetEntityCoords(entity)
+                    local distance = #(camCoords - labelCoords)
+
+                    if distance <= 20.0 then
+                        DrawMenuPreviewNameLabel(
+                            vector3(labelCoords.x, labelCoords.y, labelCoords.z + 0.38),
+                            label.name,
+                            math.max(0.28, math.min(0.45, (1.0 / math.max(distance, 1.0)) * (camFovScale * 0.22)))
+                        )
+                    end
+                end
+            end
+
+            Wait(0)
+        else
+            Wait(250)
+        end
+    end
+end)
 
 local function RefreshMinimapLayout()
     if not resourceRunning then
