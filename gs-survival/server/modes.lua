@@ -369,13 +369,14 @@ RegisterNetEvent('gs-survival:server:spawnWave', function(bId, wave, stageId)
             if DoesEntityExist(npc) then
                 SetEntityRoutingBucket(npc, bucketId)
 
-                local maxNetIdAttempts = 100
+                local maxNetIdAttempts = 40
+                local netIdRetryDelayMs = 25
                 local npcNetId = 0
                 local netIdAttempts = 0
                 while DoesEntityExist(npc) and npcNetId == 0 and netIdAttempts < maxNetIdAttempts do
                     npcNetId = NetworkGetNetworkIdFromEntity(npc)
                     if npcNetId == 0 then
-                        Wait(10)
+                        Wait(netIdRetryDelayMs)
                         netIdAttempts = netIdAttempts + 1
                     end
                 end
