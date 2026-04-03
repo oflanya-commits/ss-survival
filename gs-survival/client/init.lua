@@ -384,13 +384,12 @@ local function GetMenuPreviewNameCoords(ped, isLocalPlayer)
     end
 
     local _, maxDim = GetModelDimensions(model)
-    local topZ = maxDim and maxDim.z or nil
-    if topZ == nil then
+    if not maxDim or maxDim.z == nil then
         return nil
     end
 
     local extraOffset = isLocalPlayer and MENU_PREVIEW_NAME_LABEL.LOCAL_OFFSET_Z or MENU_PREVIEW_NAME_LABEL.MEMBER_OFFSET_Z
-    return GetOffsetFromEntityInWorldCoords(ped, 0.0, 0.0, topZ + extraOffset)
+    return GetOffsetFromEntityInWorldCoords(ped, 0.0, 0.0, maxDim.z + extraOffset)
 end
 
 local function DrawMenuPreviewNameLabel(coords, label, highlight)
