@@ -171,7 +171,7 @@ Citizen.CreateThread(function()
             SetVehicleDensityMultiplierThisFrame(0.0)
             SetPedDensityMultiplierThisFrame(0.0)
             SetRandomVehicleDensityMultiplierThisFrame(0.0)
-            SetParkedVehicleDensityMultiplierThisFrame(currentModeId == 'arc_pvp' and 1.0 or 0.0)
+            SetParkedVehicleDensityMultiplierThisFrame(IsArcModeRunning() and 1.0 or 0.0)
             SetScenarioPedDensityMultiplierThisFrame(0.0, 0.0)
             Citizen.Wait(0)
         else
