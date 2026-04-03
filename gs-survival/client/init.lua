@@ -107,14 +107,16 @@ local MENU_PREVIEW_NAME_LABEL = {
     WIDTH_PER_CHAR = 0.0032,
     BASE_WIDTH = 0.016,
     DRAW_INTERVAL_MS = 0,
-    HEAD_BONE = 0x796E,
-    LOCAL_OFFSET_Z = 0.35,
-    MEMBER_OFFSET_Z = 0.3,
-    BG_COLOR = { 6, 8, 12, 150 },
-    TEXT_SCALE_HIGHLIGHT = 0.34,
-    TEXT_SCALE_NORMAL = 0.31,
-    COLOR_HIGHLIGHT = { 255, 232, 164, 255 },
-    COLOR_NORMAL = { 255, 255, 255, 235 }
+    MIN_HEIGHT = 0.034,
+    MAX_HEIGHT = 0.04,
+    LOCAL_OFFSET_Z = 0.12,
+    MEMBER_OFFSET_Z = 0.1,
+    BG_COLOR = { 5, 5, 5, 215 },
+    ACCENT_COLOR = { 255, 255, 255, 235 },
+    TEXT_SCALE_HIGHLIGHT = 0.35,
+    TEXT_SCALE_NORMAL = 0.33,
+    COLOR_HIGHLIGHT = { 255, 255, 255, 255 },
+    COLOR_NORMAL = { 245, 247, 250, 245 }
 }
 local DEFAULT_MENU_PREVIEW_MEMBER_OFFSETS = {
     { forward = 0.0, right = -1.35, up = 0.0 },
@@ -369,6 +371,20 @@ local function SpawnMenuPreviewPeds(baseCoords, heading, lineup)
     end
 end
 
+local function GetMenuPreviewNameCoords(ped, isLocalPlayer)
+    if not ped or ped == 0 or not DoesEntityExist(ped) then
+        return nil
+    end
+
+    local minDim, maxDim = GetModelDimensions(GetEntityModel(ped))
+    if not minDim or not maxDim then
+        return nil
+    end
+
+    local extraOffset = isLocalPlayer and MENU_PREVIEW_NAME_LABEL.LOCAL_OFFSET_Z or MENU_PREVIEW_NAME_LABEL.MEMBER_OFFSET_Z
+    return GetOffsetFromEntityInWorldCoords(ped, 0.0, 0.0, (maxDim.z or 0.85) + extraOffset)
+end
+
 local function DrawMenuPreviewNameLabel(coords, label, highlight)
     if not coords or not label or label == '' then
         return
@@ -379,13 +395,16 @@ local function DrawMenuPreviewNameLabel(coords, label, highlight)
         MENU_PREVIEW_NAME_LABEL.MAX_WIDTH,
         math.max(MENU_PREVIEW_NAME_LABEL.MIN_WIDTH, (#text * MENU_PREVIEW_NAME_LABEL.WIDTH_PER_CHAR) + MENU_PREVIEW_NAME_LABEL.BASE_WIDTH)
     )
-    local textY = -0.004
-    local rectY = 0.014
+    local height = math.min(MENU_PREVIEW_NAME_LABEL.MAX_HEIGHT, math.max(MENU_PREVIEW_NAME_LABEL.MIN_HEIGHT, 0.028 + (#text * 0.00012)))
+    local textY = -0.012
+    local rectY = 0.008
+    local accentY = rectY + (height * 0.38)
 
     SetDrawOrigin(coords.x, coords.y, coords.z, 0)
-    DrawRect(0.0, rectY, width, 0.03, table.unpack(MENU_PREVIEW_NAME_LABEL.BG_COLOR))
+    DrawRect(0.0, rectY, width, height, table.unpack(MENU_PREVIEW_NAME_LABEL.BG_COLOR))
+    DrawRect(0.0, accentY, width * 0.92, 0.0022, table.unpack(MENU_PREVIEW_NAME_LABEL.ACCENT_COLOR))
     SetTextScale(0.0, highlight and MENU_PREVIEW_NAME_LABEL.TEXT_SCALE_HIGHLIGHT or MENU_PREVIEW_NAME_LABEL.TEXT_SCALE_NORMAL)
-    SetTextFont(0)
+    SetTextFont(4)
     SetTextProportional(true)
     SetTextCentre(true)
     SetTextDropshadow(1, 0, 0, 0, 180)
@@ -407,7 +426,7 @@ CreateThread(function()
             local localPed = PlayerPedId()
             if localPed and DoesEntityExist(localPed) and not IsPedFatallyInjured(localPed) then
                 DrawMenuPreviewNameLabel(
-                    GetPedBoneCoords(localPed, MENU_PREVIEW_NAME_LABEL.HEAD_BONE, 0.0, 0.0, MENU_PREVIEW_NAME_LABEL.LOCAL_OFFSET_Z),
+                    GetMenuPreviewNameCoords(localPed, true),
                     menuPreviewState.playerName,
                     true
                 )
@@ -417,8 +436,7 @@ CreateThread(function()
                 local ped = type(previewEntry) == 'table' and previewEntry.ped or previewEntry
                 local label = type(previewEntry) == 'table' and previewEntry.name or nil
                 if ped and label and DoesEntityExist(ped) and not IsPedFatallyInjured(ped) then
-                    local labelCoords = GetPedBoneCoords(ped, MENU_PREVIEW_NAME_LABEL.HEAD_BONE, 0.0, 0.0, MENU_PREVIEW_NAME_LABEL.MEMBER_OFFSET_Z)
-                    DrawMenuPreviewNameLabel(labelCoords, label, false)
+                    DrawMenuPreviewNameLabel(GetMenuPreviewNameCoords(ped, false), label, false)
                 end
             end
 
