@@ -83,11 +83,9 @@ RegisterNUICallback('nuiAction', function(data, cb)
         TriggerServerEvent('gs-survival:server:toggleReady')
 
     elseif action == 'craftItem' then
-        CloseNUI()
         TriggerEvent('gs-survival:client:craftItem', data.data)
 
     elseif action == 'buyUpgrade' then
-        CloseNUI()
         TriggerServerEvent('gs-survival:server:buyUpgrade', data.data)
 
     elseif action == 'selectStage' then
