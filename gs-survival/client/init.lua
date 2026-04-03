@@ -94,7 +94,7 @@ local DEFAULT_MENU_PREVIEW_CAM_OFFSET = { forward = 4.15, right = 0.0, up = 1.05
 local DEFAULT_MENU_PREVIEW_LOOK_AT_OFFSET = { forward = 0.0, right = 0.0, up = 0.78 }
 local DEFAULT_MENU_PREVIEW_FOV = 28.0
 local DEFAULT_MENU_PREVIEW_MEMBER_OFFSETS = {
-    { forward = 0.0, right = -2.7, up = 0.0 },
+    { forward = 0.0, right = -1.35, up = 0.0 },
     { forward = 0.0, right = 1.35, up = 0.0 },
     { forward = 0.0, right = 2.7, up = 0.0 }
 }

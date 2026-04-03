@@ -314,7 +314,7 @@ Config.MenuPreview = {
     },
     Fov = 28.0,
     MemberOffsets = {
-        { forward = 0.0, right = -2.7, up = 0.0 },
+        { forward = 0.0, right = -1.35, up = 0.0 },
         { forward = 0.0, right = 1.35, up = 0.0 },
         { forward = 0.0, right = 2.7, up = 0.0 }
     }
