@@ -369,6 +369,18 @@ RegisterNetEvent('gs-survival:server:spawnWave', function(bId, wave, stageId)
             if DoesEntityExist(npc) then
                 SetEntityRoutingBucket(npc, bucketId)
 
+                local npcNetId = 0
+                local netTimeout = 0
+                while DoesEntityExist(npc) and npcNetId == 0 and netTimeout < 100 do
+                    npcNetId = NetworkGetNetworkIdFromEntity(npc)
+                    if npcNetId ~= 0 then
+                        break
+                    end
+
+                    Wait(10)
+                    netTimeout = netTimeout + 1
+                end
+
                 -- Köpek Dalgası Kontrolü
                 if not cfg.isDogWave then
                     GiveWeaponToPed(npc, GetHashKey(cfg.weapon or "weapon_pistol"), 999, false, true)
@@ -382,9 +394,11 @@ RegisterNetEvent('gs-survival:server:spawnWave', function(bId, wave, stageId)
                 end
 
                 -- Client tarafında Blip ve Target ayarları için gönder
-                for _, pId in pairs(groupMembers[bucketId]) do
-                    -- Multiplier (zorluk çarpanı) parametre olarak eklendi
-                    TriggerClientEvent('gs-survival:client:setupNpc', pId, NetworkGetNetworkIdFromEntity(npc), multiplier)
+                if npcNetId ~= 0 then
+                    for _, pId in pairs(groupMembers[bucketId]) do
+                        -- Multiplier (zorluk çarpanı) parametre olarak eklendi
+                        TriggerClientEvent('gs-survival:client:setupNpc', pId, npcNetId, multiplier)
+                    end
                 end
             end
         end
