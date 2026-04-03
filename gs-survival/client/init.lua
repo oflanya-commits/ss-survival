@@ -1,6 +1,7 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 local MAX_LOBBY_SIZE = 4
 local MAX_LOBBY_MEMBERS = MAX_LOBBY_SIZE - 1
+-- Keep ARC extraction helicopter settings grouped to stay below FiveM/Lua's top-level local limit.
 local ARC_EXTRACTION_HELI = {
     spawnOffset = vector3(110.0, -70.0, 18.0),
     minSpeed = 4.0,
