@@ -245,7 +245,7 @@ Citizen.CreateThread(function()
             end
             Citizen.Wait(15000)
         else
-            Citizen.Wait(15000) 
+            Citizen.Wait(15000)
         end
     end
 end)
