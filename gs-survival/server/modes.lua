@@ -373,12 +373,10 @@ RegisterNetEvent('gs-survival:server:spawnWave', function(bId, wave, stageId)
                 local netTimeout = 0
                 while DoesEntityExist(npc) and npcNetId == 0 and netTimeout < 100 do
                     npcNetId = NetworkGetNetworkIdFromEntity(npc)
-                    if npcNetId ~= 0 then
-                        break
+                    if npcNetId == 0 then
+                        Wait(10)
+                        netTimeout = netTimeout + 1
                     end
-
-                    Wait(10)
-                    netTimeout = netTimeout + 1
                 end
 
                 -- Köpek Dalgası Kontrolü
@@ -399,6 +397,8 @@ RegisterNetEvent('gs-survival:server:spawnWave', function(bId, wave, stageId)
                         -- Multiplier (zorluk çarpanı) parametre olarak eklendi
                         TriggerClientEvent('gs-survival:client:setupNpc', pId, npcNetId, multiplier)
                     end
+                else
+                    print(('[gs-survival] Failed to resolve network id for spawned NPC in bucket %s wave %s'):format(bucketId, waveNumber))
                 end
             end
         end
