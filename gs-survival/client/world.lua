@@ -164,7 +164,9 @@ Citizen.CreateThread(function()
     end
 end)
 
-local ARC_AMBIENT_CLEANUP_RADIUS = 120.0
+local ARC_AMBIENT_CLEANUP_INTERVAL_MS = 5000
+local ARC_AMBIENT_CLEANUP_RADIUS_METERS = 120.0
+local ARC_MOVING_VEHICLE_SPEED_THRESHOLD = 1.0
 
 local function IsArcSessionVehicleEntity(vehicle)
     if currentModeId ~= 'arc_pvp' or not DoesEntityExist(vehicle) then
@@ -218,7 +220,7 @@ local function ClearArcAmbientPopulation(radius)
             if IsWithinArcCleanupRadius(centerCoords, vehicleCoords, radiusSq) then
                 local driver = GetPedInVehicleSeat(vehicle, -1)
                 local hasAmbientDriver = driver ~= 0 and DoesEntityExist(driver) and not IsPedAPlayer(driver)
-                local isMovingVehicle = GetEntitySpeed(vehicle) > 1.0
+                local isMovingVehicle = GetEntitySpeed(vehicle) > ARC_MOVING_VEHICLE_SPEED_THRESHOLD
                 local shouldRemoveVehicle = hasAmbientDriver or isMovingVehicle
 
                 if shouldRemoveVehicle then
@@ -238,8 +240,8 @@ end
 Citizen.CreateThread(function()
     while true do
         if isSurvivalActive and currentModeId == 'arc_pvp' then
-            ClearArcAmbientPopulation(ARC_AMBIENT_CLEANUP_RADIUS)
-            Citizen.Wait(5000)
+            ClearArcAmbientPopulation(ARC_AMBIENT_CLEANUP_RADIUS_METERS)
+            Citizen.Wait(ARC_AMBIENT_CLEANUP_INTERVAL_MS)
         elseif isSurvivalActive and currentModeId == 'classic' and currentWave > 0 and not waitingForWave then
             local ped = PlayerPedId()
             if DoesEntityExist(ped) then
