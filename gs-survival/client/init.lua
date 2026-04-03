@@ -107,8 +107,12 @@ local MENU_PREVIEW_NAME_LABEL = {
     WIDTH_PER_CHAR = 0.0032,
     BASE_WIDTH = 0.016,
     DRAW_INTERVAL_MS = 0,
+    DEFAULT_PED_TOP_Z = 0.85,
     MIN_HEIGHT = 0.034,
     MAX_HEIGHT = 0.04,
+    BASE_HEIGHT = 0.028,
+    HEIGHT_PER_CHAR = 0.00012,
+    ACCENT_Y_RATIO = 0.38,
     LOCAL_OFFSET_Z = 0.12,
     MEMBER_OFFSET_Z = 0.1,
     BG_COLOR = { 5, 5, 5, 215 },
@@ -376,13 +380,13 @@ local function GetMenuPreviewNameCoords(ped, isLocalPlayer)
         return nil
     end
 
-    local minDim, maxDim = GetModelDimensions(GetEntityModel(ped))
-    if not minDim or not maxDim then
+    local _, maxDim = GetModelDimensions(GetEntityModel(ped))
+    if not maxDim then
         return nil
     end
 
     local extraOffset = isLocalPlayer and MENU_PREVIEW_NAME_LABEL.LOCAL_OFFSET_Z or MENU_PREVIEW_NAME_LABEL.MEMBER_OFFSET_Z
-    return GetOffsetFromEntityInWorldCoords(ped, 0.0, 0.0, (maxDim.z or 0.85) + extraOffset)
+    return GetOffsetFromEntityInWorldCoords(ped, 0.0, 0.0, (maxDim.z or MENU_PREVIEW_NAME_LABEL.DEFAULT_PED_TOP_Z) + extraOffset)
 end
 
 local function DrawMenuPreviewNameLabel(coords, label, highlight)
@@ -395,10 +399,13 @@ local function DrawMenuPreviewNameLabel(coords, label, highlight)
         MENU_PREVIEW_NAME_LABEL.MAX_WIDTH,
         math.max(MENU_PREVIEW_NAME_LABEL.MIN_WIDTH, (#text * MENU_PREVIEW_NAME_LABEL.WIDTH_PER_CHAR) + MENU_PREVIEW_NAME_LABEL.BASE_WIDTH)
     )
-    local height = math.min(MENU_PREVIEW_NAME_LABEL.MAX_HEIGHT, math.max(MENU_PREVIEW_NAME_LABEL.MIN_HEIGHT, 0.028 + (#text * 0.00012)))
+    local height = math.min(
+        MENU_PREVIEW_NAME_LABEL.MAX_HEIGHT,
+        math.max(MENU_PREVIEW_NAME_LABEL.MIN_HEIGHT, MENU_PREVIEW_NAME_LABEL.BASE_HEIGHT + (#text * MENU_PREVIEW_NAME_LABEL.HEIGHT_PER_CHAR))
+    )
     local textY = -0.012
     local rectY = 0.008
-    local accentY = rectY + (height * 0.38)
+    local accentY = rectY + (height * MENU_PREVIEW_NAME_LABEL.ACCENT_Y_RATIO)
 
     SetDrawOrigin(coords.x, coords.y, coords.z, 0)
     DrawRect(0.0, rectY, width, height, table.unpack(MENU_PREVIEW_NAME_LABEL.BG_COLOR))
