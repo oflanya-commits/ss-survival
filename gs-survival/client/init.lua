@@ -407,7 +407,8 @@ CreateThread(function()
                 local ped = type(previewEntry) == 'table' and previewEntry.ped or previewEntry
                 local label = type(previewEntry) == 'table' and previewEntry.name or nil
                 if ped and DoesEntityExist(ped) and not IsPedFatallyInjured(ped) then
-                    DrawMenuPreviewNameLabel(GetPedBoneCoords(ped, MENU_PREVIEW_NAME_LABEL_HEAD_BONE, 0.0, 0.0, MENU_PREVIEW_NAME_LABEL_MEMBER_OFFSET_Z), label, false)
+                    local labelCoords = GetPedBoneCoords(ped, MENU_PREVIEW_NAME_LABEL_HEAD_BONE, 0.0, 0.0, MENU_PREVIEW_NAME_LABEL_MEMBER_OFFSET_Z)
+                    DrawMenuPreviewNameLabel(labelCoords, label, false)
                 end
             end
 
