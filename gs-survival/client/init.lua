@@ -217,7 +217,8 @@ local function OffsetCoordsFromHeading(baseCoords, heading, forward, right, up)
 end
 
 local function ClearMenuPreviewPeds()
-    for _, ped in ipairs(menuPreviewPeds) do
+    for _, previewEntry in ipairs(menuPreviewPeds) do
+        local ped = type(previewEntry) == 'table' and previewEntry.ped or previewEntry
         if ped and DoesEntityExist(ped) then
             DeleteEntity(ped)
         end
@@ -304,7 +305,10 @@ local function BuildMenuPreviewLineup(lobbyMembers)
 
             local appearance = CaptureMenuPreviewAppearance(member.id)
             if appearance then
-                lineup[#lineup + 1] = appearance
+                lineup[#lineup + 1] = {
+                    appearance = appearance,
+                    name = member.name or ("Oyuncu #" .. tostring(member.id or '?'))
+                }
             end
         end
     end
@@ -315,7 +319,8 @@ end
 local function SpawnMenuPreviewPeds(baseCoords, heading, lineup)
     ClearMenuPreviewPeds()
 
-    for index, appearance in ipairs(lineup or {}) do
+    for index, previewEntry in ipairs(lineup or {}) do
+        local appearance = type(previewEntry) == 'table' and previewEntry.appearance or previewEntry
         local offset = MENU_PREVIEW_MEMBER_OFFSETS[index]
         if offset and appearance and appearance.model then
             RequestModel(appearance.model)
@@ -332,11 +337,70 @@ local function SpawnMenuPreviewPeds(baseCoords, heading, lineup)
             ClearPedTasksImmediately(previewPed)
             TaskStandStill(previewPed, -1)
             ApplyMenuPreviewAppearance(previewPed, appearance)
-            menuPreviewPeds[#menuPreviewPeds + 1] = previewPed
+            menuPreviewPeds[#menuPreviewPeds + 1] = {
+                ped = previewPed,
+                name = type(previewEntry) == 'table' and previewEntry.name or nil
+            }
             SetModelAsNoLongerNeeded(appearance.model)
         end
     end
 end
+
+local function DrawMenuPreviewNameLabel(coords, label, highlight)
+    if not coords or not label or label == '' then
+        return
+    end
+
+    local text = tostring(label)
+    local width = math.min(0.16, math.max(0.055, (#text * 0.0032) + 0.016))
+    local textY = -0.004
+    local rectY = 0.014
+
+    SetDrawOrigin(coords.x, coords.y, coords.z, 0)
+    DrawRect(0.0, rectY, width, 0.03, 6, 8, 12, 150)
+    SetTextScale(0.0, highlight and 0.34 or 0.31)
+    SetTextFont(0)
+    SetTextProportional(true)
+    SetTextCentre(true)
+    SetTextDropshadow(1, 0, 0, 0, 180)
+    SetTextOutline()
+    if highlight then
+        SetTextColour(255, 232, 164, 255)
+    else
+        SetTextColour(255, 255, 255, 235)
+    end
+    BeginTextCommandDisplayText('STRING')
+    AddTextComponentString(text)
+    EndTextCommandDisplayText(0.0, textY)
+    ClearDrawOrigin()
+end
+
+CreateThread(function()
+    while true do
+        if isMenuOpen and menuPreviewState then
+            local localPed = PlayerPedId()
+            if localPed and localPed ~= 0 and DoesEntityExist(localPed) and not IsPedFatallyInjured(localPed) then
+                DrawMenuPreviewNameLabel(
+                    GetPedBoneCoords(localPed, 0x796E, 0.0, 0.0, 0.35),
+                    menuPreviewState.playerName,
+                    true
+                )
+            end
+
+            for _, previewEntry in ipairs(menuPreviewPeds) do
+                local ped = type(previewEntry) == 'table' and previewEntry.ped or previewEntry
+                local label = type(previewEntry) == 'table' and previewEntry.name or nil
+                if ped and DoesEntityExist(ped) and not IsPedFatallyInjured(ped) then
+                    DrawMenuPreviewNameLabel(GetPedBoneCoords(ped, 0x796E, 0.0, 0.0, 0.3), label, false)
+                end
+            end
+
+            Wait(0)
+        else
+            Wait(500)
+        end
+    end
+end)
 
 StartMenuPreview = function(menuPayload, onReady)
     if not CanStartMenuPreview() then
@@ -378,7 +442,8 @@ StartMenuPreview = function(menuPayload, onReady)
     menuPreviewState = {
         coords = GetEntityCoords(ped),
         heading = GetEntityHeading(ped),
-        wasFrozen = IsEntityPositionFrozen(ped)
+        wasFrozen = IsEntityPositionFrozen(ped),
+        playerName = menuPayloadData and tostring(menuPayloadData.playerName or '') or nil
     }
 
     QBCore.Functions.TriggerCallback('gs-survival:server:enterMenuPreview', function(result)
