@@ -151,13 +151,11 @@ end)
 
 Citizen.CreateThread(function()
     while true do
-        if isSurvivalActive and currentModeId == 'classic' then
-            -- Yoğunluk baskılamasını sadece klasik dalga modunda tut.
-            -- ARC zaten bucket odaklı çalıştığı için burada her frame dünya yoğunluğu bastırmak gereksiz yük oluşturur.
+        if isSurvivalActive and (currentModeId == 'classic' or currentModeId == 'arc_pvp') then
             SetVehicleDensityMultiplierThisFrame(0.0)
             SetPedDensityMultiplierThisFrame(0.0)
             SetRandomVehicleDensityMultiplierThisFrame(0.0)
-            SetParkedVehicleDensityMultiplierThisFrame(0.0)
+            SetParkedVehicleDensityMultiplierThisFrame(currentModeId == 'arc_pvp' and 1.0 or 0.0)
             SetScenarioPedDensityMultiplierThisFrame(0.0, 0.0)
             Citizen.Wait(0)
         else
@@ -166,18 +164,89 @@ Citizen.CreateThread(function()
     end
 end)
 
+local function IsArcSessionVehicleEntity(vehicle)
+    if currentModeId ~= 'arc_pvp' or not DoesEntityExist(vehicle) then
+        return false
+    end
+
+    local netId = NetworkGetNetworkIdFromEntity(vehicle)
+    if not netId or netId == 0 then
+        return false
+    end
+
+    for _, vehicleState in pairs(arcSessionVehicles or {}) do
+        if tonumber(vehicleState and vehicleState.netId) == netId then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function IsWithinArcCleanupRadius(sourceCoords, targetCoords, radiusSq)
+    local dx = sourceCoords.x - targetCoords.x
+    local dy = sourceCoords.y - targetCoords.y
+    local dz = sourceCoords.z - targetCoords.z
+    return ((dx * dx) + (dy * dy) + (dz * dz)) <= radiusSq
+end
+
+local function ClearArcAmbientPopulation(radius)
+    local playerPed = PlayerPedId()
+    if not DoesEntityExist(playerPed) then
+        return
+    end
+
+    local centerCoords = GetEntityCoords(playerPed)
+    local radiusSq = radius * radius
+    local playerVehicle = GetVehiclePedIsIn(playerPed, false)
+
+    for _, ped in ipairs(GetGamePool('CPed')) do
+        if ped ~= playerPed and DoesEntityExist(ped) and not IsPedAPlayer(ped) and not IsEntityAMissionEntity(ped) then
+            local pedCoords = GetEntityCoords(ped)
+            if IsWithinArcCleanupRadius(centerCoords, pedCoords, radiusSq) then
+                SetEntityAsMissionEntity(ped, true, true)
+                DeleteEntity(ped)
+            end
+        end
+    end
+
+    for _, vehicle in ipairs(GetGamePool('CVehicle')) do
+        if DoesEntityExist(vehicle) and vehicle ~= playerVehicle and not IsEntityAMissionEntity(vehicle) and not IsArcSessionVehicleEntity(vehicle) then
+            local vehicleCoords = GetEntityCoords(vehicle)
+            if IsWithinArcCleanupRadius(centerCoords, vehicleCoords, radiusSq) then
+                local driver = GetPedInVehicleSeat(vehicle, -1)
+                local hasAmbientDriver = driver ~= 0 and DoesEntityExist(driver) and not IsPedAPlayer(driver)
+                local isMovingVehicle = GetEntitySpeed(vehicle) > 1.0
+
+                if hasAmbientDriver or isMovingVehicle then
+                    if hasAmbientDriver and not IsEntityAMissionEntity(driver) then
+                        SetEntityAsMissionEntity(driver, true, true)
+                        DeleteEntity(driver)
+                    end
+
+                    SetEntityAsMissionEntity(vehicle, true, true)
+                    DeleteEntity(vehicle)
+                end
+            end
+        end
+    end
+end
+
 Citizen.CreateThread(function()
     while true do
-        if isSurvivalActive and currentModeId == 'classic' and currentWave > 0 and not waitingForWave then
-            -- Sadece aktif klasik dalga sırasında dar yarıçaplı araç temizliği uygula.
-            -- Ped temizliğini kaldırıyoruz; bu hem pahalı hem de başka senaryolara yan etki üretebiliyor.
+        if isSurvivalActive and currentModeId == 'arc_pvp' then
+            ClearArcAmbientPopulation(120.0)
+            Citizen.Wait(5000)
+        elseif isSurvivalActive and currentModeId == 'classic' and currentWave > 0 and not waitingForWave then
             local ped = PlayerPedId()
             if DoesEntityExist(ped) then
                 local coords = GetEntityCoords(ped)
                 ClearAreaOfVehicles(coords.x, coords.y, coords.z, 80.0, false, false, false, false, false)
             end
+            Citizen.Wait(15000)
+        else
+            Citizen.Wait(15000) 
         end
-        Citizen.Wait(15000) 
     end
 end)
 
