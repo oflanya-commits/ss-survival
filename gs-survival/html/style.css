@@ -1170,13 +1170,6 @@ body {
     min-height: 100%;
 }
 
-#content.is-animating > * {
-    animation: ui-fade-up 0.24s ease-out both;
-}
-
-#content.is-animating > *:nth-child(2) { animation-delay: 0.04s; }
-#content.is-animating > *:nth-child(3) { animation-delay: 0.08s; }
-
 .menu-shell {
     display: flex;
     min-height: 100%;
@@ -1187,7 +1180,6 @@ body {
     min-height: min(760px, calc(100vh - 176px));
     margin: 0 auto;
     padding: 28px 30px 26px;
-    animation: ui-fade-up 0.24s ease-out both;
     border-radius: 28px;
     border: 1px solid rgba(255,255,255,0.08);
     background:
