@@ -166,25 +166,17 @@ end)
 
 local ARC_AMBIENT_CLEANUP_INTERVAL_MS = 5000
 local ARC_AMBIENT_CLEANUP_RADIUS_METERS = 120.0
-local ARC_MOVING_VEHICLE_SPEED_THRESHOLD = 1.0
+local ARC_MOVING_VEHICLE_SPEED_THRESHOLD_MPS = 1.0
 
-local function IsArcSessionVehicleEntity(vehicle)
-    if currentModeId ~= 'arc_pvp' or not DoesEntityExist(vehicle) then
-        return false
-    end
-
-    local netId = NetworkGetNetworkIdFromEntity(vehicle)
-    if not netId or netId == 0 then
-        return false
-    end
-
+local function BuildArcSessionVehicleNetIdSet()
+    local activeNetIds = {}
     for _, vehicleState in pairs(arcSessionVehicles or {}) do
-        if tonumber(vehicleState and vehicleState.netId) == netId then
-            return true
+        local netId = tonumber(vehicleState and vehicleState.netId)
+        if netId and netId ~= 0 then
+            activeNetIds[netId] = true
         end
     end
-
-    return false
+    return activeNetIds
 end
 
 local function IsWithinArcCleanupRadius(sourceCoords, targetCoords, radiusSq)
@@ -203,6 +195,7 @@ local function ClearArcAmbientPopulation(radius)
     local centerCoords = GetEntityCoords(playerPed)
     local radiusSq = radius * radius
     local playerVehicle = GetVehiclePedIsIn(playerPed, false)
+    local arcSessionVehicleNetIds = currentModeId == 'arc_pvp' and BuildArcSessionVehicleNetIdSet() or {}
 
     for _, ped in ipairs(GetGamePool('CPed')) do
         if ped ~= playerPed and DoesEntityExist(ped) and not IsPedAPlayer(ped) and not IsEntityAMissionEntity(ped) then
@@ -215,12 +208,14 @@ local function ClearArcAmbientPopulation(radius)
     end
 
     for _, vehicle in ipairs(GetGamePool('CVehicle')) do
-        if DoesEntityExist(vehicle) and vehicle ~= playerVehicle and not IsEntityAMissionEntity(vehicle) and not IsArcSessionVehicleEntity(vehicle) then
+        if DoesEntityExist(vehicle) and vehicle ~= playerVehicle and not IsEntityAMissionEntity(vehicle) then
             local vehicleCoords = GetEntityCoords(vehicle)
-            if IsWithinArcCleanupRadius(centerCoords, vehicleCoords, radiusSq) then
+            local vehicleNetId = NetworkGetNetworkIdFromEntity(vehicle)
+            local isArcSessionVehicle = vehicleNetId and vehicleNetId ~= 0 and arcSessionVehicleNetIds[vehicleNetId] == true
+            if not isArcSessionVehicle and IsWithinArcCleanupRadius(centerCoords, vehicleCoords, radiusSq) then
                 local driver = GetPedInVehicleSeat(vehicle, -1)
                 local hasAmbientDriver = driver ~= 0 and DoesEntityExist(driver) and not IsPedAPlayer(driver)
-                local isMovingVehicle = GetEntitySpeed(vehicle) > ARC_MOVING_VEHICLE_SPEED_THRESHOLD
+                local isMovingVehicle = GetEntitySpeed(vehicle) > ARC_MOVING_VEHICLE_SPEED_THRESHOLD_MPS
                 local shouldRemoveVehicle = hasAmbientDriver or isMovingVehicle
 
                 if shouldRemoveVehicle then
