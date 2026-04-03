@@ -35,16 +35,16 @@ RegisterNUICallback('nuiAction', function(data, cb)
         end)
 
     elseif action == 'openArcMainStash' then
-        OpenArcLockerManager('main')
+        OpenArcLockerManager('main', isMenuOpen == true)
 
     elseif action == 'openArcLoadoutStash' then
-        OpenArcLockerManager('loadout')
+        OpenArcLockerManager('loadout', isMenuOpen == true)
 
     elseif action == 'refreshArcLockers' then
-        OpenArcLockerManager(data.data and data.data.focusSide)
+        OpenArcLockerManager(data.data and data.data.focusSide, true)
 
     elseif action == 'swapArcLockerFocus' then
-        OpenArcLockerManager(data.data and data.data.focusSide)
+        OpenArcLockerManager(data.data and data.data.focusSide, true)
 
     elseif action == 'arcProgressComplete' then
         FinalizeUiProgress(tonumber(data.data and data.data.id) or 0, false)

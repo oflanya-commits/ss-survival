@@ -301,7 +301,23 @@ Config.Npc = {
 }
 
 Config.MenuPreview = {
-    Coords = vector4(2386.85, 3063.76, 48.15, 270.0)
+    Coords = vector4(2386.85, 3063.76, 48.15, 270.0),
+    CameraOffset = {
+        forward = 4.15,
+        right = 0.0,
+        up = 1.05
+    },
+    LookAtOffset = {
+        forward = 0.0,
+        right = 0.0,
+        up = 0.78
+    },
+    Fov = 28.0,
+    MemberOffsets = {
+        { forward = 0.0, right = -2.7, up = 0.0 },
+        { forward = 0.0, right = 1.35, up = 0.0 },
+        { forward = 0.0, right = 2.7, up = 0.0 }
+    }
 }
 
 -- Oyun modu seçim menüsünde listelenecek modlar.

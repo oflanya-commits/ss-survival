@@ -88,17 +88,71 @@ local menuPreviewCam = nil
 local menuPreviewState = nil
 local menuPreviewPeds = {}
 local menuPreviewStarting = false
-local MENU_PREVIEW_COORDS = (Config.MenuPreview and Config.MenuPreview.Coords) or vector4(2386.85, 3063.76, 48.15, 270.0)
-local MENU_PREVIEW_CAM_FORWARD_OFFSET = 2.85
-local MENU_PREVIEW_CAM_HEIGHT_OFFSET = 0.95
-local MENU_PREVIEW_LOOK_AT_HEIGHT_OFFSET = 0.78
-local MENU_PREVIEW_FOV = 32.0
--- Oyuncunun kendisi merkezde durur; bu offsetler sadece en fazla 3 lobi üyesinin yanlara dizilmesi içindir.
-local MENU_PREVIEW_MEMBER_OFFSETS = {
-    { forward = 0.0, right = 1.35 },
-    { forward = 0.0, right = -1.35 },
-    { forward = 0.0, right = 2.7 }
+local MENU_PREVIEW_SETTINGS = type(Config.MenuPreview) == 'table' and Config.MenuPreview or {}
+local DEFAULT_MENU_PREVIEW_COORDS = vector4(2386.85, 3063.76, 48.15, 270.0)
+local DEFAULT_MENU_PREVIEW_CAM_OFFSET = { forward = 4.15, right = 0.0, up = 1.05 }
+local DEFAULT_MENU_PREVIEW_LOOK_AT_OFFSET = { forward = 0.0, right = 0.0, up = 0.78 }
+local DEFAULT_MENU_PREVIEW_FOV = 28.0
+local DEFAULT_MENU_PREVIEW_MEMBER_OFFSETS = {
+    { forward = 0.0, right = -2.7, up = 0.0 },
+    { forward = 0.0, right = 1.35, up = 0.0 },
+    { forward = 0.0, right = 2.7, up = 0.0 }
 }
+
+local function NormalizeMenuPreviewOffset(offset, fallback)
+    local safeFallback = fallback or {}
+    if type(offset) ~= 'table' then
+        return {
+            forward = tonumber(safeFallback.forward) or 0.0,
+            right = tonumber(safeFallback.right) or 0.0,
+            up = tonumber(safeFallback.up) or 0.0
+        }
+    end
+
+    return {
+        forward = tonumber(offset.forward) or tonumber(safeFallback.forward) or 0.0,
+        right = tonumber(offset.right) or tonumber(safeFallback.right) or 0.0,
+        up = tonumber(offset.up) or tonumber(safeFallback.up) or 0.0
+    }
+end
+
+local function NormalizeMenuPreviewOffsets(offsets, fallback)
+    local normalized = {}
+
+    if type(offsets) == 'table' then
+        for index, offset in ipairs(offsets) do
+            normalized[#normalized + 1] = NormalizeMenuPreviewOffset(offset, fallback[index])
+        end
+    end
+
+    if #normalized == 0 then
+        for index, offset in ipairs(fallback) do
+            normalized[#normalized + 1] = NormalizeMenuPreviewOffset(offset, offset)
+        end
+    end
+
+    return normalized
+end
+
+local function NormalizeMenuPreviewPoint(coords)
+    if type(coords) ~= 'table' or coords.x == nil or coords.y == nil or coords.z == nil then
+        return nil
+    end
+
+    return vector3(
+        tonumber(coords.x) or 0.0,
+        tonumber(coords.y) or 0.0,
+        tonumber(coords.z) or 0.0
+    )
+end
+
+local MENU_PREVIEW_COORDS = MENU_PREVIEW_SETTINGS.Coords or DEFAULT_MENU_PREVIEW_COORDS
+local MENU_PREVIEW_CAM_COORDS = NormalizeMenuPreviewPoint(MENU_PREVIEW_SETTINGS.CameraCoords)
+local MENU_PREVIEW_CAM_OFFSET = NormalizeMenuPreviewOffset(MENU_PREVIEW_SETTINGS.CameraOffset, DEFAULT_MENU_PREVIEW_CAM_OFFSET)
+local MENU_PREVIEW_LOOK_AT_COORDS = NormalizeMenuPreviewPoint(MENU_PREVIEW_SETTINGS.LookAtCoords)
+local MENU_PREVIEW_LOOK_AT_OFFSET = NormalizeMenuPreviewOffset(MENU_PREVIEW_SETTINGS.LookAtOffset, DEFAULT_MENU_PREVIEW_LOOK_AT_OFFSET)
+local MENU_PREVIEW_FOV = tonumber(MENU_PREVIEW_SETTINGS.Fov) or DEFAULT_MENU_PREVIEW_FOV
+local MENU_PREVIEW_MEMBER_OFFSETS = NormalizeMenuPreviewOffsets(MENU_PREVIEW_SETTINGS.MemberOffsets, DEFAULT_MENU_PREVIEW_MEMBER_OFFSETS)
 local ARC_OVERLAY_INFO_REFRESH_INTERVAL_MS = 1000
 -- Minimap coordinates use normalized screen anchors; clipType 0 restores the default square minimap,
 -- while clipType 1 forces the ARC minimap into the top-right rounded layout.
@@ -124,8 +178,17 @@ local StopMenuPreview
 local CanStartMenuPreview
 
 -- [NUI YARDIMCI FONKSİYONLAR]
-local function OpenNUI(data)
+local function OpenNUI(data, options)
+    local wasOpen = isMenuOpen == true
+    local keepScene = type(options) == 'table' and options.keepScene == true
     isMenuOpen = true
+
+    if keepScene and wasOpen then
+        SendNUIMessage(data)
+        SetNuiFocus(true, true)
+        return
+    end
+
     StartMenuPreview(data, function()
         SendNUIMessage(data)
         SetNuiFocus(true, true)
@@ -260,7 +323,7 @@ local function SpawnMenuPreviewPeds(baseCoords, heading, lineup)
                 Wait(0)
             end
 
-            local pedCoords = OffsetCoordsFromHeading(baseCoords, heading, offset.forward or 0.0, offset.right or 0.0, 0.0)
+            local pedCoords = OffsetCoordsFromHeading(baseCoords, heading, offset.forward or 0.0, offset.right or 0.0, offset.up or 0.0)
             local previewPed = CreatePed(4, appearance.model, pedCoords.x, pedCoords.y, pedCoords.z, heading, false, true)
             SetEntityAsMissionEntity(previewPed, true, true)
             SetEntityInvincible(previewPed, true)
@@ -294,7 +357,22 @@ StartMenuPreview = function(menuPayload, onReady)
     menuPreviewStarting = true
     local previewCoords = vector3(MENU_PREVIEW_COORDS.x, MENU_PREVIEW_COORDS.y, MENU_PREVIEW_COORDS.z)
     local previewHeading = tonumber(MENU_PREVIEW_COORDS.w) or 0.0
-    local camCoords = OffsetCoordsFromHeading(previewCoords, previewHeading, MENU_PREVIEW_CAM_FORWARD_OFFSET, 0.0, MENU_PREVIEW_CAM_HEIGHT_OFFSET)
+    local camCoords = MENU_PREVIEW_CAM_COORDS
+        or OffsetCoordsFromHeading(
+            previewCoords,
+            previewHeading,
+            MENU_PREVIEW_CAM_OFFSET.forward or 0.0,
+            MENU_PREVIEW_CAM_OFFSET.right or 0.0,
+            MENU_PREVIEW_CAM_OFFSET.up or 0.0
+        )
+    local lookAtCoords = MENU_PREVIEW_LOOK_AT_COORDS
+        or OffsetCoordsFromHeading(
+            previewCoords,
+            previewHeading,
+            MENU_PREVIEW_LOOK_AT_OFFSET.forward or 0.0,
+            MENU_PREVIEW_LOOK_AT_OFFSET.right or 0.0,
+            MENU_PREVIEW_LOOK_AT_OFFSET.up or 0.0
+        )
     local menuPayloadData = type(menuPayload) == 'table' and type(menuPayload.data) == 'table' and menuPayload.data or nil
     local lineup = BuildMenuPreviewLineup(menuPayloadData and menuPayloadData.lobbyMembers)
     menuPreviewState = {
@@ -335,7 +413,7 @@ StartMenuPreview = function(menuPayload, onReady)
         end
 
         SetCamCoord(menuPreviewCam, camCoords.x, camCoords.y, camCoords.z)
-        PointCamAtCoord(menuPreviewCam, previewCoords.x, previewCoords.y, previewCoords.z + MENU_PREVIEW_LOOK_AT_HEIGHT_OFFSET)
+        PointCamAtCoord(menuPreviewCam, lookAtCoords.x, lookAtCoords.y, lookAtCoords.z)
         SetCamFov(menuPreviewCam, MENU_PREVIEW_FOV)
         RenderScriptCams(true, false, 0, true, true)
         DoScreenFadeIn(250)
@@ -2224,7 +2302,7 @@ local function BuildArcCraftSourceContext(sourceKey)
     return nil
 end
 
-local function OpenArcLockerManager(focusSide)
+local function OpenArcLockerManager(focusSide, keepScene)
     QBCore.Functions.TriggerCallback('gs-survival:server:getArcLockerState', function(lockerState)
         if not lockerState then
             NotifyForMode("ARC stash bilgisi alınamadı.", "error", 4000, "ARC Depo")
@@ -2234,6 +2312,8 @@ local function OpenArcLockerManager(focusSide)
         OpenNUI({
             type = 'openArcLockers',
             data = lockerState
+        }, {
+            keepScene = keepScene == true
         })
     end, focusSide == 'loadout' and 'loadout' or 'main')
 end
