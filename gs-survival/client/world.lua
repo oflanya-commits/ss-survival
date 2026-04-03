@@ -149,9 +149,25 @@ Citizen.CreateThread(function()
     end
 end)
 
+local ARC_AMBIENT_CLEANUP_INTERVAL_MS = 5000
+local ARC_AMBIENT_CLEANUP_RADIUS_METERS = 120.0
+local ARC_MOVING_VEHICLE_SPEED_THRESHOLD_MPS = 1.0
+
+local function IsPopulationSuppressedMode()
+    return isSurvivalActive and (currentModeId == 'classic' or currentModeId == 'arc_pvp')
+end
+
+local function IsArcModeRunning()
+    return isSurvivalActive and currentModeId == 'arc_pvp'
+end
+
+local function IsClassicWaveRunning()
+    return isSurvivalActive and currentModeId == 'classic' and currentWave > 0 and not waitingForWave
+end
+
 Citizen.CreateThread(function()
     while true do
-        if isSurvivalActive and (currentModeId == 'classic' or currentModeId == 'arc_pvp') then
+        if IsPopulationSuppressedMode() then
             SetVehicleDensityMultiplierThisFrame(0.0)
             SetPedDensityMultiplierThisFrame(0.0)
             SetRandomVehicleDensityMultiplierThisFrame(0.0)
@@ -163,10 +179,6 @@ Citizen.CreateThread(function()
         end
     end
 end)
-
-local ARC_AMBIENT_CLEANUP_INTERVAL_MS = 5000
-local ARC_AMBIENT_CLEANUP_RADIUS_METERS = 120.0
-local ARC_MOVING_VEHICLE_SPEED_THRESHOLD_MPS = 1.0
 
 local function BuildArcSessionVehicleNetIdSet()
     local activeNetIds = {}
@@ -195,7 +207,7 @@ local function ClearArcAmbientPopulation(radius)
     local centerCoords = GetEntityCoords(playerPed)
     local radiusSq = radius * radius
     local playerVehicle = GetVehiclePedIsIn(playerPed, false)
-    local arcSessionVehicleNetIds = currentModeId == 'arc_pvp' and BuildArcSessionVehicleNetIdSet() or {}
+    local arcSessionVehicleNetIds = IsArcModeRunning() and BuildArcSessionVehicleNetIdSet() or {}
 
     for _, ped in ipairs(GetGamePool('CPed')) do
         if ped ~= playerPed and DoesEntityExist(ped) and not IsPedAPlayer(ped) and not IsEntityAMissionEntity(ped) then
@@ -234,10 +246,10 @@ end
 
 Citizen.CreateThread(function()
     while true do
-        if isSurvivalActive and currentModeId == 'arc_pvp' then
+        if IsArcModeRunning() then
             ClearArcAmbientPopulation(ARC_AMBIENT_CLEANUP_RADIUS_METERS)
             Citizen.Wait(ARC_AMBIENT_CLEANUP_INTERVAL_MS)
-        elseif isSurvivalActive and currentModeId == 'classic' and currentWave > 0 and not waitingForWave then
+        elseif IsClassicWaveRunning() then
             local ped = PlayerPedId()
             if DoesEntityExist(ped) then
                 local coords = GetEntityCoords(ped)
