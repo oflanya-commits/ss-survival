@@ -110,6 +110,8 @@ local MENU_PREVIEW_NAME_LABEL = {
     HEIGHT_NORMAL = 0.034,
     HEIGHT_HIGHLIGHT = 0.037,
     ACCENT_Y_RATIO = 0.38,
+    ACCENT_WIDTH_RATIO = 0.92,
+    ACCENT_HEIGHT = 0.0022,
     LOCAL_OFFSET_Z = 0.12,
     MEMBER_OFFSET_Z = 0.1,
     BG_COLOR = { 5, 5, 5, 215 },
@@ -383,8 +385,8 @@ local function GetMenuPreviewNameCoords(ped, isLocalPlayer)
         return nil
     end
 
-    local _, maxDim = GetModelDimensions(model)
-    if not maxDim or maxDim.z == nil then
+    local minDim, maxDim = GetModelDimensions(model)
+    if not minDim or not maxDim or maxDim.z == nil then
         return nil
     end
 
@@ -409,7 +411,13 @@ local function DrawMenuPreviewNameLabel(coords, label, highlight)
 
     SetDrawOrigin(coords.x, coords.y, coords.z, 0)
     DrawRect(0.0, rectY, width, height, table.unpack(MENU_PREVIEW_NAME_LABEL.BG_COLOR))
-    DrawRect(0.0, accentY, width * 0.92, 0.0022, table.unpack(MENU_PREVIEW_NAME_LABEL.ACCENT_COLOR))
+    DrawRect(
+        0.0,
+        accentY,
+        width * MENU_PREVIEW_NAME_LABEL.ACCENT_WIDTH_RATIO,
+        MENU_PREVIEW_NAME_LABEL.ACCENT_HEIGHT,
+        table.unpack(MENU_PREVIEW_NAME_LABEL.ACCENT_COLOR)
+    )
     SetTextScale(0.0, highlight and MENU_PREVIEW_NAME_LABEL.TEXT_SCALE_HIGHLIGHT or MENU_PREVIEW_NAME_LABEL.TEXT_SCALE_NORMAL)
     SetTextFont(MENU_PREVIEW_NAME_LABEL.FONT_ID)
     SetTextProportional(true)
