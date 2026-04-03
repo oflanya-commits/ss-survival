@@ -1,14 +1,17 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 local MAX_LOBBY_SIZE = 4
 local MAX_LOBBY_MEMBERS = MAX_LOBBY_SIZE - 1
-local ARC_EXTRACTION_HELI_SPAWN_OFFSET = vector3(110.0, -70.0, 18.0)
-local ARC_EXTRACTION_HELI_MIN_SPEED = 4.0
-local ARC_EXTRACTION_HELI_MAX_SPEED = 25.0
-local ARC_EXTRACTION_HELI_HOVER_SPEED = 6.0
-local ARC_EXTRACTION_HELI_RADIUS = 8.0
-local ARC_EXTRACTION_HELI_SLOW_DIST = 20.0
-local ARC_EXTRACTION_HELI_MISSION_TYPE = 4
-local ARC_EXTRACTION_HELI_MISSION_FLAGS = 0
+-- Keep ARC extraction helicopter settings grouped to stay below FiveM/Lua's top-level local limit.
+local ARC_EXTRACTION_HELI = {
+    spawnOffset = vector3(110.0, -70.0, 18.0),
+    minSpeed = 4.0,
+    maxSpeed = 25.0,
+    hoverSpeed = 6.0,
+    radius = 8.0,
+    slowDist = 20.0,
+    missionType = 4,
+    missionFlags = 0
+}
 local SCREEN_TRANSITION_FADE_DURATION_MS = 600
 local SCREEN_TRANSITION_BLACK_HOLD_MS = 3400
 local SCREEN_TRANSITION_TOTAL_DURATION_MS = (SCREEN_TRANSITION_FADE_DURATION_MS * 2) + SCREEN_TRANSITION_BLACK_HOLD_MS
@@ -1764,9 +1767,9 @@ local function EnsureArcExtractionScene()
     local hoverHeight = tonumber(arcExtractionState.helicopterHeight or 80.0) or 80.0
     local hoverCoords = vector3(zoneCoords.x, zoneCoords.y, zoneCoords.z + hoverHeight)
     local startCoords = vector3(
-        zoneCoords.x + ARC_EXTRACTION_HELI_SPAWN_OFFSET.x,
-        zoneCoords.y + ARC_EXTRACTION_HELI_SPAWN_OFFSET.y,
-        zoneCoords.z + hoverHeight + ARC_EXTRACTION_HELI_SPAWN_OFFSET.z
+        zoneCoords.x + ARC_EXTRACTION_HELI.spawnOffset.x,
+        zoneCoords.y + ARC_EXTRACTION_HELI.spawnOffset.y,
+        zoneCoords.z + hoverHeight + ARC_EXTRACTION_HELI.spawnOffset.z
     )
     local heading = tonumber(arcExtractionState.zone.heading or 0.0) or 0.0
     local shouldApproach = arcExtractionState.phase == 'called' or arcExtractionState.phase == 'inbound'
@@ -1816,8 +1819,8 @@ local function EnsureArcExtractionScene()
         local inboundSeconds = math.max(1.0, tonumber(arcExtractionState.callDelay or 45) or 45.0)
         local approachDistance = #(hoverCoords - startCoords)
         local flightSpeed = shouldApproach
-            and math.max(ARC_EXTRACTION_HELI_MIN_SPEED, math.min(ARC_EXTRACTION_HELI_MAX_SPEED, approachDistance / inboundSeconds))
-            or ARC_EXTRACTION_HELI_HOVER_SPEED
+            and math.max(ARC_EXTRACTION_HELI.minSpeed, math.min(ARC_EXTRACTION_HELI.maxSpeed, approachDistance / inboundSeconds))
+            or ARC_EXTRACTION_HELI.hoverSpeed
 
         ClearPedTasks(arcExtractionPilot)
         TaskHeliMission(
@@ -1828,14 +1831,14 @@ local function EnsureArcExtractionScene()
             hoverCoords.x,
             hoverCoords.y,
             hoverCoords.z,
-            ARC_EXTRACTION_HELI_MISSION_TYPE,
+            ARC_EXTRACTION_HELI.missionType,
             flightSpeed,
-            ARC_EXTRACTION_HELI_RADIUS,
+            ARC_EXTRACTION_HELI.radius,
             heading,
             hoverHeight,
             math.max(18.0, hoverHeight * 0.5),
-            ARC_EXTRACTION_HELI_SLOW_DIST,
-            ARC_EXTRACTION_HELI_MISSION_FLAGS
+            ARC_EXTRACTION_HELI.slowDist,
+            ARC_EXTRACTION_HELI.missionFlags
         )
         SetPedKeepTask(arcExtractionPilot, true)
         arcExtractionHeliTaskKey = targetTaskKey
