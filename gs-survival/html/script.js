@@ -419,10 +419,7 @@ function fmtNum(n) {
 
 function setContent(html) {
     hideTooltip();
-    contentEl.classList.remove('is-animating');
     contentEl.innerHTML = html || '';
-    void contentEl.offsetWidth;
-    contentEl.classList.add('is-animating');
     bindImageFallbacks(contentEl);
 }
 
