@@ -98,6 +98,14 @@ local MENU_PREVIEW_NAME_LABEL_MAX_WIDTH = 0.16
 local MENU_PREVIEW_NAME_LABEL_WIDTH_PER_CHAR = 0.0032
 local MENU_PREVIEW_NAME_LABEL_BASE_WIDTH = 0.016
 local MENU_PREVIEW_NAME_LABEL_DRAW_INTERVAL_MS = 16
+local MENU_PREVIEW_NAME_LABEL_HEAD_BONE = 0x796E
+local MENU_PREVIEW_NAME_LABEL_LOCAL_OFFSET_Z = 0.35
+local MENU_PREVIEW_NAME_LABEL_MEMBER_OFFSET_Z = 0.3
+local MENU_PREVIEW_NAME_LABEL_BG_COLOR = { 6, 8, 12, 150 }
+local MENU_PREVIEW_NAME_LABEL_TEXT_SCALE_HIGHLIGHT = 0.34
+local MENU_PREVIEW_NAME_LABEL_TEXT_SCALE_NORMAL = 0.31
+local MENU_PREVIEW_NAME_LABEL_COLOR_HIGHLIGHT = { 255, 232, 164, 255 }
+local MENU_PREVIEW_NAME_LABEL_COLOR_NORMAL = { 255, 255, 255, 235 }
 local DEFAULT_MENU_PREVIEW_MEMBER_OFFSETS = {
     { forward = 0.0, right = -1.35, up = 0.0 },
     { forward = 0.0, right = 1.35, up = 0.0 },
@@ -365,17 +373,17 @@ local function DrawMenuPreviewNameLabel(coords, label, highlight)
     local rectY = 0.014
 
     SetDrawOrigin(coords.x, coords.y, coords.z, 0)
-    DrawRect(0.0, rectY, width, 0.03, 6, 8, 12, 150)
-    SetTextScale(0.0, highlight and 0.34 or 0.31)
+    DrawRect(0.0, rectY, width, 0.03, table.unpack(MENU_PREVIEW_NAME_LABEL_BG_COLOR))
+    SetTextScale(0.0, highlight and MENU_PREVIEW_NAME_LABEL_TEXT_SCALE_HIGHLIGHT or MENU_PREVIEW_NAME_LABEL_TEXT_SCALE_NORMAL)
     SetTextFont(0)
     SetTextProportional(true)
     SetTextCentre(true)
     SetTextDropshadow(1, 0, 0, 0, 180)
     SetTextOutline()
     if highlight then
-        SetTextColour(255, 232, 164, 255)
+        SetTextColour(table.unpack(MENU_PREVIEW_NAME_LABEL_COLOR_HIGHLIGHT))
     else
-        SetTextColour(255, 255, 255, 235)
+        SetTextColour(table.unpack(MENU_PREVIEW_NAME_LABEL_COLOR_NORMAL))
     end
     BeginTextCommandDisplayText('STRING')
     AddTextComponentString(text)
@@ -389,7 +397,7 @@ CreateThread(function()
             local localPed = PlayerPedId()
             if localPed and localPed ~= 0 and DoesEntityExist(localPed) and not IsPedFatallyInjured(localPed) then
                 DrawMenuPreviewNameLabel(
-                    GetPedBoneCoords(localPed, 0x796E, 0.0, 0.0, 0.35),
+                    GetPedBoneCoords(localPed, MENU_PREVIEW_NAME_LABEL_HEAD_BONE, 0.0, 0.0, MENU_PREVIEW_NAME_LABEL_LOCAL_OFFSET_Z),
                     menuPreviewState.playerName,
                     true
                 )
@@ -399,7 +407,7 @@ CreateThread(function()
                 local ped = type(previewEntry) == 'table' and previewEntry.ped or previewEntry
                 local label = type(previewEntry) == 'table' and previewEntry.name or nil
                 if ped and DoesEntityExist(ped) and not IsPedFatallyInjured(ped) then
-                    DrawMenuPreviewNameLabel(GetPedBoneCoords(ped, 0x796E, 0.0, 0.0, 0.3), label, false)
+                    DrawMenuPreviewNameLabel(GetPedBoneCoords(ped, MENU_PREVIEW_NAME_LABEL_HEAD_BONE, 0.0, 0.0, MENU_PREVIEW_NAME_LABEL_MEMBER_OFFSET_Z), label, false)
                 end
             end
 
