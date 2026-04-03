@@ -107,7 +107,6 @@ local MENU_PREVIEW_NAME_LABEL = {
     WIDTH_PER_CHAR = 0.0032,
     BASE_WIDTH = 0.016,
     DRAW_INTERVAL_MS = 0,
-    DEFAULT_PED_TOP_Z = 0.85,
     MIN_HEIGHT = 0.034,
     MAX_HEIGHT = 0.04,
     BASE_HEIGHT = 0.028,
@@ -380,13 +379,18 @@ local function GetMenuPreviewNameCoords(ped, isLocalPlayer)
         return nil
     end
 
-    local _, maxDim = GetModelDimensions(GetEntityModel(ped))
-    if not maxDim then
+    local model = GetEntityModel(ped)
+    if not model or model == 0 then
+        return nil
+    end
+
+    local _, maxDim = GetModelDimensions(model)
+    if not maxDim or maxDim.z == nil then
         return nil
     end
 
     local extraOffset = isLocalPlayer and MENU_PREVIEW_NAME_LABEL.LOCAL_OFFSET_Z or MENU_PREVIEW_NAME_LABEL.MEMBER_OFFSET_Z
-    return GetOffsetFromEntityInWorldCoords(ped, 0.0, 0.0, (maxDim.z or MENU_PREVIEW_NAME_LABEL.DEFAULT_PED_TOP_Z) + extraOffset)
+    return GetOffsetFromEntityInWorldCoords(ped, 0.0, 0.0, maxDim.z + extraOffset)
 end
 
 local function DrawMenuPreviewNameLabel(coords, label, highlight)
