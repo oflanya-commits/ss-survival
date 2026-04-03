@@ -93,6 +93,11 @@ local DEFAULT_MENU_PREVIEW_COORDS = vector4(2386.85, 3063.76, 48.15, 270.0)
 local DEFAULT_MENU_PREVIEW_CAM_OFFSET = { forward = 4.15, right = 0.0, up = 1.05 }
 local DEFAULT_MENU_PREVIEW_LOOK_AT_OFFSET = { forward = 0.0, right = 0.0, up = 0.78 }
 local DEFAULT_MENU_PREVIEW_FOV = 28.0
+local MENU_PREVIEW_NAME_LABEL_MIN_WIDTH = 0.055
+local MENU_PREVIEW_NAME_LABEL_MAX_WIDTH = 0.16
+local MENU_PREVIEW_NAME_LABEL_WIDTH_PER_CHAR = 0.0032
+local MENU_PREVIEW_NAME_LABEL_BASE_WIDTH = 0.016
+local MENU_PREVIEW_NAME_LABEL_DRAW_INTERVAL_MS = 16
 local DEFAULT_MENU_PREVIEW_MEMBER_OFFSETS = {
     { forward = 0.0, right = -1.35, up = 0.0 },
     { forward = 0.0, right = 1.35, up = 0.0 },
@@ -307,7 +312,7 @@ local function BuildMenuPreviewLineup(lobbyMembers)
             if appearance then
                 lineup[#lineup + 1] = {
                     appearance = appearance,
-                    name = member.name or ("Oyuncu #" .. tostring(member.id or '?'))
+                    name = member.name or string.format("Oyuncu #%s", member.id or '?')
                 }
             end
         end
@@ -352,7 +357,10 @@ local function DrawMenuPreviewNameLabel(coords, label, highlight)
     end
 
     local text = tostring(label)
-    local width = math.min(0.16, math.max(0.055, (#text * 0.0032) + 0.016))
+    local width = math.min(
+        MENU_PREVIEW_NAME_LABEL_MAX_WIDTH,
+        math.max(MENU_PREVIEW_NAME_LABEL_MIN_WIDTH, (#text * MENU_PREVIEW_NAME_LABEL_WIDTH_PER_CHAR) + MENU_PREVIEW_NAME_LABEL_BASE_WIDTH)
+    )
     local textY = -0.004
     local rectY = 0.014
 
@@ -395,7 +403,7 @@ CreateThread(function()
                 end
             end
 
-            Wait(0)
+            Wait(MENU_PREVIEW_NAME_LABEL_DRAW_INTERVAL_MS)
         else
             Wait(500)
         end
