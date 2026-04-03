@@ -1,3 +1,6 @@
+local SPAWNED_PED_NET_ID_MAX_ATTEMPTS = 20
+local SPAWNED_PED_NET_ID_RETRY_DELAY_MS = 25
+
 local function StartModeOperation(src, invited, stageId, modeId)
     local Player = QBCore.Functions.GetPlayer(src)
     if not Player then return end
@@ -369,14 +372,12 @@ RegisterNetEvent('gs-survival:server:spawnWave', function(bId, wave, stageId)
             if DoesEntityExist(npc) then
                 SetEntityRoutingBucket(npc, bucketId)
 
-                local maxNetIdAttempts = 20
-                local netIdRetryDelayMs = 25
                 local netId = 0
                 local netIdAttempts = 0
-                while DoesEntityExist(npc) and netId == 0 and netIdAttempts < maxNetIdAttempts do
+                while DoesEntityExist(npc) and netId == 0 and netIdAttempts < SPAWNED_PED_NET_ID_MAX_ATTEMPTS do
                     netId = NetworkGetNetworkIdFromEntity(npc)
                     if netId == 0 then
-                        Wait(netIdRetryDelayMs)
+                        Wait(SPAWNED_PED_NET_ID_RETRY_DELAY_MS)
                         netIdAttempts = netIdAttempts + 1
                     end
                 end
